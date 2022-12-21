@@ -662,10 +662,10 @@ enc_signed_integer     = "signed_integer(" MAYBE_WSLC ranged(numeric) ARG_SEP bi
 enc_ieee754_binary     = "ieee754_binary(" MAYBE_WSLC ranged(numeric) ARG_SEP bit_count MAYBE_WSLC ')';
 enc_little_endian      = "little_endian(" MAYBE_WSLC expression MAYBE_WSLC ')';
 
-builtins               = builtin_limit | builtin_pad_to | builtin_pad_edge | builtin_if | builtin_bind'
-builtin_limit          = "limit(" MAYBE_WSLC expression ARG_SEP bit_count MAYBE_WSLC ")"
-builtin_pad_to         = "pad_to(" MAYBE_WSLC expression ARG_SEP bit_count ARG_SEP expression MAYBE_WSLC ")"
-builtin_pad_edge       = "pad_edge(" MAYBE_WSLC expression ARG_SEP bit_count ARG_SEP expression MAYBE_WSLC ")"
+builtins               = builtin_limit | builtin_pad_to | builtin_pad_edge | builtin_if | builtin_bind;
+builtin_limit          = "limit(" MAYBE_WSLC expression ARG_SEP bit_count MAYBE_WSLC ")";
+builtin_pad_to         = "pad_to(" MAYBE_WSLC expression ARG_SEP bit_count ARG_SEP expression MAYBE_WSLC ")";
+builtin_pad_edge       = "pad_edge(" MAYBE_WSLC expression ARG_SEP bit_count ARG_SEP expression MAYBE_WSLC ")";
 builtin_if             = "if(" MAYBE_WSLC condition ARG_SEP expression MAYBE_WSLC ')';
 builtin_bind           = "bind(" MAYBE_WSLC bind_id ARG_SEP expression MAYBE_WSLC ')';
 
@@ -675,7 +675,7 @@ bind_id                = identifier_local;
 variable               = bind_id | subvariable;
 subvariable            = variable '.' variable;
 
-numeric                = calculation
+numeric                = calculation;
 
 calculation            = calculation_term | addition | subtraction;
 calculation_term       = operand | multiplication | division | modulus;
@@ -688,7 +688,7 @@ modulus                = calculation MAYBE_WSLC '%' MAYBE_WSLC calculation_term;
 
 condition              = grouped(condition) | comparison | logical_and | logical_or | logical_not;
 comparison             = operand MAYBE_WSLC comparator MAYBE_WSLC operand;
-comparator             = comparator_lt | comparator_lte | comparator_gt | comparator_gte | comparator_eq
+comparator             = comparator_lt | comparator_lte | comparator_gt | comparator_gte | comparator_eq;
 comparator_lt          = "<";
 comparator_lte         = "<=";
 comparator_gt          = ">";
@@ -701,11 +701,11 @@ logical_not            = '!' MAYBE_WSLC condition_group;
 grouped(type)          = '(' MAYBE_WSLC type MAYBE_WSLC ')';
 ranged(type)           = type | (type? MAYBE_WSLC '~' MAYBE_WSLC type?);
 
-numeric_literal        = (neg? pint_literal) | real_literal
+numeric_literal        = (neg? pint_literal) | real_literal;
 
-real_literal           = real_dec_literal | real_hex_literal
-real_dec_literal       = neg? pint_dec_literal '.' digit_dec+ (('e' | 'E') ('+' | '-')? digit_dec+)?
-real_hex_literal       = neg? pint_hex_literal '.' digit_hex+ (('p' | 'P') ('+' | '-')? digit_dec+)?
+real_literal           = real_dec_literal | real_hex_literal;
+real_dec_literal       = neg? pint_dec_literal '.' digit_dec+ (('e' | 'E') ('+' | '-')? digit_dec+)?;
+real_hex_literal       = neg? pint_hex_literal '.' digit_hex+ (('p' | 'P') ('+' | '-')? digit_dec+)?;
 
 pint_literal           = pint_bin_literal | pint_oct_literal | pint_dec_literal | pint_hex_literal;
 pint_bin_literal       = '0' ('b' | 'B') digit_bin+;
@@ -739,7 +739,7 @@ digit_bin              = ('0'~'9') | ('a'~'f') | ('A'~'F');
 
 comment                = '#' (printable_ws ! LINE_END)* LINE_END;
 
-ARG_SEP                = MAYBE_WSLC ',' MAYBE_WSLC
+ARG_SEP                = MAYBE_WSLC ',' MAYBE_WSLC;
 
 # Whitespace
 MAYBE_WS               = WS*;
