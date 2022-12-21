@@ -627,10 +627,10 @@ expression             = symbol
                        | grouped(expression)
                        ;
 
-symbol                 = identifier;
-macro_declaration      = identifier '(' MAYBE_WSLC macro_param_name (ARG_SEP macro_param_name)* MAYBE_WSLC ')';
-macro_param_name       = identifier;
-macro_call             = identifier '(' MAYBE_WSLC macro_param (ARG_SEP macro_param)* MAYBE_WSLC ')';
+symbol                 = identifier_custom;
+macro_declaration      = identifier_custom '(' MAYBE_WSLC macro_param_name (ARG_SEP macro_param_name)* MAYBE_WSLC ')';
+macro_param_name       = identifier_general;
+macro_call             = identifier_general '(' MAYBE_WSLC macro_param (ARG_SEP macro_param)* MAYBE_WSLC ')';
 macro_param            = expression | calculation | condition;
 
 concat                 = expression (SOME_WSLC expression)+;
@@ -642,7 +642,7 @@ string_literal         = ('"' char_or_escape{2~} '"') | ("'" char_or_escape{2~} 
 char_or_escape         = (printable_ws ! ('"' | '\\')) | escape;
 escape                 = (escape_init (printable ! '{')) | escape_codepoint;
 escape_init            = '\\';
-escape_codepoint       = '{' pint_hex_literal '}';
+escape_codepoint       = '{' digit_hex+ '}';
 codepoint_category     = "cp_category(" MAYBE_WSLC cp_category_name (ARG_SEP cp_category_name)* MAYBE_WSLC ')';
 cp_category_name       = ('A'~'Z') ('a'~'z')?;
 
@@ -671,7 +671,7 @@ builtin_bind           = "bind(" MAYBE_WSLC bind_id ARG_SEP expression MAYBE_WSL
 
 bit_count              = numeric;
 
-bind_id                = identifier;
+bind_id                = identifier_local;
 variable               = bind_id | subvariable;
 subvariable            = variable '.' variable;
 
@@ -714,8 +714,7 @@ pint_dec_literal       = digit_dec+;
 pint_hex_literal       = '0' ('x' | 'X') digit_hex+;
 neg                    = '-';
 
-identifier             = (identifier_first identifier_next*) !
-                         ( "limit"
+reserved_identifiers   = ( "limit"
                          | "pad_to"
                          | "pad_edge"
                          | "if"
@@ -725,6 +724,9 @@ identifier             = (identifier_first identifier_next*) !
                          | "ieee754_binary"
                          | "little_endian"
                          );
+
+identifier_general     = identifier_first identifier_next*;
+identifier_custom      = identifier_local ! reserved_identifiers;
 identifier_first       = cp_category(L,M);
 identifier_next        = identifier_first | cp_category(N) | '_';
 printable              = cp_category(L,M,N,P,S);
