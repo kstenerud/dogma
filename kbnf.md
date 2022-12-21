@@ -403,7 +403,7 @@ Builtins:
 
 - limit(v: bits, bit_count: discrete_uint): bits
 - pad_to(v: bits, bit_count: discrete_uint, padding: bits): bits
-- pad_edge(v: bits, bit_count: discrete_uint, padding: bits): bits
+- pad_align(v: bits, bit_count: discrete_uint, padding: bits): bits
 - if(condition: bool, on_true: bits): bits
 - bind(name: identifier, value: any): any
 - cp_category(names: category_name): bits
@@ -423,6 +423,8 @@ Other common encodings:
 - vlq: https://en.wikipedia.org/wiki/Variable-length_quantity
 - zigzag: https://en.wikipedia.org/wiki/Variable-length_quantity#Zigzag_encoding
 
+
+Pad repeats padding expression until pad size fulfilled.
 
 #### bind
 
@@ -612,7 +614,7 @@ header_value           = printable_ws+;
 grammar                = production*;
 production             = MAYBE_WSLC (symbol | macro_declaration) MAYBE_WSLC '=' MAYBE_WSLC expression MAYBE_WSLC ';';
 expression             = symbol
-                       | macro_call
+                       | call
                        | string_literal
                        | ranged(codepoint_literal)
                        | codepoint_category
@@ -630,8 +632,8 @@ expression             = symbol
 symbol                 = identifier_custom;
 macro_declaration      = identifier_custom '(' MAYBE_WSLC macro_param_name (ARG_SEP macro_param_name)* MAYBE_WSLC ')';
 macro_param_name       = identifier_general;
-macro_call             = identifier_general '(' MAYBE_WSLC macro_param (ARG_SEP macro_param)* MAYBE_WSLC ')';
-macro_param            = expression | calculation | condition;
+call                   = identifier_general '(' MAYBE_WSLC call_param (ARG_SEP call_param)* MAYBE_WSLC ')';
+call_param             = expression | calculation | condition;
 
 concat                 = expression (SOME_WSLC expression)+;
 alternate              = expression (MAYBE_WSLC '|' MAYBE_WSLC expression)+;
@@ -662,10 +664,10 @@ enc_signed_integer     = "signed_integer(" MAYBE_WSLC ranged(numeric) ARG_SEP bi
 enc_ieee754_binary     = "ieee754_binary(" MAYBE_WSLC ranged(numeric) ARG_SEP bit_count MAYBE_WSLC ')';
 enc_little_endian      = "little_endian(" MAYBE_WSLC expression MAYBE_WSLC ')';
 
-builtins               = builtin_limit | builtin_pad_to | builtin_pad_edge | builtin_if | builtin_bind;
+builtins               = builtin_limit | builtin_pad_to | builtin_pad_align | builtin_if | builtin_bind;
 builtin_limit          = "limit(" MAYBE_WSLC expression ARG_SEP bit_count MAYBE_WSLC ")";
 builtin_pad_to         = "pad_to(" MAYBE_WSLC expression ARG_SEP bit_count ARG_SEP expression MAYBE_WSLC ")";
-builtin_pad_edge       = "pad_edge(" MAYBE_WSLC expression ARG_SEP bit_count ARG_SEP expression MAYBE_WSLC ")";
+builtin_pad_align      = "pad_align(" MAYBE_WSLC expression ARG_SEP bit_count ARG_SEP expression MAYBE_WSLC ")";
 builtin_if             = "if(" MAYBE_WSLC condition ARG_SEP expression MAYBE_WSLC ')';
 builtin_bind           = "bind(" MAYBE_WSLC bind_id ARG_SEP expression MAYBE_WSLC ')';
 
@@ -716,7 +718,7 @@ neg                    = '-';
 
 reserved_identifiers   = ( "limit"
                          | "pad_to"
-                         | "pad_edge"
+                         | "pad_align"
                          | "if"
                          | "bind"
                          | "unsigned_integer"
