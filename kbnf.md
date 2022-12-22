@@ -611,13 +611,13 @@ header_line            = '-' SOME_WS header_name MAYBE_WS '=' SOME_WS header_val
 header_name            = printable+;
 header_value           = printable_ws+;
 
-grammar                = production*;
-production             = MAYBE_WSLC (symbol | macro) MAYBE_WSLC '=' MAYBE_WSLC expression MAYBE_WSLC ';';
+grammar                = (MAYBE_WSLC production_rule)*;
+production_rule        = (symbol | macro) TOKEN_SEP '=' TOKEN_SEP expression TOKEN_SEP ';';
 expression             = symbol
                        | call
                        | string_literal
-                       | ranged(codepoint_literal)
-                       | concat
+                       | maybe_ranged(codepoint_literal)
+                       | concatenate
                        | alternate
                        | exclude
                        | builtin_encodings
@@ -628,15 +628,15 @@ expression             = symbol
                        | grouped(expression)
                        ;
 
-symbol                 = identifier_custom;
-macro                  = identifier_custom '(' MAYBE_WSLC macro_param_name (ARG_SEP macro_param_name)* MAYBE_WSLC ')';
+symbol                 = identifier_restricted;
+macro                  = identifier_restricted '(' TOKEN_SEP macro_param_name (ARG_SEP macro_param_name)* TOKEN_SEP ')';
 macro_param_name       = identifier_any;
-call                   = identifier_any '(' MAYBE_WSLC call_param (ARG_SEP call_param)* MAYBE_WSLC ')';
+call                   = identifier_any '(' TOKEN_SEP call_param (ARG_SEP call_param)* TOKEN_SEP ')';
 call_param             = expression | calculation(uint | sint | real) | condition;
 
-concat                 = expression (SOME_WSLC expression)+;
-alternate              = expression (MAYBE_WSLC '|' MAYBE_WSLC expression)+;
-exclude                = expression MAYBE_WSLC '!' MAYBE_WSLC expression;
+concatenate            = expression (SOME_WSLC expression)+;
+alternate              = expression (TOKEN_SEP '|' TOKEN_SEP expression)+;
+exclude                = expression TOKEN_SEP '!' TOKEN_SEP expression;
 
 prose                  = '"""' (escapable_char(printable_wsl, '"')+ ! '"""') '"""'
                        | "'''" (escapable_char(printable_wsl, "'")+ ! "'''") "'''"
@@ -648,24 +648,24 @@ escape                 = '\\' (printable ! '{') | escape_codepoint);
 escape_codepoint       = '{' digit_hex+ '}';
 
 repetition             = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
-repeat_range           = expression '{' MAYBE_WSLC ranged(calculation(uint)) MAYBE_WSLC '}';
+repeat_range           = expression '{' TOKEN_SEP maybe_ranged(calculation(uint)) TOKEN_SEP '}';
 repeat_zero_or_one     = expression '?';
 repeat_zero_or_more    = expression '*';
 repeat_one_or_more     = expression '+';
 
 builtin_encodings      = enc_unsigned_integer | enc_signed_integer | enc_ieee754_binary | enc_little_endian;
-enc_unsigned_integer   = "unsigned_integer(" MAYBE_WSLC ranged(calculation(uint)) ARG_SEP bit_count MAYBE_WSLC ')';
-enc_signed_integer     = "signed_integer(" MAYBE_WSLC ranged(calculation(sint)) ARG_SEP bit_count MAYBE_WSLC ')';
-enc_ieee754_binary     = "ieee754_binary(" MAYBE_WSLC ranged(calculation(real)) ARG_SEP bit_count MAYBE_WSLC ')';
-enc_little_endian      = "little_endian(" MAYBE_WSLC expression MAYBE_WSLC ')';
+enc_unsigned_integer   = "unsigned_integer(" TOKEN_SEP maybe_ranged(calculation(uint)) ARG_SEP bit_count TOKEN_SEP ')';
+enc_signed_integer     = "signed_integer(" TOKEN_SEP maybe_ranged(calculation(sint)) ARG_SEP bit_count TOKEN_SEP ')';
+enc_ieee754_binary     = "ieee754_binary(" TOKEN_SEP maybe_ranged(calculation(real)) ARG_SEP bit_count TOKEN_SEP ')';
+enc_little_endian      = "little_endian(" TOKEN_SEP expression TOKEN_SEP ')';
 
 builtin_functions      = function_limit | function_pad_to | function_pad_align | function_if | function_bind | function_cp_category;
-function_limit         = "limit(" MAYBE_WSLC expression ARG_SEP bit_count MAYBE_WSLC ")";
-function_pad_to        = "pad_to(" MAYBE_WSLC expression ARG_SEP bit_count ARG_SEP expression MAYBE_WSLC ")";
-function_pad_align     = "pad_align(" MAYBE_WSLC expression ARG_SEP bit_count ARG_SEP expression MAYBE_WSLC ")";
-function_if            = "if(" MAYBE_WSLC condition ARG_SEP expression MAYBE_WSLC ')';
-function_bind          = "bind(" MAYBE_WSLC bind_id ARG_SEP expression MAYBE_WSLC ')';
-function_cp_category   = "cp_category(" MAYBE_WSLC cp_category_name (ARG_SEP cp_category_name)* MAYBE_WSLC ')';
+function_limit         = "limit(" TOKEN_SEP expression ARG_SEP bit_count TOKEN_SEP ")";
+function_pad_to        = "pad_to(" TOKEN_SEP expression ARG_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
+function_pad_align     = "pad_align(" TOKEN_SEP expression ARG_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
+function_if            = "if(" TOKEN_SEP condition ARG_SEP expression TOKEN_SEP ')';
+function_bind          = "bind(" TOKEN_SEP bind_id ARG_SEP expression TOKEN_SEP ')';
+function_cp_category   = "cp_category(" TOKEN_SEP cp_category_name (ARG_SEP cp_category_name)* TOKEN_SEP ')';
 
 bind_id                = identifier_any;
 variable               = bind_id | subvariable;
@@ -675,22 +675,22 @@ cp_category_name       = ('A'~'Z') ('a'~'z')?;
 
 calculation(type)      = calculation_term(type) | addition(type) | subtraction(type);
 calculation_term(type) = operand(type) | multiplication(type) | division(type) | modulus(type);
-operand(type)          = type | variable | grouped(calculation(type)) | calculation(type);
-addition(type)         = calculation(type) MAYBE_WSLC '+' MAYBE_WSLC calculation_term(type);
-subtraction(type)      = calculation(type) MAYBE_WSLC '-' MAYBE_WSLC calculation_term(type);
-multiplication(type)   = calculation(type) MAYBE_WSLC '*' MAYBE_WSLC calculation_term(type);
-division(type)         = calculation(type) MAYBE_WSLC '/' MAYBE_WSLC calculation_term(type);
-modulus(type)          = calculation(type) MAYBE_WSLC '%' MAYBE_WSLC calculation_term(type);
+operand(type)          = type | variable | calculation(type) | grouped(calculation(type));
+addition(type)         = calculation(type) TOKEN_SEP '+' TOKEN_SEP calculation_term(type);
+subtraction(type)      = calculation(type) TOKEN_SEP '-' TOKEN_SEP calculation_term(type);
+multiplication(type)   = calculation(type) TOKEN_SEP '*' TOKEN_SEP calculation_term(type);
+division(type)         = calculation(type) TOKEN_SEP '/' TOKEN_SEP calculation_term(type);
+modulus(type)          = calculation(type) TOKEN_SEP '%' TOKEN_SEP calculation_term(type);
 
-condition              = grouped(condition) | comparison | logical_and | logical_or | logical_not;
-comparison             = operand(uint | sint | real) MAYBE_WSLC comparator MAYBE_WSLC operand(uint | sint | real);
+condition              = comparison | logical_and | logical_or | logical_not | grouped(condition);
+comparison             = operand(uint | sint | real) TOKEN_SEP comparator TOKEN_SEP operand(uint | sint | real);
 comparator             = "<" | "<=" | "=" | ">= | ">";
-logical_and            = condition MAYBE_WSLC '&' MAYBE_WSLC condition;
-logical_or             = condition MAYBE_WSLC '|' MAYBE_WSLC condition;
-logical_not            = '!' MAYBE_WSLC condition_group;
+logical_and            = condition TOKEN_SEP '&' TOKEN_SEP condition;
+logical_or             = condition TOKEN_SEP '|' TOKEN_SEP condition;
+logical_not            = '!' TOKEN_SEP condition_group;
 
-grouped(type)          = '(' MAYBE_WSLC type MAYBE_WSLC ')';
-ranged(type)           = type | (type? MAYBE_WSLC '~' MAYBE_WSLC type?);
+grouped(type)          = '(' TOKEN_SEP type TOKEN_SEP ')';
+maybe_ranged(type)     = type | (type? TOKEN_SEP '~' TOKEN_SEP type?);
 
 real                   = real_dec | real_hex;
 real_dec               = neg? uint_dec '.' digit_dec+ (('e' | 'E') ('+' | '-')? digit_dec+)?;
@@ -704,7 +704,7 @@ uint_hex               = '0' ('x' | 'X') digit_hex+;
 neg                    = '-';
 
 identifier_any         = identifier_firstchar identifier_nextchar*;
-identifier_custom      = identifier_any ! reserved_identifiers;
+identifier_restricted  = identifier_any ! reserved_identifiers;
 identifier_firstchar   = cp_category(L,M);
 identifier_nextchar    = identifier_firstchar | cp_category(N) | '_';
 reserved_identifiers   = ( "limit"
@@ -728,7 +728,8 @@ digit_bin              = ('0'~'9') | ('a'~'f') | ('A'~'F');
 
 comment                = '#' (printable_ws ! LINE_END)* LINE_END;
 
-ARG_SEP                = MAYBE_WSLC ',' MAYBE_WSLC;
+ARG_SEP                = TOKEN_SEP ',' TOKEN_SEP;
+TOKEN_SEP              = MAYBE_WSLC;
 
 # Whitespace
 MAYBE_WS               = WS*;
