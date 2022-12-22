@@ -39,11 +39,28 @@ Contents
     - [Document](#document)
     - [Variables](#variables)
     - [Types](#types)
+      - [Expression](#expression)
+      - [Condition](#condition)
+      - [Numeric Types](#numeric-types)
   - [Syntactic Elements](#syntactic-elements)
     - [Document Header](#document-header)
-    - [Productions](#productions)
-    - [Symbol](#symbol)
-    - [Functions](#functions)
+    - [Production Rule](#production-rule)
+    - [Nonterminal](#nonterminal)
+    - [Macro](#macro)
+    - [Function](#function)
+    - [Builtin Functions](#builtin-functions)
+      - [Limit Function](#limit-function)
+      - [`pad_to` Function](#pad_to-function)
+      - [`pad_align` Function](#pad_align-function)
+      - [`if` Function](#if-function)
+      - [`bind` Function](#bind-function)
+      - [`cp_category` Function](#cp_category-function)
+    - [Builtin Encodings](#builtin-encodings)
+      - [`unsigned_integer` Encoding](#unsigned_integer-encoding)
+      - [`signed_integer` Encoding](#signed_integer-encoding)
+      - [`ieee754_binary` Encoding](#ieee754_binary-encoding)
+      - [`little_endian` Encoding](#little_endian-encoding)
+    - [User Defined Encodings](#user-defined-encodings)
     - [Expressions](#expressions)
     - [Literals](#literals)
     - [Grouping](#grouping)
@@ -57,12 +74,6 @@ Contents
       - [Concatenation](#concatenation)
       - [Alternative](#alternative)
       - [Exclusion](#exclusion)
-    - [Builtins](#builtins)
-      - [bind](#bind)
-      - [_bits](#_bits)
-      - [_transform](#_transform)
-      - [_category](#_category)
-      - [_if](#_if)
     - [Prose](#prose)
   - [Codepoints](#codepoints)
     - [Escape Sequence](#escape-sequence)
@@ -98,7 +109,7 @@ Binary grammars generally behave quite differently from textual grammars, and re
 Not everything can be accurately described by a real-world grammar, but we can get pretty close. The following features bring KBNF to the point where it can describe most of what's out there unambiguously:
 
 * **Repetition**: Any expression can have repetition applied to it, for a specific number of occurrences, or a range of occurrences.
-* **Bindings**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. KBNF supports assigning decoded values to symbols.
+* **Bindings**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. KBNF supports assigning decoded values to variables.
 * **Exclusion**: Sometimes it's easier to express something as "everything except for ...".
 * **Prose**: In many cases, the actual encoding of something is already well-known and specified elsewhere, or is too complex for KBNF to describe adequately. Prose offers a free-form way to describe part of a grammar.
 * **Grouping**: Grouping expressions together is an obvious convenince that most other BNF offshoots have already adopted.
@@ -131,32 +142,69 @@ This specification will refer to any complete sequence of input (message, packet
 
 ### Variables
 
-In some situations, data that has already been realized may be bound to a variable for use elsewhere. Variables are bound either manually using the `_bind` function, or automatically when passing parameters to a function.
+In some situations, data that has already been realized may be bound to a variable for use elsewhere. Variables are bound either manually using the [`bind`](#bind-function) builtin function, or automatically when passing to a [macro](#macro).
 
-If a bound expression has itself bound an expression, that subexpression can be accessed using dot notation (`bound_value.subexp_bound_value`).
+All variables have a [type](#types) that matches what they were bound to. Variables are scoped locally to the current rule.
+
+If an expression is bound, that expression's bound variables are also accessible locally by using dot notation (`this_exp_bound_value.sub_exp_bound_value`).
 
 **For example**:
 
+A record begins with a header consisting of a 16-bit big endian unsigned integer length of at least 1, indicating how many bytes of record data follow.
+
 ```kbnf
-record        = _bind(length_field, length_header) _bits(8, 0~){length_field.length};
-length_header = _bind(length, _bits(16,1~))
+record              = bind(header, record_header) record_data(header.length);
+record_header       = bind(length, unsigned_integer(16, 1~));
+record_data(length) = unsigned_integer(8, 0~){length};
 ```
 
-* The `record` rule binds the result of the `length_header` rule to a new local (to `record`) variable called `length_field`.
-* The `length_header` rule binds a 16-bit integer value (that must be >= 1) as a new local (to `length_header`) variable called `length`.
-* Since `record` binds the result of `length_header` to `length_field`, `length` is now accessible from `record` as `length_field.length`.
+* The `record` rule binds the result of the `length_header` rule to a variable called `header`.
+* The `record_header` rule binds a 16-bit big endian unsigned integer value (that must be >= 1) to a variable called `length`.
+* The `record_data` rule is a [macro](#macro) that takes a length argument and matches that many bytes using [repetition](#repetition).
+* The `record` rule gets the length value from the `record_header` rule using dot notation to access the sub-expression's variable: `header.length`.
+
+It's also possible to access sub-variables of passed-in expression variables:
+
+```kbnf
+a = c(b);
+b = bind(bb, unsigned_integer(5, 1~20));
+c(x) = unsigned_integer(6, 0~50) x.bb;
+```
+
+`c` expects the passed-in variable `x` to be an expression that captures a variable called `bb` so that it can access it as `x.bb`. This is indeed the case when nonterminal `a` is defined as `b` passed into `c`. Thus, `a` matches a 5-bit unsigned integer from 1 to 20, followed by a 6-bit integer from 0 to 50, followed by the exact same 5-bit value again (for a total of 16 bits).
+
+Of course, this example is a bit contrived, and could be more readably writen as:
+
+```
+a = bind(bb, unsigned_integer(5, 1~20))
+    unsigned_integer(6, 0~50)
+    bb
+  ;
+```
 
 ### Types
 
-There are three main types in KBNF. Some types can be converted to other types in certain circumstances.
+KBNF is a typed language. As the number of types is small and the conversion rules simple, types are inferred.
 
-* **Expressions** express something that must be matched.
-* **Integers** are used for calculations, and can be used in certain argument positions in some functions. Integers can be introduced as literals, or if an expression is used in a context where only operands are allowed, it gets converted to an integer (all matched bits are interpreted, big endian, as an unsized integer). `_bits` can be used to convert an integer into an expression.
-* **Conditions** resolve to either true or false, and are used as arguments to _if functions. Integers and expressions cannot be converted to boolean or vice versa; only conditionals can produce boolean values.
+#### Expression
 
-Calculations produce integers
-conditions produce booleans
-Expression matches can be converted to integers
+An expression represents the set of possible bit sequences, of which one must be matched in the document. Once matched, the expression's possibilities collapse into a specific array of bits that can be [bound](#bind-function) to a variable and used elsewhere.
+
+#### Condition
+
+A condition is the result of comparing numeric types or performing logical operations on conditions, resulting in either true or false. Conditions are used in [`if`](#if-function) calls.
+
+#### Numeric Types
+
+Numeric types are used in [calculations](#calculations), which themselves result in numeric types.
+
+The numeric types are (narrowest to widest):
+
+* **Unsigned Integer** can represent any positive integer value or 0.
+* **Signed Integer** can represent unsigned integer values and negative integer values.
+* **Real Number** represents a real number in the mathematical definition of the term.
+
+A narrower type may be used in a context requiring a wider type (whereby it is automatically promoted to the wider type), but a wider type cannot be used in a context requiring a narrower type.
 
 
 
@@ -169,18 +217,16 @@ Syntactic Elements
 The document header identifies the file format as KBNF, and contains the following mandatory information:
 
 * The version of the KBNF specification that the document adheres to.
-* The character encoding of the document itself, and also for all codepoint related expressions.
+* The character encoding used in the document itself, and also for all codepoint related expressions.
 
-Optionally, it may also include headers.
-
-An empty line terminates the document header.
+Optionally, it may also include headers. An empty line terminates the document header section.
 
 ```kbnf
-document_header    = "kbnf_v" version SOME_WS character_encoding LINE_END header_line* LINE_END;
-character_encoding = ('!' ~ '~')+;
-header_line        = '-' SOME_WS header_name MAYBE_WS '=' SOME_WS header_value LINE_END;
-header_name        = printable+;
-header_value       = printable_ws+;
+document_header        = "kbnf_v" kbnf_version SOME_WS character_encoding LINE_END header_line* LINE_END;
+character_encoding     = ('!' ~ '~')+;
+header_line            = '-' SOME_WS header_name MAYBE_WS '=' SOME_WS header_value LINE_END;
+header_name            = printable+;
+header_value           = printable_ws+;
 ```
 
 The following headers are officially recognized (all others are allowed, but are not standardized):
@@ -195,19 +241,19 @@ kbnf_v1 utf-8
 - identifier  = mygrammar_v1
 - description = My first grammar, version 1
 
-# grammar rules begin here
+# grammar rules begin here, after the empty line terminating the header
 ```
 
 
-### Productions
+### Production Rule
 
-Productions follow the same `symbol = expression` style of other BNF grammars, except that they are terminated by a semicolon rather than by an end-of-line. This makes it visually more clear where a rule ends, and also allows more freedom for visually laying out the elements of a rule.
+Production rules follow the same `symbol = expression` style of other BNF grammars, except that they are terminated by a semicolon rather than by an end-of-line. This makes it visually more clear where a rule ends, and also allows more freedom for visually laying out the elements of a rule.
 
 ```kbnf
-rule = MAYBE_WSLC symbol MAYBE_WSLC '=' MAYBE_WSLC expression MAYBE_WSLC ';';
+production_rule = nonterminal TOKEN_SEP '=' TOKEN_SEP production TOKEN_SEP ';';
 ```
 
-`symbol` is a nonterminal, and `expression` may be a terminal or a nonterminal, or a combination.
+`nonterminal` is a nonterminal, and `production` may be a terminal or a nonterminal or a combination.
 
 By convention, the start symbol's rule is generally listed first.
 
@@ -220,15 +266,17 @@ record = '>' WS+ record_name ('/' count)* END_RECORD;
 ```
 
 
-### Symbol
+### Nonterminal
 
 A placeholder for an expression. Symbol names are not limited to ASCII.
 
+
 ```kbnf
-symbol           = identifier;
-identifier       = (identifier_first identifier_next*) ! (uint_literal | builtin_function_names);
-identifier_first = cp(L,M);
-identifier_next  = identifier_first | cp(N) | '_';
+nonterminal            = identifier_restricted;
+identifier_any         = identifier_firstchar identifier_nextchar*;
+identifier_restricted  = identifier_any ! reserved_identifiers;
+identifier_firstchar   = cp_category(L,M);
+identifier_nextchar    = identifier_firstchar | cp_category(N) | '_';
 ```
 
 **Example**:
@@ -239,11 +287,192 @@ record = 会社名 "：：" 従業員数;
 従業員数 = ('１'~'９') ('０'~'９')* '万'?;
 ```
 
-### Functions
+### Macro
 
-Functions behave a lot like symbols (they are defined using rules), except that you must pass parameters into them, which then are bound to local variables in their rule definitions.
+A macro is a type of nonterminal that accepts parameters, which are bound to [variables](#variables) for use within the macro.
 
-Functions do, unfortunately, complete the unholy incantation of Turing completeness, but without them many binary grammars would be cumbersome or impossible to describe. Functions should be used sparingly, in ways that improve human readability (which is the primary purpose of this language).
+```kbnf
+macro                  = identifier_restricted '(' TOKEN_SEP param_name (ARG_SEP param_name)* TOKEN_SEP ')';
+identifier_any         = identifier_firstchar identifier_nextchar*;
+identifier_restricted  = identifier_any ! reserved_identifiers;
+identifier_firstchar   = cp_category(L,M);
+identifier_nextchar    = identifier_firstchar | cp_category(N) | '_';
+```
+
+**Example**:
+
+A simple, contrived example: A fixed section always contains three records: Two with 100 bytes, followed by one with 50.
+
+```kbnf
+fixed_section               = fixed_length_record(100)
+                              fixed_length_record(100)
+                              fixed_length_record(50);
+fixed_length_record(length) = byte{length};
+byte                        = unsigned_integer(8, 0~)
+```
+
+A more complex, real-world example: [IPV4])(ipv4.kbnf)
+
+```kbnf
+ip_packet                    = ...
+                               u4(bind(header_length, 5~)) # length is in 32-bit words
+                               ...
+                               u16(bind(total_length, 20~)) # length is in bytes
+                               ...
+                               options((header_length-5) * 32)
+                               payload(protocol, (total_length-(header_length*4)) * 8)
+                             ;
+
+options(bit_count)           = limit(option*, bit_count);
+option                       = option_eool
+                             | option_nop
+                             | option_sec
+                             | ...
+                             ;
+
+payload(protocol, bit_count) = pad_to(bit_count, payload_contents(protocol), u1(0));
+payload_contents(protocol)   = if(protocol = 0, protocol_hopopt)
+                             | if(protocol = 1, protocol_icmp)
+                             | ...
+                             ;
+```
+
+### Function
+
+Functions behave similarly to macros, except that they are opaque: Whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions-and-encodings), or is user-defined in [prose](#prose).
+
+Functions have specific types that they accept as parameters, and emit specific types.
+
+### Builtin Functions
+
+KBNF comes with a number of necessary functions baked in:
+
+#### Limit Function
+
+The `limit` function accepts an expression and a bit count, and limits the expression to that many bits. Any production containing more than the limit is not considered a match.
+
+```
+limit(bit_count: uint, expr: expression): expression
+```
+
+**Example**:
+
+```kbnf
+# Accepts any Unicode name, up to 200 bytes.
+name_field = limit(200*8, cp_category(L,M,N,P,Zs)+)
+```
+
+
+#### `pad_to` Function
+
+The `pad_to` function requires that any match be exactly the specified number of bits, and adds the padding expression repeatedly to any potential match until the length matches. `pad_to` does not limit the size, so if a potential match is already over-sized or becomes over-sized as a result of the padding, no match occurs.
+
+```
+pad_to(bit_count: uint, expr: expression, padding: expression): expression
+```
+
+
+#### `pad_align` Function
+
+The `pad_align` function requires that any match be sized to a multiple of the specified bit count, and adds the padding expression repeatedly to any potential match until the length matches. `pad_align` does not limit the size, so if a potential match is already over-sized or becomes over-sized as a result of the padding, no match occurs.
+
+```
+pad_align(bit_count: uint, expr: expression, padding: expression): expression
+```
+
+#### `if` Function
+
+The `if` function produces the given expression only if the given [condition](#condition) is true. `if` function calls combined with [alternates](#alternate) effectively produce switch statements.
+
+TODO: else clause? Would allow switch with default...
+
+```
+if(cond: condition, expr: expression): expression
+```
+
+#### `bind` Function
+
+The `bind` function binds a value to a variable. Returns the value it bound to a variable.
+
+```
+bind(variable_name: identifier, value: any): any
+```
+
+**Examples**:
+
+Matches "abcd|abcd", "fred|fred" etc.
+
+```kbnf
+sequence = bind(repeating_value,('a'~'z')+) '|' repeating_value;
+```
+
+Bind the variable "terminator" to whatever follows the "<<" until the next linefeed. The here-document contents continue until the terminator value is encountered again.
+
+```kbnf
+here_document             = "<<" bind(terminator, NOT_LF+) LF here_contents(terminator) terminator;
+here_contents(terminator) = ANY_CHAR* ! terminator;
+ANY_CHAR                  = '\{0}'~;
+LF                        = '\{a}';
+NOT_LF                    = ANY_CHAR ! LF;
+```
+
+Interpret the next 16 bits as a big endian unsigned int and bind the result to "length". That many following bytes make up the record contents.
+
+```kbnf
+length_delimited_record = uint16(bind(length, 0~)) record_contents(length);
+record_contents(length) = byte(0~){length}
+uint16(v)               = unsigned_int(16, v)
+byte(v)                 = unsigned_int(8, v)
+```
+
+#### `cp_category` Function
+
+The `cp_category` function returns the set of all Unicode codepoints that have one of the given set of Unicode [categories](https://unicode.org/glossary/#general_category).
+
+```
+cp_category(categories: category_name...): set of codepoint
+```
+
+**Example**:
+
+```kbnf
+letter_digit_space = cp_caregory(N,L,Zs);
+```
+
+### Builtin Encodings
+
+Encodings are functions that transform data. The following encodings are built-in to KBNF:
+
+#### `unsigned_integer` Encoding
+
+- unsigned_integer(value: uint, bit_count: uint): bits
+
+#### `signed_integer` Encoding
+
+- signed_integer(value: sint, bit_count: uint): bits
+
+#### `ieee754_binary` Encoding
+
+- ieee754_binary(value: real, bit_count: uint): bits
+
+#### `little_endian` Encoding
+
+- little_endian(value: bits): bits
+
+### User Defined Encodings
+
+Other encodings can be added to your grammar by using [prose](#prose) to either describe the process or link to a description.
+
+**Examples**:
+
+```kbnf
+bfloat(v)                     = """https://en.wikipedia.org/wiki/Bfloat16_floating-point_format"""
+ieee754_decimal(bit_count, v) = """https://en.wikipedia.org/wiki/IEEE_754#Decimal"""
+leb128(v)                     = """https://en.wikipedia.org/wiki/LEB128"""
+vlq(v)                        = """https://en.wikipedia.org/wiki/Variable-length_quantity"""
+zigzag(v)                     = """https://en.wikipedia.org/wiki/Variable-length_quantity#Zigzag_encoding"""
+```
+
 
 ### Expressions
 
@@ -267,6 +496,8 @@ codepoint
 int
 
 ### Calculations
+
+Calculations perform arithmetic operations on [numeric types](#numeric-types), producing a new numeric type. Types may be mixed in calculations, whereby the produced type is the wider of the input types.
 
 add, subtract, multiply, divide, modulus, parentheses, asl, asr
 
@@ -349,149 +580,7 @@ Alternative matches one of a set of expressions
 
 Exclusion removes an expression from the set of matching expressions.
 
-### Builtins
 
-WIP
-
-Types:
-
-Range types:
-
-- bits
-- sint
-- uint
-- real
-
-Discrete types:
-
-- bool
-- discrete_uint
-
-Discrete types can either be single-value literal (uint), or a variable from decoded data... How to differentiate this?
-- realized value?
-- some params are non-matching... non-variable? constant?
-- ranges are only valid in productions, when matching against the document...
-- so maybe there aren't 2 kinds of uint?
-- can't match a uint of variable size because it would be ambiguous, but can use previously bound length value
-  - same for liit, pad, etc. would become ambiguous.
-  - so technically, range is allowed everywhere but a rule must not be ambiguous.
-
-Once a variable is bound, it is a discrete value.
-- so we have "matching" ranges, and realized values.
-- does limit bit count work as a range?
-- Only the first arg of encoding funcs can be ranges. Everything else is a literal or a variable.
-- pad has two bits params that can be ranges.
-- basically the bit count param is always discrete...? what about text?
-- what about `limit(u1(1)*, 5~10) limit(u1(0)*, 5~10)`.. technically this is `u1(1){5~10} u1(0){5~10}`
-- - `limit(cp(N)*, 8*5-8*10)`
-
-Also `limit_byte(v, count) = limit(v, count*8)`?
-- does this work for `limit_byte(cp(N)*, 5~10)`?
-
-Basically `limit` says that a process, which will generate an unknown number of bits, must be limited to x.
-- or maybe just by policy disallow ranges in limit bit counts?
-
-Only encoding funcs can accept int ranges since they map directly to a deterministic bit pattern.
-- also, encoding funcs cannot accept calculations? Or can they?
-- `signed_integer(v1*4, 32)`
-
-Ranges not allowed in calculations, but realized values from ranges are allowed
-
-A variable's range is fixed by the time it is bound.
-
-Builtins:
-
-- limit(v: bits, bit_count: discrete_uint): bits
-- pad_to(v: bits, bit_count: discrete_uint, padding: bits): bits
-- pad_align(v: bits, bit_count: discrete_uint, padding: bits): bits
-- if(condition: bool, on_true: bits): bits
-- bind(name: identifier, value: any): any
-- cp_category(names: category_name): bits
-
-Builtin encodings:
-
-- unsigned_integer(value: uint, bit_count: uint): bits
-- signed_integer(value: sint, bit_count: uint): bits
-- ieee754_binary(value: real, bit_count: uint): bits
-- little_endian(value: bits): bits
-
-Other common encodings:
-
-- bfloat: https://en.wikipedia.org/wiki/Bfloat16_floating-point_format
-- ieee754_decimal: https://en.wikipedia.org/wiki/IEEE_754#Decimal
-- leb128: https://en.wikipedia.org/wiki/LEB128
-- vlq: https://en.wikipedia.org/wiki/Variable-length_quantity
-- zigzag: https://en.wikipedia.org/wiki/Variable-length_quantity#Zigzag_encoding
-
-
-Pad repeats padding expression until pad size fulfilled.
-
-#### bind
-
-`bind` binds the result of an expression to a new variable that is local to the current rule (and to any rules that in turn bind this rule).
-
-**Examples**:
-
-```kbnf
-# Matches "abcd|abcd", "fred|fred" etc
-sequence = bind(repeating_value,('a'~'z')+) '|' repeating_value;
-
-# Matches a 16-bit length field (that must be at least 1) followed by that many bytes of anything
-record = bind(length,_bits(16,1~)) unsigned_integer(8,0~){length};
-```
-
-#### _bits
-
-`_bits` specifies a match over a specific number of bits.
-
-Bits are signed only if the allowed value range includes negative numbers.
-
-_bits(16, 0~) means 0 to 0xffff
-_bits(1, 0) _bits(15, 0~) means 0 to 0x7fff
-
-_bits(16, -100~) means -100 to 0x7fff
-_bits(16, ~) means -0x8000 to 0x7fff
-_bits(16, ~100) means -0x8000 to 100
-_bits(16, 0~100) means 0 to 100
-
-**Examples**:
-
-```kbnf
-# Match a sequence of 11 bits containing the value 500
-x = _bits(11,500);
-
-# Match a sequence of 17 bits containing a value from 500 to 100000
-y = _bits(17,500~100000);
-```
-
-#### _transform
-
-`_transform` is a catch-all for data transformations done according to well-known methods.
-
-**Examples**:
-
-```kbnf
-# longitude, latitude and temperature are stored as 16-bit signed integers, little endian.
-record      = longitude latitude temperature;
-longitude   = sint16_le;
-latitude    = sint16_le;
-temperature = sint16_le;
-sint16_le   = _transform(little_endian,_bits(16:~));
-
-# A chunk contains a length field followed by that many bytes.
-# Length is a positive integer, encoded as Unsigned Little Endian Base 128
-chunk   = _bind(length,length) _bits(8,0~){length};
-length  = _transform(uleb128,0~);
-uleb128 = """https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128"""
-```
-
-#### _category
-
-`_category` selects a set of codepoints based on their Unicode categories.
-
-#### _if
-
-`_if` chooses an expression based on a condition
 
 
 ### Prose
@@ -615,6 +704,7 @@ grammar                = (MAYBE_WSLC production_rule)*;
 production_rule        = nonterminal TOKEN_SEP '=' TOKEN_SEP production TOKEN_SEP ';';
 production             = expression;
 expression             = nonterminal
+                       | macro
                        | call
                        | string_literal
                        | maybe_ranged(codepoint_literal)
@@ -629,7 +719,8 @@ expression             = nonterminal
                        | grouped(expression)
                        ;
 
-nonterminal            = identifier_restricted ('(' TOKEN_SEP param_name (ARG_SEP param_name)* TOKEN_SEP ')')?;
+nonterminal            = identifier_restricted;
+macro                  = identifier_restricted '(' TOKEN_SEP param_name (ARG_SEP param_name)* TOKEN_SEP ')';
 param_name             = identifier_any;
 call                   = identifier_any '(' TOKEN_SEP call_param (ARG_SEP call_param)* TOKEN_SEP ')';
 call_param             = expression | calculation(uint | sint | real) | condition;
@@ -654,20 +745,22 @@ repeat_zero_or_more    = expression '*';
 repeat_one_or_more     = expression '+';
 
 builtin_encodings      = enc_unsigned_integer | enc_signed_integer | enc_ieee754_binary | enc_little_endian;
-enc_unsigned_integer   = "unsigned_integer(" TOKEN_SEP maybe_ranged(calculation(uint)) ARG_SEP bit_count TOKEN_SEP ')';
-enc_signed_integer     = "signed_integer(" TOKEN_SEP maybe_ranged(calculation(sint)) ARG_SEP bit_count TOKEN_SEP ')';
-enc_ieee754_binary     = "ieee754_binary(" TOKEN_SEP maybe_ranged(calculation(real)) ARG_SEP bit_count TOKEN_SEP ')';
+enc_unsigned_integer   = "unsigned_integer(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(calculation(uint)) TOKEN_SEP ')';
+enc_signed_integer     = "signed_integer(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(calculation(sint)) TOKEN_SEP ')';
+enc_ieee754_binary     = "ieee754_binary(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(calculation(real)) TOKEN_SEP ')';
 enc_little_endian      = "little_endian(" TOKEN_SEP expression TOKEN_SEP ')';
 
 builtin_functions      = function_limit | function_pad_to | function_pad_align | function_if | function_bind | function_cp_category;
-function_limit         = "limit(" TOKEN_SEP expression ARG_SEP bit_count TOKEN_SEP ")";
-function_pad_to        = "pad_to(" TOKEN_SEP expression ARG_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
-function_pad_align     = "pad_align(" TOKEN_SEP expression ARG_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
+function_limit         = "limit(" TOKEN_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
+function_pad_to        = "pad_to(" TOKEN_SEP bit_count ARG_SEP expression ARG_SEP padding TOKEN_SEP ")";
+function_pad_align     = "pad_align(" TOKEN_SEP bit_count ARG_SEP expression ARG_SEP padding TOKEN_SEP ")";
 function_if            = "if(" TOKEN_SEP condition ARG_SEP expression TOKEN_SEP ')';
-function_bind          = "bind(" TOKEN_SEP local_id ARG_SEP expression TOKEN_SEP ')';
+function_bind          = "bind(" TOKEN_SEP local_id ARG_SEP bind_value TOKEN_SEP ')';
 function_cp_category   = "cp_category(" TOKEN_SEP cp_category_name (ARG_SEP cp_category_name)* TOKEN_SEP ')';
 
+padding                = expression;
 local_id               = identifier_any;
+bind_value             = condition | uint | sint | real | expression;
 variable(type)         = local_id | subvariable(type);
 subvariable(type)      = variable(production) '.' variable(type);
 bit_count              = calculation(uint);

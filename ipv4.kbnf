@@ -2,23 +2,22 @@ kbnf_v1 utf-8
 - identifier  = ip_v4
 - description = Internet Protocol, version 4
 
-ip_packet                          = (
-                                      version
-                                      u4(bind(header_length, 5~)) # length is in 32-bit words
-                                      differentiated_services_code_point
-                                      explicit_congestion_notification
-                                      u16(bind(total_length, 20~)) # length is in bytes
-                                      identification
-                                      flags
-                                      fragment_offset
-                                      time_to_live
-                                      u8(bind(protocol, registered_protocol))
-                                      header_checksum
-                                      source_ip_address
-                                      destination_ip_address
-                                      options((header_length-5) * 32)
-                                      payload(protocol, (total_length-(header_length*4)) * 8)
-                                     );
+ip_packet                          = version
+                                     u4(bind(header_length, 5~)) # length is in 32-bit words
+                                     differentiated_services_code_point
+                                     explicit_congestion_notification
+                                     u16(bind(total_length, 20~)) # length is in bytes
+                                     identification
+                                     flags
+                                     fragment_offset
+                                     time_to_live
+                                     u8(bind(protocol, registered_protocol))
+                                     header_checksum
+                                     source_ip_address
+                                     destination_ip_address
+                                     options((header_length-5) * 32)
+                                     payload(protocol, (total_length-(header_length*4)) * 8)
+                                     ;
 
 version                            = u4(4);
 differentiated_services_code_point = u6(dcsp_0 | dcsp_1 | dcsp_2 | dcsp_3 | dcsp_4 | dcsp_5 | dcsp_6 | dcsp_7);
@@ -79,7 +78,7 @@ rfc1108                            = """https://www.rfc-editor.org/rfc/rfc1108.h
 rfc791                             = """https://www.rfc-editor.org/rfc/rfc791.html""";
 draft_ietf_cipso_ipsecurity_01     = """https://datatracker.ietf.org/doc/draft-ietf-cipso-ipsecurity/01/""";
 
-payload(protocol, bit_count)       = pad_to(payload_contents(protocol), bit_count, u1(0));
+payload(protocol, bit_count)       = pad_to(bit_count, payload_contents(protocol), u1(0));
 payload_contents(protocol)         = if(protocol = 0, protocol_hopopt)
                                    | if(protocol = 1, protocol_icmp)
                                    # TODO: the rest of the protocols
@@ -87,12 +86,12 @@ payload_contents(protocol)         = if(protocol = 0, protocol_hopopt)
 protocol_hopopt                    = """https://www.rfc-editor.org/rfc/rfc8200.html""";
 protocol_icmp                      = """https://www.rfc-editor.org/rfc/rfc792.html""";
 
-u1(v)                              = unsigned_integer(v, 1);
-u2(v)                              = unsigned_integer(v, 2);
-u4(v)                              = unsigned_integer(v, 4);
-u5(v)                              = unsigned_integer(v, 5);
-u6(v)                              = unsigned_integer(v, 6);
-u8(v)                              = unsigned_integer(v, 8);
-u13(v)                             = unsigned_integer(v, 13);
-u16(v)                             = unsigned_integer(v, 16);
-u32(v)                             = unsigned_integer(v, 32);
+u1(v)                              = unsigned_integer(1, v);
+u2(v)                              = unsigned_integer(2, v);
+u4(v)                              = unsigned_integer(4, v);
+u5(v)                              = unsigned_integer(5, v);
+u6(v)                              = unsigned_integer(6, v);
+u8(v)                              = unsigned_integer(8, v);
+u13(v)                             = unsigned_integer(13, v);
+u16(v)                             = unsigned_integer(16, v);
+u32(v)                             = unsigned_integer(32, v);
