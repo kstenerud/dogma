@@ -664,11 +664,11 @@ function_limit         = "limit(" TOKEN_SEP expression ARG_SEP bit_count TOKEN_S
 function_pad_to        = "pad_to(" TOKEN_SEP expression ARG_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
 function_pad_align     = "pad_align(" TOKEN_SEP expression ARG_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
 function_if            = "if(" TOKEN_SEP condition ARG_SEP expression TOKEN_SEP ')';
-function_bind          = "bind(" TOKEN_SEP bind_id ARG_SEP expression TOKEN_SEP ')';
+function_bind          = "bind(" TOKEN_SEP local_id ARG_SEP expression TOKEN_SEP ')';
 function_cp_category   = "cp_category(" TOKEN_SEP cp_category_name (ARG_SEP cp_category_name)* TOKEN_SEP ')';
 
-bind_id                = identifier_any;
-variable(type)         = bind_id | subvariable(type);
+local_id               = identifier_any;
+variable(type)         = local_id | subvariable(type);
 subvariable(type)      = variable(production) '.' variable(type);
 bit_count              = calculation(uint);
 cp_category_name       = ('A'~'Z') ('a'~'z')?;
