@@ -617,7 +617,6 @@ expression             = symbol
                        | call
                        | string_literal
                        | ranged(codepoint_literal)
-                       | codepoint_category
                        | concat
                        | alternate
                        | exclude
@@ -647,8 +646,6 @@ string_literal         = ('"' escapable_char(printable_ws, '"'){2~} '"') | ("'" 
 escapable_char(char_set, quote_char) = (char_set ! ('\\' | quote_char)) | escape;
 escape                 = '\\' (printable ! '{') | escape_codepoint);
 escape_codepoint       = '{' digit_hex+ '}';
-codepoint_category     = "cp_category(" MAYBE_WSLC cp_category_name (ARG_SEP cp_category_name)* MAYBE_WSLC ')';
-cp_category_name       = ('A'~'Z') ('a'~'z')?;
 
 repetition             = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
 repeat_range           = expression '{' MAYBE_WSLC ranged(calculation(uint)) MAYBE_WSLC '}';
@@ -662,17 +659,19 @@ enc_signed_integer     = "signed_integer(" MAYBE_WSLC ranged(calculation(sint)) 
 enc_ieee754_binary     = "ieee754_binary(" MAYBE_WSLC ranged(calculation(real)) ARG_SEP bit_count MAYBE_WSLC ')';
 enc_little_endian      = "little_endian(" MAYBE_WSLC expression MAYBE_WSLC ')';
 
-builtin_functions      = function_limit | function_pad_to | function_pad_align | function_if | function_bind;
+builtin_functions      = function_limit | function_pad_to | function_pad_align | function_if | function_bind | function_cp_category;
 function_limit         = "limit(" MAYBE_WSLC expression ARG_SEP bit_count MAYBE_WSLC ")";
 function_pad_to        = "pad_to(" MAYBE_WSLC expression ARG_SEP bit_count ARG_SEP expression MAYBE_WSLC ")";
 function_pad_align     = "pad_align(" MAYBE_WSLC expression ARG_SEP bit_count ARG_SEP expression MAYBE_WSLC ")";
 function_if            = "if(" MAYBE_WSLC condition ARG_SEP expression MAYBE_WSLC ')';
 function_bind          = "bind(" MAYBE_WSLC bind_id ARG_SEP expression MAYBE_WSLC ')';
+function_cp_category   = "cp_category(" MAYBE_WSLC cp_category_name (ARG_SEP cp_category_name)* MAYBE_WSLC ')';
 
-bind_id                = identifier_local;
+bind_id                = identifier_any;
 variable               = bind_id | subvariable;
 subvariable            = variable '.' variable;
 bit_count              = calculation(uint);
+cp_category_name       = ('A'~'Z') ('a'~'z')?;
 
 calculation(type)      = calculation_term(type) | addition(type) | subtraction(type);
 calculation_term(type) = operand(type) | multiplication(type) | division(type) | modulus(type);
@@ -685,12 +684,7 @@ modulus(type)          = calculation(type) MAYBE_WSLC '%' MAYBE_WSLC calculation
 
 condition              = grouped(condition) | comparison | logical_and | logical_or | logical_not;
 comparison             = operand(uint | sint | real) MAYBE_WSLC comparator MAYBE_WSLC operand(uint | sint | real);
-comparator             = comparator_lt | comparator_lte | comparator_gt | comparator_gte | comparator_eq;
-comparator_lt          = "<";
-comparator_lte         = "<=";
-comparator_gt          = ">";
-comparator_gte         = ">=";
-comparator_eq          = "=";
+comparator             = "<" | "<=" | "=" | ">= | ">";
 logical_and            = condition MAYBE_WSLC '&' MAYBE_WSLC condition;
 logical_or             = condition MAYBE_WSLC '|' MAYBE_WSLC condition;
 logical_not            = '!' MAYBE_WSLC condition_group;
@@ -709,10 +703,10 @@ uint_dec               = digit_dec+;
 uint_hex               = '0' ('x' | 'X') digit_hex+;
 neg                    = '-';
 
-identifier_any         = identifier_first identifier_next*;
+identifier_any         = identifier_firstchar identifier_nextchar*;
 identifier_custom      = identifier_any ! reserved_identifiers;
-identifier_first       = cp_category(L,M);
-identifier_next        = identifier_first | cp_category(N) | '_';
+identifier_firstchar   = cp_category(L,M);
+identifier_nextchar    = identifier_firstchar | cp_category(N) | '_';
 reserved_identifiers   = ( "limit"
                          | "pad_to"
                          | "pad_align"
