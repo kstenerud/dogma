@@ -4,10 +4,10 @@ kbnf_v1 utf-8
 
 ip_packet                          = (
                                       version
-                                      u4(bind(header_length, 5~)) # in 32-bit words
+                                      u4(bind(header_length, 5~)) # length is in 32-bit words
                                       differentiated_services_code_point
                                       explicit_congestion_notification
-                                      u16(bind(total_length, 20~)) # in bytes
+                                      u16(bind(total_length, 20~)) # length is in bytes
                                       identification
                                       flags
                                       fragment_offset
@@ -22,14 +22,14 @@ ip_packet                          = (
 
 version                            = u4(4);
 differentiated_services_code_point = u6(dcsp_0 | dcsp_1 | dcsp_2 | dcsp_3 | dcsp_4 | dcsp_5 | dcsp_6 | dcsp_7);
-  dcsp_0                           = 0;
-  dcsp_1                           = 8;
-  dcsp_2                           = x10;
-  dcsp_3                           = x18;
-  dcsp_4                           = x20;
-  dcsp_5                           = x28;
-  dcsp_6                           = x30;
-  dcsp_7                           = x38;
+  dcsp_0                           = 0x00;
+  dcsp_1                           = 0x08;
+  dcsp_2                           = 0x10;
+  dcsp_3                           = 0x18;
+  dcsp_4                           = 0x20;
+  dcsp_5                           = 0x28;
+  dcsp_6                           = 0x30;
+  dcsp_7                           = 0x38;
 explicit_congestion_notification   = u2(ect_none | ect_0 | ect_1 | ect_congestion);
   ect_none                         = 0;
   ect_0                            = 1;
