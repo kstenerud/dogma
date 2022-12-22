@@ -612,8 +612,9 @@ header_name            = printable+;
 header_value           = printable_ws+;
 
 grammar                = (MAYBE_WSLC production_rule)*;
-production_rule        = (symbol | macro) TOKEN_SEP '=' TOKEN_SEP expression TOKEN_SEP ';';
-expression             = symbol
+production_rule        = nonterminal TOKEN_SEP '=' TOKEN_SEP production TOKEN_SEP ';';
+production             = expression;
+expression             = nonterminal
                        | call
                        | string_literal
                        | maybe_ranged(codepoint_literal)
@@ -622,15 +623,14 @@ expression             = symbol
                        | exclude
                        | builtin_encodings
                        | builtin_functions
-                       | variable
+                       | variable(production)
                        | repetition
                        | prose
                        | grouped(expression)
                        ;
 
-symbol                 = identifier_restricted;
-macro                  = identifier_restricted '(' TOKEN_SEP macro_param_name (ARG_SEP macro_param_name)* TOKEN_SEP ')';
-macro_param_name       = identifier_any;
+nonterminal            = identifier_restricted ('(' TOKEN_SEP param_name (ARG_SEP param_name)* TOKEN_SEP ')')?;
+param_name             = identifier_any;
 call                   = identifier_any '(' TOKEN_SEP call_param (ARG_SEP call_param)* TOKEN_SEP ')';
 call_param             = expression | calculation(uint | sint | real) | condition;
 
@@ -668,14 +668,14 @@ function_bind          = "bind(" TOKEN_SEP bind_id ARG_SEP expression TOKEN_SEP 
 function_cp_category   = "cp_category(" TOKEN_SEP cp_category_name (ARG_SEP cp_category_name)* TOKEN_SEP ')';
 
 bind_id                = identifier_any;
-variable               = bind_id | subvariable;
-subvariable            = variable '.' variable;
+variable(type)         = bind_id | subvariable(type);
+subvariable(type)      = variable(production) '.' variable(type);
 bit_count              = calculation(uint);
 cp_category_name       = ('A'~'Z') ('a'~'z')?;
 
 calculation(type)      = calculation_term(type) | addition(type) | subtraction(type);
 calculation_term(type) = operand(type) | multiplication(type) | division(type) | modulus(type);
-operand(type)          = type | variable | calculation(type) | grouped(calculation(type));
+operand(type)          = type | variable(type) | calculation(type) | grouped(calculation(type));
 addition(type)         = calculation(type) TOKEN_SEP '+' TOKEN_SEP calculation_term(type);
 subtraction(type)      = calculation(type) TOKEN_SEP '-' TOKEN_SEP calculation_term(type);
 multiplication(type)   = calculation(type) TOKEN_SEP '*' TOKEN_SEP calculation_term(type);
