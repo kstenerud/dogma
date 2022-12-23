@@ -8,8 +8,6 @@ Version 0
 
 The descriptions are all a mess atm. Only the [grammar](#the-kbnf-grammar-in-kbnf) is in decent shape right now.
 
-Builtin functions and encodings are (roughly, WIP) listed [here](#builtins)
-
 For an example of using it in a binary format, see [ipv4.kbnf](ipv4.kbnf)
 
 
@@ -52,15 +50,15 @@ Contents
       - [Limit Function](#limit-function)
       - [`pad_to` Function](#pad_to-function)
       - [`pad_align` Function](#pad_align-function)
-      - [`if` Function](#if-function)
+      - [`when` Function](#when-function)
       - [`bind` Function](#bind-function)
       - [`cp_category` Function](#cp_category-function)
+    - [Encoding](#encoding)
     - [Builtin Encodings](#builtin-encodings)
       - [`unsigned_integer` Encoding](#unsigned_integer-encoding)
       - [`signed_integer` Encoding](#signed_integer-encoding)
       - [`ieee754_binary` Encoding](#ieee754_binary-encoding)
       - [`little_endian` Encoding](#little_endian-encoding)
-    - [User Defined Encodings](#user-defined-encodings)
     - [Expressions](#expressions)
     - [Literals](#literals)
     - [Grouping](#grouping)
@@ -92,7 +90,7 @@ Design Objectives
 
 ### Human readability
 
-The main purpose of KBNF is to describe text and binary grammars in a concise, unambiguous, human readable way. The use case is describing formats in documentation.
+The main purpose of KBNF is to describe text and binary grammars in a concise, unambiguous, human readable way. The use case is describing data formats in documentation.
 
 ### Support for binary grammars
 
@@ -231,10 +229,10 @@ header_value           = printable_ws+;
 
 The following headers are officially recognized (all others are allowed, but are not standardized):
 
-* **identifier**: An identifier for the grammar being described. It's customary to append a version number to the identifier.
-* **description**: A brief, one-line description of the grammar.
+* `identifier`: An identifier for the grammar being described. It's customary to append a version number to the identifier.
+* `description`: A brief, one-line description of the grammar.
 
-**Example**:
+**Example**: A UTF-8 KBNF grammar called "mygrammar_v1".
 
 ```kbnf
 kbnf_v1 utf-8
@@ -257,7 +255,7 @@ production_rule = nonterminal TOKEN_SEP '=' TOKEN_SEP production TOKEN_SEP ';';
 
 By convention, the start symbol's rule is generally listed first.
 
-**Example**:
+**Example**: A "document" production rule that uses a "record" production rule.
 
 ```kbnf
 document = preamble_line* END_PREAMBLE record*;
@@ -270,7 +268,6 @@ record = '>' WS+ record_name ('/' count)* END_RECORD;
 
 A placeholder for an expression. Symbol names are not limited to ASCII.
 
-
 ```kbnf
 nonterminal            = identifier_restricted;
 identifier_any         = identifier_firstchar identifier_nextchar*;
@@ -279,17 +276,27 @@ identifier_firstchar   = cp_category(L,M);
 identifier_nextchar    = identifier_firstchar | cp_category(N) | '_';
 ```
 
-**Example**:
+**Example**: A record consists of a company name (which must not contain two full-width colons in a row), followed by two full-width colons, followed by an employee count in full-width characters (possibly approximated to the nearest 10,000), and is terminated by a linefeed.
 
 ```kbnf
-record = 会社名 "：：" 従業員数;
-会社名 = (cp(L,M) cp(L,M,N,P,S,Zs)*) ! "：：";
-従業員数 = ('１'~'９') ('０'~'９')* '万'?;
+記録		= 会社名 "：：" 従業員数 LF;
+会社名		= cp_category(L,M) cp_category(L,M,N,P,S,Zs)* ! "：：";
+従業員数		= '１'~'９' '０'~'９'* '万'?;
+LF		= '\{a}';
+```
+
+Or if you prefer, the same thing with English nonterminal names:
+
+```kbnf
+record         = company_name "：：" employee_count LF;
+company_name   = cp_category(L,M) cp_category(L,M,N,P,S,Zs)* ! "：：";
+employee_count = '１'~'９' '０'~'９'* '万'?;
+LF             = '\{a}';
 ```
 
 ### Macro
 
-A macro is a type of nonterminal that accepts parameters, which are bound to [variables](#variables) for use within the macro.
+A macro is a type of nonterminal that accepts parameters, which are bound to local [variables](#variables) for use within the macro.
 
 ```kbnf
 macro                  = identifier_restricted '(' TOKEN_SEP param_name (ARG_SEP param_name)* TOKEN_SEP ')';
@@ -299,9 +306,7 @@ identifier_firstchar   = cp_category(L,M);
 identifier_nextchar    = identifier_firstchar | cp_category(N) | '_';
 ```
 
-**Example**:
-
-A simple, contrived example: A fixed section always contains three records: Two with 100 bytes, followed by one with 50.
+**Example**: A fixed section always contains three records: Two with 100 bytes, followed by one with 50.
 
 ```kbnf
 fixed_section               = fixed_length_record(100)
@@ -311,13 +316,15 @@ fixed_length_record(length) = byte{length};
 byte                        = unsigned_integer(8, 0~)
 ```
 
-A more complex, real-world example: [IPV4])(ipv4.kbnf)
+**Example**: An [IPV4])(ipv4.kbnf) packet contains "header length" and "total length" fields, which together determine how big the "options" and "payload" sections are. "protocol" determins the protocol of the payload.
 
 ```kbnf
 ip_packet                    = ...
                                u4(bind(header_length, 5~)) # length is in 32-bit words
                                ...
                                u16(bind(total_length, 20~)) # length is in bytes
+                               ...
+                               u8(bind(protocol, registered_protocol))
                                ...
                                options((header_length-5) * 32)
                                payload(protocol, (total_length-(header_length*4)) * 8)
@@ -349,30 +356,37 @@ KBNF comes with a number of necessary functions baked in:
 
 #### Limit Function
 
-The `limit` function accepts an expression and a bit count, and limits the expression to that many bits. Any production containing more than the limit is not considered a match.
+The `limit` function accepts an expression and a bit count, and limits the expression to that many bits.
 
 ```
 limit(bit_count: uint, expr: expression): expression
 ```
 
-**Example**:
+**Example**: A name field may contain up to 200 bytes worth of character data.
 
 ```kbnf
-# Accepts any Unicode name, up to 200 bytes.
 name_field = limit(200*8, cp_category(L,M,N,P,Zs)+)
 ```
 
 
 #### `pad_to` Function
 
-The `pad_to` function requires that any match be exactly the specified number of bits, and adds the padding expression repeatedly to any potential match until the length matches. `pad_to` does not limit the size, so if a potential match is already over-sized or becomes over-sized as a result of the padding, no match occurs.
+The `pad_to` function repeatedly adds a padding expression to the given expression until the final combined expression produces exactly the specified number of bits. The addition must not cause the final combined expression to produce more than the specified number of bits.
 
 ```
 pad_to(bit_count: uint, expr: expression, padding: expression): expression
 ```
 
+**Example**: A record consists of exactly 100 bytes of character data between square brackets, padded with spaces.
+
+```kbnf
+record = "[" pad_to(100*8, record_char*, " "*) "]"
+record_char = cp_category(L,M,N,P,Zs)
+```
 
 #### `pad_align` Function
+
+The `pad_align` function repeatedly adds a padding expression to the given expression until the final combined expression produces a number of bits that is a multiple of the given count.
 
 The `pad_align` function requires that any match be sized to a multiple of the specified bit count, and adds the padding expression repeatedly to any potential match until the length matches. `pad_align` does not limit the size, so if a potential match is already over-sized or becomes over-sized as a result of the padding, no match occurs.
 
@@ -380,19 +394,26 @@ The `pad_align` function requires that any match be sized to a multiple of the s
 pad_align(bit_count: uint, expr: expression, padding: expression): expression
 ```
 
-#### `if` Function
+#### `when` Function
 
-The `if` function produces the given expression only if the given [condition](#condition) is true. `if` function calls combined with [alternates](#alternate) effectively produce switch statements.
-
-TODO: else clause? Would allow switch with default...
+The `when` function allows an expression only when a given [condition](#condition) holds.
 
 ```
-if(cond: condition, expr: expression): expression
+when(cond: condition, expr: expression): expression
+```
+
+**Example**:
+
+```kbnf
+extension(type) = when(type = 1, extension_a)
+                | when(type = 2, extension_b)
+                | when(type = 3, extension_c)
+                ;
 ```
 
 #### `bind` Function
 
-The `bind` function binds a value to a variable. Returns the value it bound to a variable.
+The `bind` function transparently binds whatever it surrounds to a local variable for subsequent re-use in the current rule. The surrounding context behaves as though only what the `bind` function surrounded were present. This allows a sequence to be produced as normal, and also to be used again later in the rule.
 
 ```
 bind(variable_name: identifier, value: any): any
@@ -427,10 +448,10 @@ byte(v)                 = unsigned_int(8, v)
 
 #### `cp_category` Function
 
-The `cp_category` function returns the set of all Unicode codepoints that have one of the given set of Unicode [categories](https://unicode.org/glossary/#general_category).
+The `cp_category` function produces the alternates set of all Unicode codepoints that have any of the given set of Unicode [categories](https://unicode.org/glossary/#general_category).
 
 ```
-cp_category(categories: category_name...): set of codepoint
+cp_category(categories: category_name...): set of codepoint alternates
 ```
 
 **Example**:
@@ -439,9 +460,24 @@ cp_category(categories: category_name...): set of codepoint
 letter_digit_space = cp_caregory(N,L,Zs);
 ```
 
+### Encoding
+
+An encoding is a data transformation that can't easily be represented in a BNF expression. Typically they are defined as [prose](#prose) (either a textual description of the algorithm, or a URL pointing to a description). They take parameters in the same manner as [macros](#macro) and [functions](#function).
+
+**Examples**:
+
+```kbnf
+bfloat(v)                     = """https://en.wikipedia.org/wiki/Bfloat16_floating-point_format"""
+ieee754_decimal(bit_count, v) = """https://en.wikipedia.org/wiki/IEEE_754#Decimal"""
+leb128(v)                     = """https://en.wikipedia.org/wiki/LEB128"""
+vlq(v)                        = """https://en.wikipedia.org/wiki/Variable-length_quantity"""
+zigzag(v)                     = """https://en.wikipedia.org/wiki/Variable-length_quantity#Zigzag_encoding"""
+```
+
+
 ### Builtin Encodings
 
-Encodings are functions that transform data. The following encodings are built-in to KBNF:
+The following encodings are built-in to KBNF:
 
 #### `unsigned_integer` Encoding
 
@@ -459,19 +495,10 @@ Encodings are functions that transform data. The following encodings are built-i
 
 - little_endian(value: bits): bits
 
-### User Defined Encodings
 
-Other encodings can be added to your grammar by using [prose](#prose) to either describe the process or link to a description.
 
-**Examples**:
 
-```kbnf
-bfloat(v)                     = """https://en.wikipedia.org/wiki/Bfloat16_floating-point_format"""
-ieee754_decimal(bit_count, v) = """https://en.wikipedia.org/wiki/IEEE_754#Decimal"""
-leb128(v)                     = """https://en.wikipedia.org/wiki/LEB128"""
-vlq(v)                        = """https://en.wikipedia.org/wiki/Variable-length_quantity"""
-zigzag(v)                     = """https://en.wikipedia.org/wiki/Variable-length_quantity#Zigzag_encoding"""
-```
+
 
 
 ### Expressions
