@@ -79,8 +79,8 @@ rfc791                             = """https://www.rfc-editor.org/rfc/rfc791.ht
 draft_ietf_cipso_ipsecurity_01     = """https://datatracker.ietf.org/doc/draft-ietf-cipso-ipsecurity/01/""";
 
 payload(protocol, bit_count)       = pad_to(bit_count, payload_contents(protocol), u1(0));
-payload_contents(protocol)         = if(protocol = 0, protocol_hopopt)
-                                   | if(protocol = 1, protocol_icmp)
+payload_contents(protocol)         = when(protocol = 0, protocol_hopopt)
+                                   | when(protocol = 1, protocol_icmp)
                                    # TODO: the rest of the protocols
                                    ;
 protocol_hopopt                    = """https://www.rfc-editor.org/rfc/rfc8200.html""";

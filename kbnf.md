@@ -43,7 +43,7 @@ Contents
   - [Syntactic Elements](#syntactic-elements)
     - [Document Header](#document-header)
     - [Production Rule](#production-rule)
-    - [Nonterminal](#nonterminal)
+    - [Symbol](#symbol)
     - [Macro](#macro)
     - [Function](#function)
     - [Builtin Functions](#builtin-functions)
@@ -186,11 +186,11 @@ KBNF is a typed language. As the number of types is small and the conversion rul
 
 #### Expression
 
-An expression represents the set of possible bit sequences, of which one must be matched in the document. Once matched, the expression's possibilities collapse into a specific array of bits that can be [bound](#bind-function) to a variable and used elsewhere.
+The `expression` type represents the set of possible bit sequences, of which one must be matched in the document. Once matched, the expression's possibilities collapse into a specific array of bits that can be [bound](#bind-function) to a variable and used elsewhere.
 
 #### Condition
 
-A condition is the result of comparing numeric types or performing logical operations on conditions, resulting in either true or false. Conditions are used in [`if`](#if-function) calls.
+The `condition` type is the result of comparing numeric types or performing logical operations on conditions, resulting in either true or false. Conditions are used in [`if`](#if-function) calls.
 
 #### Numeric Types
 
@@ -198,9 +198,9 @@ Numeric types are used in [calculations](#calculations), which themselves result
 
 The numeric types are (narrowest to widest):
 
-* **Unsigned Integer** can represent any positive integer value or 0.
-* **Signed Integer** can represent unsigned integer values and negative integer values.
-* **Real Number** represents a real number in the mathematical definition of the term.
+* `uint` (unsigned integer) can represent any positive integer value or 0.
+* `sint` (signed integer) can represent unsigned integer values and negative integer values.
+* `real` (real number) represents a real number in the mathematical definition of the term.
 
 A narrower type may be used in a context requiring a wider type (whereby it is automatically promoted to the wider type), but a wider type cannot be used in a context requiring a narrower type.
 
@@ -248,28 +248,33 @@ kbnf_v1 utf-8
 Production rules follow the same `symbol = expression` style of other BNF grammars, except that they are terminated by a semicolon rather than by an end-of-line. This makes it visually more clear where a rule ends, and also allows more freedom for visually laying out the elements of a rule.
 
 ```kbnf
-production_rule = nonterminal TOKEN_SEP '=' TOKEN_SEP production TOKEN_SEP ';';
+production_rule = nonterminal
+                  TOKEN_SEP '=' TOKEN_SEP
+                  production
+                  TOKEN_SEP ';'
+                ;
 ```
 
 `nonterminal` is a nonterminal, and `production` may be a terminal or a nonterminal or a combination.
 
-By convention, the start symbol's rule is generally listed first.
+The first rule in a grammar is considered the start symbol.
 
-**Example**: A "document" production rule that uses a "record" production rule.
+**Example**: A "document" production rule (which is the start symbol) that uses a "record" production rule.
+
+A record begins with greater than, equals, or less than character, followed by a number, and finally a linefeed.
 
 ```kbnf
-document = preamble_line* END_PREAMBLE record*;
-record = '>' WS+ record_name ('/' count)* END_RECORD;
-# ...
+document = record+;
+record = ('>' | '=' | '<') '0'~'9'+ '\{a}';
 ```
 
 
-### Nonterminal
+### Symbol
 
 A placeholder for an expression. Symbol names are not limited to ASCII.
 
 ```kbnf
-nonterminal            = identifier_restricted;
+symbol                 = identifier_restricted;
 identifier_any         = identifier_firstchar identifier_nextchar*;
 identifier_restricted  = identifier_any ! reserved_identifiers;
 identifier_firstchar   = cp_category(L,M);
@@ -285,7 +290,7 @@ identifier_nextchar    = identifier_firstchar | cp_category(N) | '_';
 LF		= '\{a}';
 ```
 
-Or if you prefer, the same thing with English nonterminal names:
+Or if you prefer, the same thing with English symbol names:
 
 ```kbnf
 record         = company_name "：：" employee_count LF;
@@ -296,7 +301,7 @@ LF             = '\{a}';
 
 ### Macro
 
-A macro is a type of nonterminal that accepts parameters, which are bound to local [variables](#variables) for use within the macro.
+A macro is essentially a symbol that accepts parameters, which are bound to local [variables](#variables) for use within the macro. The macro's contents are written like regular rules, but also have access to the injected local variables.
 
 ```kbnf
 macro                  = identifier_restricted '(' TOKEN_SEP param_name (ARG_SEP param_name)* TOKEN_SEP ')';
@@ -306,17 +311,24 @@ identifier_firstchar   = cp_category(L,M);
 identifier_nextchar    = identifier_firstchar | cp_category(N) | '_';
 ```
 
-**Example**: A fixed section always contains three records: Two with 100 bytes, followed by one with 50.
+When called, a macro substitutes the passed in parameters and proceeds like a normal rule would (the grammar is malformed if a macro is called with the wrong types).
 
 ```kbnf
-fixed_section               = fixed_length_record(100)
-                              fixed_length_record(100)
-                              fixed_length_record(50);
-fixed_length_record(length) = byte{length};
-byte                        = unsigned_integer(8, 0~)
+call                   = identifier_any '(' TOKEN_SEP call_param (ARG_SEP call_param)* TOKEN_SEP ')';
+call_param             = expression | calculation(uint | sint | real) | condition;
 ```
 
-**Example**: An [IPV4])(ipv4.kbnf) packet contains "header length" and "total length" fields, which together determine how big the "options" and "payload" sections are. "protocol" determins the protocol of the payload.
+**Example**: A fixed section is always 256 bytes long, split into three standard 8-bit length prefixed records. The first two records always have a length of 100 bytes, and the third has a length of 53 bytes.
+
+```kbnf
+fixed_section  = record(100)
+                 record(100)
+                 record(53);
+record(length) = byte(length) byte(0~){length};
+byte(v)        = unsigned_integer(8, v)
+```
+
+**Example**: An [IPV4](ipv4.kbnf) packet contains "header length" and "total length" fields, which together determine how big the "options" and "payload" sections are. "protocol" determines the protocol of the payload.
 
 ```kbnf
 ip_packet                    = ...
@@ -333,26 +345,42 @@ ip_packet                    = ...
 options(bit_count)           = limit(option*, bit_count);
 option                       = option_eool
                              | option_nop
-                             | option_sec
                              | ...
                              ;
 
 payload(protocol, bit_count) = pad_to(bit_count, payload_contents(protocol), u1(0));
-payload_contents(protocol)   = if(protocol = 0, protocol_hopopt)
-                             | if(protocol = 1, protocol_icmp)
+payload_contents(protocol)   = when(protocol = 0, protocol_hopopt)
+                             | when(protocol = 1, protocol_icmp)
                              | ...
                              ;
 ```
 
 ### Function
 
-Functions behave similarly to macros, except that they are opaque: Whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions-and-encodings), or is user-defined in [prose](#prose).
+Functions behave similarly to macros, except that they are opaque: Whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions-and-encodings), or is user-defined in [prose](#prose) (either as a description, or as a URL pointing to a description).
 
-Functions have specific types that they accept as parameters, and emit specific types.
+Since the function is opaque, its types cannot be inferred like for macros, and therefore must be specified.
+
+```kbnf
+function               = identifier_restricted '(' TOKEN_SEP function_param (ARG_SEP function_param)* TOKEN_SEP ')' TOKEN_SEP ':' TOKEN_SEP type;
+function_param         = param_name TOKEN_SEP ':' TOKEN_SEP type;
+type                   = "expression"
+                       | "condition"
+                       | "uint"
+                       | "sint"
+                       | "real"
+                       ;
+```
+
+**Example**: A function to convert an unsigned int to its unsigned little endian base 128 representation.
+
+```kbnf
+uleb128(v: uint): expression = """https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128""";
+```
 
 ### Builtin Functions
 
-KBNF comes with a number of necessary functions baked in:
+KBNF comes with a number of fundamental functions built-in:
 
 #### Limit Function
 
@@ -727,34 +755,44 @@ header_line            = '-' SOME_WS header_name MAYBE_WS '=' SOME_WS header_val
 header_name            = printable+;
 header_value           = printable_ws+;
 
-grammar                = (MAYBE_WSLC production_rule)*;
-production_rule        = nonterminal TOKEN_SEP '=' TOKEN_SEP production TOKEN_SEP ';';
+grammar                = (MAYBE_WSLC rule)*;
+rule                   = (symbol | macro) TOKEN_SEP '=' TOKEN_SEP production TOKEN_SEP ';'
+                       | function TOKEN_SEP '=' TOKEN_SEP prose TOKEN_SEP ';'
+                       ;
 production             = expression;
-expression             = nonterminal
-                       | macro
+expression             = symbol
                        | call
                        | string_literal
                        | maybe_ranged(codepoint_literal)
-                       | concatenate
-                       | alternate
-                       | exclude
+                       | stuff
                        | builtin_encodings
                        | builtin_functions
-                       | variable(production)
+                       | variable
                        | repetition
                        | prose
                        | grouped(expression)
                        ;
 
-nonterminal            = identifier_restricted;
+symbol                 = identifier_restricted;
 macro                  = identifier_restricted '(' TOKEN_SEP param_name (ARG_SEP param_name)* TOKEN_SEP ')';
 param_name             = identifier_any;
+function               = identifier_restricted '(' TOKEN_SEP function_param (ARG_SEP function_param)* TOKEN_SEP ')' TOKEN_SEP ':' TOKEN_SEP type;
+function_param         = param_name TOKEN_SEP ':' TOKEN_SEP type;
+type                   = "expression"
+                       | "condition"
+                       | "uint"
+                       | "sint"
+                       | "real"
+                       ;
 call                   = identifier_any '(' TOKEN_SEP call_param (ARG_SEP call_param)* TOKEN_SEP ')';
-call_param             = expression | calculation(uint | sint | real) | condition;
+call_param             = expression | uint | sint | real | condition;
 
-concatenate            = expression (SOME_WSLC expression)+;
+combination            = alternate | combination_w_exclude;
+combination_w_exclude  = exclude | combination_w_concat
+combination_w_concat   = concatenate | combination;
 alternate              = expression (TOKEN_SEP '|' TOKEN_SEP expression)+;
 exclude                = expression TOKEN_SEP '!' TOKEN_SEP expression;
+concatenate            = expression (SOME_WSLC expression)+;
 
 prose                  = '"""' (escapable_char(printable_wsl, '"')+ ! '"""') '"""'
                        | "'''" (escapable_char(printable_wsl, "'")+ ! "'''") "'''"
@@ -766,77 +804,85 @@ escape                 = '\\' (printable ! '{') | escape_codepoint);
 escape_codepoint       = '{' digit_hex+ '}';
 
 repetition             = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
-repeat_range           = expression '{' TOKEN_SEP maybe_ranged(calculation(uint)) TOKEN_SEP '}';
+repeat_range           = expression '{' TOKEN_SEP maybe_ranged(uint) TOKEN_SEP '}';
 repeat_zero_or_one     = expression '?';
 repeat_zero_or_more    = expression '*';
 repeat_one_or_more     = expression '+';
 
 builtin_encodings      = enc_unsigned_integer | enc_signed_integer | enc_ieee754_binary | enc_little_endian;
-enc_unsigned_integer   = "unsigned_integer(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(calculation(uint)) TOKEN_SEP ')';
-enc_signed_integer     = "signed_integer(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(calculation(sint)) TOKEN_SEP ')';
-enc_ieee754_binary     = "ieee754_binary(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(calculation(real)) TOKEN_SEP ')';
-enc_little_endian      = "little_endian(" TOKEN_SEP expression TOKEN_SEP ')';
+enc_unsigned_integer   = fname_unsigned_integer "(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(uint) TOKEN_SEP ')';
+enc_signed_integer     = fname_signed_integer "(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(sint) TOKEN_SEP ')';
+enc_ieee754_binary     = fname_ieee754_binary "(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(real) TOKEN_SEP ')';
+enc_little_endian      = fname_little_endian "(" TOKEN_SEP expression TOKEN_SEP ')';
 
 builtin_functions      = function_limit | function_pad_to | function_pad_align | function_if | function_bind | function_cp_category;
-function_limit         = "limit(" TOKEN_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
-function_pad_to        = "pad_to(" TOKEN_SEP bit_count ARG_SEP expression ARG_SEP padding TOKEN_SEP ")";
-function_pad_align     = "pad_align(" TOKEN_SEP bit_count ARG_SEP expression ARG_SEP padding TOKEN_SEP ")";
-function_if            = "if(" TOKEN_SEP condition ARG_SEP expression TOKEN_SEP ')';
-function_bind          = "bind(" TOKEN_SEP local_id ARG_SEP bind_value TOKEN_SEP ')';
-function_cp_category   = "cp_category(" TOKEN_SEP cp_category_name (ARG_SEP cp_category_name)* TOKEN_SEP ')';
+function_limit         = fname_limit "(" TOKEN_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
+function_pad_to        = fname_pad_to "(" TOKEN_SEP bit_count ARG_SEP expression ARG_SEP padding TOKEN_SEP ")";
+function_pad_align     = fname_pad_align "(" TOKEN_SEP bit_count ARG_SEP expression ARG_SEP padding TOKEN_SEP ")";
+function_when          = fname_when "(" TOKEN_SEP condition ARG_SEP any TOKEN_SEP ')';
+function_bind          = fname_bind "(" TOKEN_SEP local_id ARG_SEP any TOKEN_SEP ')';
+function_cp_category   = fname_cp_category "(" TOKEN_SEP cp_category_name (ARG_SEP cp_category_name)* TOKEN_SEP ')';
 
 padding                = expression;
-local_id               = identifier_any;
-bind_value             = condition | uint | sint | real | expression;
-variable(type)         = local_id | subvariable(type);
-subvariable(type)      = variable(production) '.' variable(type);
-bit_count              = calculation(uint);
+local_id               = identifier_restricted;
+any                    = condition | number | expression;
+variable               = local_id | variable '.' local_id;
+bit_count              = number;
 cp_category_name       = ('A'~'Z') ('a'~'z')?;
 
-calculation(type)      = calculation_term(type) | addition(type) | subtraction(type);
-calculation_term(type) = operand(type) | multiplication(type) | division(type) | modulus(type);
-operand(type)          = type | variable(type) | calculation(type) | grouped(calculation(type));
-addition(type)         = calculation(type) TOKEN_SEP '+' TOKEN_SEP calculation_term(type);
-subtraction(type)      = calculation(type) TOKEN_SEP '-' TOKEN_SEP calculation_term(type);
-multiplication(type)   = calculation(type) TOKEN_SEP '*' TOKEN_SEP calculation_term(type);
-division(type)         = calculation(type) TOKEN_SEP '/' TOKEN_SEP calculation_term(type);
-modulus(type)          = calculation(type) TOKEN_SEP '%' TOKEN_SEP calculation_term(type);
-
-condition              = comparison | logical_and | logical_or | logical_not | grouped(condition);
-comparison             = operand(uint | sint | real) TOKEN_SEP comparator TOKEN_SEP operand(uint | sint | real);
+condition              = comparison | logical_op;
+logical_op             = logical_or | logical_op_and_not;
+logical_op_and_not     = logical_and | logical_op_not;
+logical_op_not         = logical_not | condition | grouped(condition);
+comparison             = number TOKEN_SEP comparator TOKEN_SEP number;
 comparator             = "<" | "<=" | "=" | ">= | ">";
-logical_and            = condition TOKEN_SEP '&' TOKEN_SEP condition;
 logical_or             = condition TOKEN_SEP '|' TOKEN_SEP condition;
-logical_not            = '!' TOKEN_SEP condition_group;
+logical_and            = condition TOKEN_SEP '&' TOKEN_SEP condition;
+logical_not            = '!' TOKEN_SEP condition;
+
+number                 = calc_add | calc_sub | calc_mul_div;
+calc_mul_div           = calc_mul | calc_div | calc_mod | calc_val;
+calc_val               = number_literal | variable | number | grouped(number);
+calc_add               = number TOKEN_SEP '+' TOKEN_SEP calc_mul_div;
+calc_sub               = number TOKEN_SEP '-' TOKEN_SEP calc_mul_div;
+calc_mul               = calc_mul_div TOKEN_SEP '*' TOKEN_SEP calc_val;
+calc_div               = calc_mul_div TOKEN_SEP '/' TOKEN_SEP calc_val;
+calc_mod               = calc_mul_div TOKEN_SEP '%' TOKEN_SEP calc_val;
 
 grouped(type)          = '(' TOKEN_SEP type TOKEN_SEP ')';
 maybe_ranged(type)     = type | (type? TOKEN_SEP '~' TOKEN_SEP type?);
 
-real                   = real_dec | real_hex;
-real_dec               = neg? uint_dec '.' digit_dec+ (('e' | 'E') ('+' | '-')? digit_dec+)?;
-real_hex               = neg? uint_hex '.' digit_hex+ (('p' | 'P') ('+' | '-')? digit_dec+)?;
-sint                   = neg? uint
-uint                   = uint_bin | uint_oct | uint_dec | uint_hex;
-uint_bin               = '0' ('b' | 'B') digit_bin+;
-uint_oct               = '0' ('o' | 'O') digit_oct+;
-uint_dec               = digit_dec+;
-uint_hex               = '0' ('x' | 'X') digit_hex+;
+number_literal         = int_literal_bin | int_literal_oct | real_literal_dec | real_literal_hex;
+real_literal_dec       = neg? digit_dec+; ('.' digit_dec+ (('e' | 'E') ('+' | '-')? digit_dec+)?)?;
+real_literal_hex       = neg? '0' ('x' | 'X') digit_hex+ ('.' digit_hex+ (('p' | 'P') ('+' | '-')? digit_dec+)?)?;
+int_literal_bin        = neg? '0' ('b' | 'B') digit_bin+;
+int_literal_oct        = neg? '0' ('o' | 'O') digit_oct+;
 neg                    = '-';
 
 identifier_any         = identifier_firstchar identifier_nextchar*;
 identifier_restricted  = identifier_any ! reserved_identifiers;
 identifier_firstchar   = cp_category(L,M);
 identifier_nextchar    = identifier_firstchar | cp_category(N) | '_';
-reserved_identifiers   = ( "limit"
-                         | "pad_to"
-                         | "pad_align"
-                         | "if"
-                         | "bind"
-                         | "unsigned_integer"
-                         | "signed_integer"
-                         | "ieee754_binary"
-                         | "little_endian"
-                         );
+reserved_identifiers   = fname_limit
+                       | fname_pad_to
+                       | fname_pad_align
+                       | fname_if
+                       | fname_bind
+                       | fname_unsigned_integer
+                       | fname_signed_integer
+                       | fname_ieee754_binary
+                       | fname_little_endian
+                       ;
+
+fname_limit            = "limit";
+fname_pad_to           = "pad_to";
+fname_pad_align        = "pad_align";
+fname_if               = "if";
+fname_bind             = "bind";
+fname_unsigned_integer = "unsigned_integer";
+fname_signed_integer   = "signed_integer";
+fname_ieee754_binary   = "ieee754_binary";
+fname_little_endian    = "little_endian";
 
 printable              = cp_category(L,M,N,P,S);
 printable_ws           = printable | WS;
