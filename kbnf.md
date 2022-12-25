@@ -33,48 +33,44 @@ Contents
     - [Character set support](#character-set-support)
     - [Codepoints as first-class citizens](#codepoints-as-first-class-citizens)
     - [Future proof](#future-proof)
-  - [Concepts](#concepts)
-    - [Document](#document)
-    - [Variables](#variables)
-    - [Types](#types)
-      - [Expression](#expression)
-      - [Condition](#condition)
-      - [Numeric Types](#numeric-types)
-  - [Syntactic Elements](#syntactic-elements)
+  - [Grammar Document](#grammar-document)
     - [Document Header](#document-header)
-    - [Production Rule](#production-rule)
-    - [Symbol](#symbol)
-    - [Macro](#macro)
-    - [Function](#function)
-    - [Builtin Functions](#builtin-functions)
-      - [Limit Function](#limit-function)
-      - [`pad_to` Function](#pad_to-function)
-      - [`pad_align` Function](#pad_align-function)
-      - [`when` Function](#when-function)
-      - [`bind` Function](#bind-function)
-      - [`cp_category` Function](#cp_category-function)
-    - [Encoding](#encoding)
-    - [Builtin Encodings](#builtin-encodings)
-      - [`unsigned_integer` Encoding](#unsigned_integer-encoding)
-      - [`signed_integer` Encoding](#signed_integer-encoding)
-      - [`ieee754_binary` Encoding](#ieee754_binary-encoding)
-      - [`little_endian` Encoding](#little_endian-encoding)
+  - [Production Rules](#production-rules)
+    - [Symbols](#symbols)
+    - [Macros](#macros)
+    - [Functions](#functions)
+  - [Builtin Functions](#builtin-functions)
+    - [Limit Function](#limit-function)
+    - [`pad_to` Function](#pad_to-function)
+    - [`pad_align` Function](#pad_align-function)
+    - [`when` Function](#when-function)
+    - [`bind` Function](#bind-function)
+    - [`cp_category` Function](#cp_category-function)
+    - [`unsigned_integer` Function](#unsigned_integer-function)
+    - [`signed_integer` Function](#signed_integer-function)
+    - [`ieee754_binary` Function](#ieee754_binary-function)
+    - [`little_endian` EncoFunctionding](#little_endian-encofunctionding)
+  - [Variables](#variables)
+  - [Types](#types)
     - [Expressions](#expressions)
-    - [Literals](#literals)
-    - [Grouping](#grouping)
-    - [Ranges](#ranges)
-    - [Calculations](#calculations)
     - [Conditions](#conditions)
-    - [Builtin functions and encodings](#builtin-functions-and-encodings)
-    - [Comments](#comments)
-    - [Precedence](#precedence)
-  - [Something](#something)
-      - [Concatenation](#concatenation)
-      - [Alternative](#alternative)
-      - [Exclusion](#exclusion)
-    - [Prose](#prose)
-  - [Codepoints](#codepoints)
+    - [Numbers](#numbers)
+  - [Literals](#literals)
+    - [Codepoints](#codepoints)
+    - [Strings](#strings)
     - [Escape Sequence](#escape-sequence)
+    - [Prose](#prose)
+  - [Combinations](#combinations)
+    - [Concatenation](#concatenation)
+    - [Alternative](#alternative)
+    - [Exclusion](#exclusion)
+  - [Repetition](#repetition)
+  - [Grouping](#grouping)
+  - [Comments](#comments)
+  - [Calculations](#calculations)
+  - [Conditions](#conditions-1)
+    - [Ranges](#ranges)
+    - [Precedence](#precedence)
   - [Examples](#examples)
     - [Complex Example](#complex-example)
   - [Design Notes](#design-notes)
@@ -131,83 +127,10 @@ KBNF documents are versioned to a particular KBNF specification so that changes 
 
 
 
-Concepts
---------
+Grammar Document
+----------------
 
-### Document
-
-This specification will refer to any complete sequence of input (message, packet, document, file, archive, protocol etc) as a "document". Lexing begins at the start of the document and continues to the end of the data unless otherwise specified.
-
-### Variables
-
-In some situations, data that has already been realized may be bound to a variable for use elsewhere. Variables are bound either manually using the [`bind`](#bind-function) builtin function, or automatically when passing to a [macro](#macro).
-
-All variables have a [type](#types) that matches what they were bound to. Variables are scoped locally to the current rule.
-
-If an expression is bound, that expression's bound variables are also accessible locally by using dot notation (`this_exp_bound_value.sub_exp_bound_value`).
-
-**For example**:
-
-A record begins with a header consisting of a 16-bit big endian unsigned integer length of at least 1, indicating how many bytes of record data follow.
-
-```kbnf
-record              = bind(header, record_header) record_data(header.length);
-record_header       = bind(length, unsigned_integer(16, 1~));
-record_data(length) = unsigned_integer(8, 0~){length};
-```
-
-* The `record` rule binds the result of the `length_header` rule to a variable called `header`.
-* The `record_header` rule binds a 16-bit big endian unsigned integer value (that must be >= 1) to a variable called `length`.
-* The `record_data` rule is a [macro](#macro) that takes a length argument and matches that many bytes using [repetition](#repetition).
-* The `record` rule gets the length value from the `record_header` rule using dot notation to access the sub-expression's variable: `header.length`.
-
-It's also possible to access sub-variables of passed-in expression variables:
-
-```kbnf
-a = c(b);
-b = bind(bb, unsigned_integer(5, 1~20));
-c(x) = unsigned_integer(6, 0~50) x.bb;
-```
-
-`c` expects the passed-in variable `x` to be an expression that captures a variable called `bb` so that it can access it as `x.bb`. This is indeed the case when nonterminal `a` is defined as `b` passed into `c`. Thus, `a` matches a 5-bit unsigned integer from 1 to 20, followed by a 6-bit integer from 0 to 50, followed by the exact same 5-bit value again (for a total of 16 bits).
-
-Of course, this example is a bit contrived, and could be more readably writen as:
-
-```
-a = bind(bb, unsigned_integer(5, 1~20))
-    unsigned_integer(6, 0~50)
-    bb
-  ;
-```
-
-### Types
-
-KBNF is a typed language. As the number of types is small and the conversion rules simple, types are inferred.
-
-#### Expression
-
-The `expression` type represents the set of possible bit sequences, of which one must be matched in the document. Once matched, the expression's possibilities collapse into a specific array of bits that can be [bound](#bind-function) to a variable and used elsewhere.
-
-#### Condition
-
-The `condition` type is the result of comparing numeric types or performing logical operations on conditions, resulting in either true or false. Conditions are used in [`if`](#if-function) calls.
-
-#### Numeric Types
-
-Numeric types are used in [calculations](#calculations), which themselves result in numeric types.
-
-The numeric types are (narrowest to widest):
-
-* `uint` (unsigned integer) can represent any positive integer value or 0.
-* `sint` (signed integer) can represent unsigned integer values and negative integer values.
-* `real` (real number) represents a real number in the mathematical definition of the term.
-
-A narrower type may be used in a context requiring a wider type (whereby it is automatically promoted to the wider type), but a wider type cannot be used in a context requiring a narrower type.
-
-
-
-Syntactic Elements
-------------------
+A KBNF grammar document begins with a [header section](#document-header), and then contains a series of [production rules](#production-rules). The first rule listed is assumed to be the start rule, and therefore must define a [symbol](#symbols).
 
 
 ### Document Header
@@ -243,35 +166,25 @@ kbnf_v1 utf-8
 ```
 
 
-### Production Rule
 
-Production rules follow the same `symbol = expression` style of other BNF grammars, except that they are terminated by a semicolon rather than by an end-of-line. This makes it visually more clear where a rule ends, and also allows more freedom for visually laying out the elements of a rule.
+Production Rules
+----------------
 
-```kbnf
-production_rule = nonterminal
-                  TOKEN_SEP '=' TOKEN_SEP
-                  production
-                  TOKEN_SEP ';'
-                ;
-```
-
-`nonterminal` is a nonterminal, and `production` may be a terminal or a nonterminal or a combination.
-
-The first rule in a grammar is considered the start symbol.
-
-**Example**: A "document" production rule (which is the start symbol) that uses a "record" production rule.
-
-A record begins with greater than, equals, or less than character, followed by a number, and finally a linefeed.
+Production rules are written in the form `nonterminal = expression;`, with optional whitespace (including newlines) between rule elements. The terminating semicolon makes it more clear where a rule ends, and also allows more freedom for visually laying out the elements of a rule.
 
 ```kbnf
-document = record+;
-record = ('>' | '=' | '<') '0'~'9'+ '\{a}';
+rule = (symbol | macro) TOKEN_SEP '=' TOKEN_SEP expression TOKEN_SEP ';'
+     | function TOKEN_SEP '=' TOKEN_SEP prose TOKEN_SEP ';'
+     ;
 ```
 
+The nonterminal (left) part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their names share the global namespace, and must be unique (they are case sensitive).
 
-### Symbol
+TODO: Should they share namespace?
 
-A placeholder for an expression. Symbol names are not limited to ASCII.
+### Symbols
+
+A symbol acts as a placeholder for an [expression](#expressions). Symbol names are not limited to ASCII.
 
 ```kbnf
 symbol                 = identifier_restricted;
@@ -299,7 +212,7 @@ employee_count = '１'~'９' '０'~'９'* '万'?;
 LF             = '\{a}';
 ```
 
-### Macro
+### Macros
 
 A macro is essentially a symbol that accepts parameters, which are bound to local [variables](#variables) for use within the macro. The macro's contents are written like regular rules, but also have access to the injected local variables.
 
@@ -355,11 +268,13 @@ payload_contents(protocol)   = when(protocol = 0, protocol_hopopt)
                              ;
 ```
 
-### Function
+### Functions
 
-Functions behave similarly to macros, except that they are opaque: Whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions-and-encodings), or is user-defined in [prose](#prose) (either as a description, or as a URL pointing to a description).
+Functions behave similarly to macros, except that they are opaque: Whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions), or is user-defined in [prose](#prose) (either as a description, or as a URL pointing to a description).
 
 Since the function is opaque, its types cannot be inferred like for macros, and therefore must be specified.
+
+Functions must specify the [types](#types) of all parameters and its return value. A function cannot produce anything if its input types are mismatched.
 
 ```kbnf
 function               = identifier_restricted '(' TOKEN_SEP function_param (ARG_SEP function_param)* TOKEN_SEP ')' TOKEN_SEP ':' TOKEN_SEP type;
@@ -378,11 +293,14 @@ type                   = "expression"
 uleb128(v: uint): expression = """https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128""";
 ```
 
-### Builtin Functions
+
+
+Builtin Functions
+-----------------
 
 KBNF comes with a number of fundamental functions built-in:
 
-#### Limit Function
+### Limit Function
 
 The `limit` function accepts an expression and a bit count, and limits the expression to that many bits.
 
@@ -397,11 +315,11 @@ name_field = limit(200*8, cp_category(L,M,N,P,Zs)+)
 ```
 
 
-#### `pad_to` Function
+### `pad_to` Function
 
 The `pad_to` function repeatedly adds a padding expression to the given expression until the final combined expression produces exactly the specified number of bits. The addition must not cause the final combined expression to produce more than the specified number of bits.
 
-```
+```kbnf
 pad_to(bit_count: uint, expr: expression, padding: expression): expression
 ```
 
@@ -412,21 +330,31 @@ record = "[" pad_to(100*8, record_char*, " "*) "]"
 record_char = cp_category(L,M,N,P,Zs)
 ```
 
-#### `pad_align` Function
+### `pad_align` Function
 
 The `pad_align` function repeatedly adds a padding expression to the given expression until the final combined expression produces a number of bits that is a multiple of the given count.
 
 The `pad_align` function requires that any match be sized to a multiple of the specified bit count, and adds the padding expression repeatedly to any potential match until the length matches. `pad_align` does not limit the size, so if a potential match is already over-sized or becomes over-sized as a result of the padding, no match occurs.
 
-```
+```kbnf
 pad_align(bit_count: uint, expr: expression, padding: expression): expression
 ```
 
-#### `when` Function
+**Example**: The "records" section can contain any number of length-delimited records, but must end on a 32-bit boundary. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload).
+
+```kbnf
+record_section     = pad_align(32, record*, zero_length_record);
+record             = byte(bind(length, 0~)) byte(0~){length};
+zero_length_record = byte(0);
+byte(v)            = unsigned_integer(8, v);
+```
+
+
+### `when` Function
 
 The `when` function allows an expression only when a given [condition](#condition) holds.
 
-```
+```kbnf
 when(cond: condition, expr: expression): expression
 ```
 
@@ -439,11 +367,11 @@ extension(type) = when(type = 1, extension_a)
                 ;
 ```
 
-#### `bind` Function
+### `bind` Function
 
 The `bind` function transparently binds whatever it surrounds to a local variable for subsequent re-use in the current rule. The surrounding context behaves as though only what the `bind` function surrounded were present. This allows a sequence to be produced as normal, and also to be used again later in the rule.
 
-```
+```kbnf
 bind(variable_name: identifier, value: any): any
 ```
 
@@ -474,11 +402,11 @@ uint16(v)               = unsigned_int(16, v)
 byte(v)                 = unsigned_int(8, v)
 ```
 
-#### `cp_category` Function
+### `cp_category` Function
 
 The `cp_category` function produces the alternates set of all Unicode codepoints that have any of the given set of Unicode [categories](https://unicode.org/glossary/#general_category).
 
-```
+```kbnf
 cp_category(categories: category_name...): set of codepoint alternates
 ```
 
@@ -488,155 +416,93 @@ cp_category(categories: category_name...): set of codepoint alternates
 letter_digit_space = cp_caregory(N,L,Zs);
 ```
 
-### Encoding
+### `unsigned_integer` Function
 
-An encoding is a data transformation that can't easily be represented in a BNF expression. Typically they are defined as [prose](#prose) (either a textual description of the algorithm, or a URL pointing to a description). They take parameters in the same manner as [macros](#macro) and [functions](#function).
-
-**Examples**:
-
-```kbnf
-bfloat(v)                     = """https://en.wikipedia.org/wiki/Bfloat16_floating-point_format"""
-ieee754_decimal(bit_count, v) = """https://en.wikipedia.org/wiki/IEEE_754#Decimal"""
-leb128(v)                     = """https://en.wikipedia.org/wiki/LEB128"""
-vlq(v)                        = """https://en.wikipedia.org/wiki/Variable-length_quantity"""
-zigzag(v)                     = """https://en.wikipedia.org/wiki/Variable-length_quantity#Zigzag_encoding"""
-```
-
-
-### Builtin Encodings
-
-The following encodings are built-in to KBNF:
-
-#### `unsigned_integer` Encoding
-
+TODO
 - unsigned_integer(value: uint, bit_count: uint): bits
 
-#### `signed_integer` Encoding
+### `signed_integer` Function
 
 - signed_integer(value: sint, bit_count: uint): bits
 
-#### `ieee754_binary` Encoding
+### `ieee754_binary` Function
 
 - ieee754_binary(value: real, bit_count: uint): bits
 
-#### `little_endian` Encoding
+### `little_endian` EncoFunctionding
 
 - little_endian(value: bits): bits
 
 
 
+Variables
+---------
+
+In some contexts, data may be bound to a variable for use elsewhere. Variables are bound either manually using the [`bind`](#bind-function) builtin function, or automatically when passing to a [macro](#macros). The variable's [type](#types) is inferred from what is allowed in the context where it is bound.
+
+When [binding](#bind-function) an [expression](#expressions) that itself binds a variable, that expression's bound variables can be accessed from the outer scope using dot notation (`this_exp_bound_value.sub_exp_bound_value`).
+
+**Example**: A document consists of a type 1 record, followed by any number of type 5, 6, and 7 records, and is terminated with a type 0 record of length 0. A record begins with a header consisting of an 8-bit type and a 16-bit big endian unsigned integer indicating how many bytes of record data follow.
+
+```kbnf
+document            = record(1) (record(5) | record(6) | record(7))* terminator_record;
+record(type)        = bind(header, record_header(type)) record_data(header.length);
+record_header(type) = u8(type) u16(bind(length, 0~));
+record_data(length) = u8(0~){length};
+terminator_record   = u8(0) u16(0);
+u8(v)               = unsigned_integer(8, v);
+u16(v)              = unsigned_integer(16, v);
+```
+
+* The `record` rule (a [macro](#macros) because it takes parameters) binds the result of the `record_header` rule to a variable called `header`. This gives it access to the `record_header` `length` variable as `header.length`.
+* The `record_header` rule specifies an 8-bit type value (a variable passed in to the macro as a parameter), and binds a number (that must be usable as a 16-bit unsigned integer) to a variable called `length`.
+* The `record_data` rule is a [macro](#macros) that takes a length parameter and matches that many bytes using [repetition](#repetition).
 
 
+Types
+-----
+
+There are three main types in KBNF:
+
+* [`expression`](#expressions)
+* [`condition`](#conditions)
+* [`number`](#numbers), of which there are three subtypes:
+  * `uint`: limited to positive integers and 0
+  * `int`: limited to positive and negative integers, and 0
+  * `real`: any value from the set of reals
+
+Types become relevant when calling [functions](#functions), which must specify what types they accept and return. There are also type restrictions for what can be used in [repetition](#repetition) and [calculations](#calculations).
 
 
 ### Expressions
 
-An expression is the set of all input that will match at a particular point, describing what must be matched. Once a match is established, the result can be:
+An expression represents the set of possible bit sequences that it can produce. When captured via [`bind`](#bind-function), the captured [variable](#variables) is an expression representing the bits that were produced according to the bound expression.
 
-* used as a token
-* used for an exact match later in the document
-* incorporated into calculations
-* used to test for conditions
-
-### Literals
-
-### Grouping
-
-Expressions, calculations and conditions can be grouped.
-
-### Ranges
-
-repetition
-codepoint
-int
-
-### Calculations
-
-Calculations perform arithmetic operations on [numeric types](#numeric-types), producing a new numeric type. Types may be mixed in calculations, whereby the produced type is the wider of the input types.
-
-add, subtract, multiply, divide, modulus, parentheses, asl, asr
-
-Calculations produce integers, which can then be used in other calculations, ranges, or conditions
 
 ### Conditions
 
-comparators, logic operators, parentheses, _if
-
-Conditions are used in _if expressions.
-
-### Builtin functions and encodings
-
-Builtins are built-in functions that extend the capabilities of KBNF.
-
-### Comments
-
-A comment begins with a hash char (`#`) and continues to the end of the current line. Comments can be placed after pretty much any token.
-
-```kbnf
-comment = '#' (printable_ws ! LINE_END)* LINE_END;
-```
-
-**Example**:
-
-```kbnf
-kbnf_v1 utf-8
-- identifier = mygrammar_v1
-- description = My first grammar
-
-# This is the first place a comment may be placed.
-myrule # comment
- = # comment
- myexpression # comment
- ; # comment
-# comment
-```
+The `condition` type is the result of comparing numeric types or performing logical operations on conditions, resulting in either true or false. Conditions are used in [`when`](#when-function) calls.
 
 
-### Precedence
+### Numbers
 
-Calculations
+Numbers are used in [calculations](#calculations), numeric ranges, and as parameters to functions.
 
-* Grouping
-* Multiplication, Division, Modulus
-* Addition, Subtraction
-
-Conditions
-
-* Grouping
-* Comparisons
-* Logical And
-* Logical Or
-
-Logical not can only be applied to a group
-
-Expressions
-
-* Grouping
-* Codepoint range
-* Repetition
-* Concatenation
-* Exclusion
-* Alternation
+Certain functions take numeric parameters but restrict the allowed values (e.g. integers only, min/max value, etc). Only parameters containing compatible values can produce a result in such cases.
 
 
+Literals
+--------
 
-Something
----------
+### Codepoints
 
-#### Concatenation
+Codepoints can be represented as literals, ranges, and category sets.
 
-Concatenation matches all expressions in order.
+### Strings
 
-#### Alternative
+### Escape Sequence
 
-Alternative matches one of a set of expressions
-
-#### Exclusion
-
-Exclusion removes an expression from the set of matching expressions.
-
-
-
+Escape sequences are allowed in string literals, codepoint literals, and prose. Codepoint escape sequences allow you to represent troublesome codepoints.
 
 ### Prose
 
@@ -667,15 +533,104 @@ Or sinking as the light wind lives or dies.
 ```
 
 
-## Codepoints
 
-Codepoints can be represented as literals, ranges, and category sets.
+Combinations
+------------
 
-### Escape Sequence
+### Concatenation
 
-Escape sequences are allowed in string literals, codepoint literals, and prose. Codepoint escape sequences allow you to represent troublesome codepoints.
+Concatenation matches all expressions in order.
+
+### Alternative
+
+Alternative matches one of a set of expressions
+
+### Exclusion
+
+Exclusion removes an expression from the set of matching expressions.
 
 
+Repetition
+----------
+
+Grouping
+--------
+
+Expressions, calculations and conditions can be grouped.
+
+
+Comments
+--------
+
+A comment begins with a hash char (`#`) and continues to the end of the current line. Comments can be placed after pretty much any token.
+
+```kbnf
+comment = '#' (printable_ws ! LINE_END)* LINE_END;
+```
+
+**Example**:
+
+```kbnf
+kbnf_v1 utf-8
+- identifier = mygrammar_v1
+- description = My first grammar
+
+# This is the first place a comment may be placed.
+myrule # comment
+ = # comment
+ myexpression # comment
+ ; # comment
+# comment
+```
+
+
+
+Calculations
+------------
+
+Calculations perform arithmetic operations on [numbers](#numbers), producing a new number.
+
+add, subtract, multiply, divide, modulus, parentheses, asl, asr
+
+
+Conditions
+----------
+
+comparators, logic operators, parentheses, when
+
+
+
+
+///////////////////////////////////////////////////
+
+### Ranges
+
+repetition
+codepoint
+int
+
+### Precedence
+
+Calculations
+
+* Multiplication, Division, Modulus
+* Addition, Subtraction
+
+Conditions
+
+* Comparisons
+* Logical And
+* Logical Or
+
+Logical not can only be applied to a group
+
+Expressions
+
+* Codepoint range
+* Repetition
+* Concatenation
+* Exclusion
+* Alternation
 
 Examples
 --------
@@ -738,8 +693,6 @@ Such as whitespace (which would have different meaning, depending on the charact
 The KBNF Grammar in KBNF
 ------------------------
 
-KBNF can describe itself:
-
 ```kbnf
 kbnf_v1 utf-8
 - identifier  = kbnf_v1
@@ -764,7 +717,7 @@ expression             = symbol
                        | call
                        | string_literal
                        | maybe_ranged(codepoint_literal)
-                       | stuff
+                       | combination
                        | builtin_encodings
                        | builtin_functions
                        | variable
