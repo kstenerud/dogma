@@ -51,9 +51,11 @@ Contents
     - [`little_endian` Function](#little_endian-function)
   - [Variables](#variables)
   - [Types](#types)
+    - [Identifier](#identifier)
     - [Expressions](#expressions)
     - [Conditions](#conditions)
     - [Numbers](#numbers)
+    - [Ranges](#ranges)
   - [Literals](#literals)
     - [Codepoints](#codepoints)
     - [Strings](#strings)
@@ -69,9 +71,6 @@ Contents
   - [Comments](#comments)
   - [Calculations](#calculations)
   - [Conditions](#conditions-1)
-    - [Identifier](#identifier)
-    - [Ranges](#ranges)
-    - [Precedence](#precedence)
   - [Examples](#examples)
     - [Complex Example](#complex-example)
   - [Design Notes](#design-notes)
@@ -229,11 +228,9 @@ call_param = expression | calculation(uint | sint | real) | condition;
 **Example**: A fixed section is always 256 bytes long, split into three standard 8-bit length prefixed records. The first two records always have a length of 100 bytes, and the third has a length of 53 bytes.
 
 ```kbnf
-fixed_section  = record(100)
-                 record(100)
-                 record(53);
+fixed_section  = record(100) record(100) record(53);
 record(length) = byte(length) byte(0~){length};
-byte(v)        = unsigned_integer(8, v)
+byte(v)        = unsigned_integer(8, v);
 ```
 
 **Example**: An [IPV4](ipv4.kbnf) packet contains "header length" and "total length" fields, which together determine how big the "options" and "payload" sections are. "protocol" determines the protocol of the payload.
@@ -307,7 +304,7 @@ sized(bit_count: uint, expr: expression): expression
 **Example**: A name field must contain exactly 200 bytes worth of character data, padded with space as needed.
 
 ```kbnf
-name_field = sized(200*8, cp_category(L,M,N,P,Zs)* ' '*)
+name_field = sized(200*8, cp_category(L,M,N,P,Zs)* ' '*);
 ```
 
 **Example**: The "records" section can contain any number of length-delimited records, but must be exactly 1024 bytes long. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload).
@@ -389,9 +386,9 @@ Interpret the next 16 bits as a big endian unsigned int and bind the resolved nu
 
 ```kbnf
 length_delimited_record = uint16(bind(length, 0~)) record_contents(length);
-record_contents(length) = byte(0~){length}
-uint16(v)               = unsigned_int(16, v)
-byte(v)                 = unsigned_int(8, v)
+record_contents(length) = byte(0~){length};
+uint16(v)               = unsigned_int(16, v);
+byte(v)                 = unsigned_int(8, v);
 ```
 
 ### `cp_category` Function
@@ -475,7 +472,7 @@ Types
 
 These are the main types in KBNF:
 
-* `identifier`: a unique identifier for [symbols](#symbols), [macros](#macros), and [functions](#functions) (which are all scoped globally), or [variables](#variables) (which are scoped locally).
+* [`identifier`](#identifier) 
 * [`expression`](#expressions)
 * [`condition`](#conditions)
 * [`number`](#numbers), of which there are three subtypes:
@@ -484,6 +481,18 @@ These are the main types in KBNF:
   * `real`: any value from the set of reals
 
 Types become relevant when calling [functions](#functions), which must specify what types they accept and return. There are also type restrictions for what can be used in [repetition](#repetition), [calculations](#calculations), and [comparisons](#comparisons).
+
+
+### Identifier
+
+TODO
+
+a unique identifier for [symbols](#symbols), [macros](#macros), and [functions](#functions) (which are all scoped globally), or [variables](#variables) (which are scoped locally).
+
+local vs global
+restricted
+shadowing?
+dot notation? or leave that in variable?
 
 
 ### Expressions
@@ -514,6 +523,14 @@ A `condition` type is the result of comparing [numbers](#numbers) or performing 
 Numbers are used in [calculations](#calculations), numeric ranges, and as parameters to functions.
 
 Certain functions take numeric parameters but restrict the allowed values (e.g. integers only, min/max value, etc). Only parameters containing compatible values can produce a result in such cases.
+
+
+### Ranges
+
+repetition
+codepoint
+int
+
 
 
 Literals
@@ -689,14 +706,28 @@ identifier = 'a'~'z'{5~8};
 identifier = 'A'~'Z'+ 'a'~'z'* '_'?;
 ```
 
+TODO: precedence...
+
 
 
 Grouping
 --------
 
-Expressions, calculations and conditions can be grouped.
+Expressions, calculations and conditions can be grouped in order to override the default [precedence](#precedence), or as a visual aid. To group, place the item between parentheses.
 
-TODO
+```kbnf
+grouped(item) = '(' TOKEN_SEP item TOKEN_SEP ')';
+```
+
+**Exmples**:
+
+```kbnf
+my_rule         = ('a' | 'b') ('x' | 'y');
+my_macro1(a)    = unsigned_integer(8, (a + 5) * 2);
+my_macro2(a, b) = when( (a < 10 | a > 20) & (b < 10 | b > 20), "abc" )
+                | "def"
+                ;
+```
 
 
 
@@ -716,7 +747,7 @@ kbnf_v1 utf-8
 - identifier = mygrammar_v1
 - description = My first grammar
 
-# This is the first place a comment may be placed.
+# This is the first place a comment can be placed.
 myrule # comment
  = # comment
  myexpression # comment
@@ -731,9 +762,30 @@ Calculations
 
 Calculations perform arithmetic operations on [numbers](#numbers), producing a new number.
 
-add, subtract, multiply, divide, modulus, parentheses, asl, asr
+The following operations can be used:
+
+* Add (`+`)
+* Subtract (`-`)
+* Multiply (`*`)
+* Divide (`/`)
+* Modulus (`%`)
+* Logical shift left (`<<`)
+* Arithmetic shift right (`>>`)
 
 TODO
+
+```kbnf
+number       = calc_add | calc_sub | calc_mul_div;
+calc_mul_div = calc_mul | calc_div | calc_mod | calc_val;
+calc_val     = number_literal | variable | number | grouped(number);
+calc_add     = number TOKEN_SEP '+' TOKEN_SEP calc_mul_div;
+calc_sub     = number TOKEN_SEP '-' TOKEN_SEP calc_mul_div;
+calc_mul     = calc_mul_div TOKEN_SEP '*' TOKEN_SEP calc_val;
+calc_div     = calc_mul_div TOKEN_SEP '/' TOKEN_SEP calc_val;
+calc_mod     = calc_mul_div TOKEN_SEP '%' TOKEN_SEP calc_val;
+```
+
+TODO: precedence...
 
 
 
@@ -744,42 +796,22 @@ comparators, logic operators, parentheses, when
 
 TODO
 
+```kbnf
+condition              = comparison | logical_op;
+logical_op             = logical_or | logical_op_and_not;
+logical_op_and_not     = logical_and | logical_op_not;
+logical_op_not         = logical_not | condition | grouped(condition);
+comparison             = number TOKEN_SEP comparator TOKEN_SEP number;
+comparator             = "<" | "<=" | "=" | ">= | ">";
+logical_or             = condition TOKEN_SEP '|' TOKEN_SEP condition;
+logical_and            = condition TOKEN_SEP '&' TOKEN_SEP condition;
+logical_not            = '!' TOKEN_SEP condition;
+```
 
+TODO: precedence...
 
 ///////////////////////////////////////////////////
 
-TODO
-
-### Identifier
-
-### Ranges
-
-repetition
-codepoint
-int
-
-### Precedence
-
-Calculations
-
-* Multiplication, Division, Modulus
-* Addition, Subtraction
-
-Conditions
-
-* Comparisons
-* Logical And
-* Logical Or
-
-Logical not can only be applied to a group
-
-Expressions
-
-* Codepoint range
-* Repetition
-* Concatenation
-* Exclusion
-* Alternation
 
 Examples
 --------
@@ -793,15 +825,15 @@ Examples
 * Depending on the `record_type`, there may be a `suffix`.
 
 ```kbnf
-document                = section+
-section                 = _bind(sentinel,_bits(8,x80~) length_field(0)) record* sentinel
-record                  = _bind(record_type,type_field) payload suffix(record_type.type);
-type_field              = _bind(type,_bits(8,0~2))
-length_field(contents)  = _transform(little_endian, _bits(24,contents))
-payload                 = _bind(byte_count,length_field(0~)) _bits(8,0~){byte_count} pad_32_high(byte_count);
-pad_32_high(byte_count) = _bits(8,xff){(4-byte_count%4)%4};
-suffix(type)            = if(type = 2, type2)
-                        | if(type = 1, type1)
+document                = section+;
+section                 = bind(sentinel,unsigned_integer(8,0x80~)) length_field(0) record* sentinel;
+record                  = bind(record_type,type_field) payload suffix(record_type.type);
+type_field              = unsigned_integer(8,bind(type,0~2));
+length_field(contents)  = little_endian(unsigned_integer(24,contents));
+payload                 = length_field(bind(byte_count,0~)) unsigned_integer(8,0~){byte_count} pad_32_high(byte_count);
+pad_32_high(byte_count) = unsigned_integer(8,0xff){(4-byte_count%4)%4};
+suffix(type)            = when(type = 2, type2)
+                        | when(type = 1, type1)
                         # type 0 means no suffix
                         ;
 type1                   = ...
@@ -951,8 +983,8 @@ calc_mul               = calc_mul_div TOKEN_SEP '*' TOKEN_SEP calc_val;
 calc_div               = calc_mul_div TOKEN_SEP '/' TOKEN_SEP calc_val;
 calc_mod               = calc_mul_div TOKEN_SEP '%' TOKEN_SEP calc_val;
 
-grouped(type)          = '(' TOKEN_SEP type TOKEN_SEP ')';
-maybe_ranged(type)     = type | (type? TOKEN_SEP '~' TOKEN_SEP type?);
+grouped(item)          = '(' TOKEN_SEP item TOKEN_SEP ')';
+maybe_ranged(item)     = item | (item? TOKEN_SEP '~' TOKEN_SEP item?);
 
 number_literal         = int_literal_bin | int_literal_oct | real_literal_dec | real_literal_hex;
 real_literal_dec       = neg? digit_dec+; ('.' digit_dec+ (('e' | 'E') ('+' | '-')? digit_dec+)?)?;
