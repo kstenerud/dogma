@@ -40,9 +40,9 @@ Contents
     - [Macros](#macros)
     - [Functions](#functions)
   - [Builtin Functions](#builtin-functions)
-    - [Limit Function](#limit-function)
-    - [`pad_to` Function](#pad_to-function)
-    - [`pad_align` Function](#pad_align-function)
+    - [`sized_to` Function](#sized_to-function)
+    - [`padded_to` Function](#padded_to-function)
+    - [`aligned_to` Function](#aligned_to-function)
     - [`when` Function](#when-function)
     - [`bind` Function](#bind-function)
     - [`cp_category` Function](#cp_category-function)
@@ -143,11 +143,11 @@ The document header identifies the file format as KBNF, and contains the followi
 Optionally, it may also include headers. An empty line terminates the document header section.
 
 ```kbnf
-document_header        = "kbnf_v" kbnf_version SOME_WS character_encoding LINE_END header_line* LINE_END;
-character_encoding     = ('!' ~ '~')+;
-header_line            = '-' SOME_WS header_name MAYBE_WS '=' SOME_WS header_value LINE_END;
-header_name            = printable+;
-header_value           = printable_ws+;
+document_header    = "kbnf_v" kbnf_version SOME_WS character_encoding LINE_END header_line* LINE_END;
+character_encoding = ('!' ~ '~')+;
+header_line        = '-' SOME_WS header_name MAYBE_WS '=' SOME_WS header_value LINE_END;
+header_name        = printable+;
+header_value       = printable_ws+;
 ```
 
 The following headers are officially recognized (all others are allowed, but are not standardized):
@@ -173,7 +173,7 @@ Production Rules
 Production rules are written in the form `nonterminal = expression;`, with optional whitespace (including newlines) between rule elements. The terminating semicolon makes it more clear where a rule ends, and also allows more freedom for visually laying out the elements of a rule.
 
 ```kbnf
-rule = (symbol | macro) TOKEN_SEP '=' TOKEN_SEP expression TOKEN_SEP ';'
+rule = (symbol | macro) TOKEN_SEP '=' TOKEN_SEP production TOKEN_SEP ';'
      | function TOKEN_SEP '=' TOKEN_SEP prose TOKEN_SEP ';'
      ;
 ```
@@ -187,11 +187,7 @@ TODO: Should they share namespace?
 A symbol acts as a placeholder for an [expression](#expressions). Symbol names are not limited to ASCII.
 
 ```kbnf
-symbol                 = identifier_restricted;
-identifier_any         = identifier_firstchar identifier_nextchar*;
-identifier_restricted  = identifier_any ! reserved_identifiers;
-identifier_firstchar   = cp_category(L,M);
-identifier_nextchar    = identifier_firstchar | cp_category(N) | '_';
+symbol = identifier_restricted;
 ```
 
 **Example**: A record consists of a company name (which must not contain two full-width colons in a row), followed by two full-width colons, followed by an employee count in full-width characters (possibly approximated to the nearest 10,000), and is terminated by a linefeed.
@@ -217,18 +213,14 @@ LF             = '\{a}';
 A macro is essentially a symbol that accepts parameters, which are bound to local [variables](#variables) for use within the macro. The macro's contents are written like regular rules, but also have access to the injected local variables.
 
 ```kbnf
-macro                  = identifier_restricted '(' TOKEN_SEP param_name (ARG_SEP param_name)* TOKEN_SEP ')';
-identifier_any         = identifier_firstchar identifier_nextchar*;
-identifier_restricted  = identifier_any ! reserved_identifiers;
-identifier_firstchar   = cp_category(L,M);
-identifier_nextchar    = identifier_firstchar | cp_category(N) | '_';
+macro = identifier_restricted '(' TOKEN_SEP param_name (ARG_SEP param_name)* TOKEN_SEP ')';
 ```
 
 When called, a macro substitutes the passed in parameters and proceeds like a normal rule would (the grammar is malformed if a macro is called with the wrong types).
 
 ```kbnf
-call                   = identifier_any '(' TOKEN_SEP call_param (ARG_SEP call_param)* TOKEN_SEP ')';
-call_param             = expression | calculation(uint | sint | real) | condition;
+call       = identifier_any '(' TOKEN_SEP call_param (ARG_SEP call_param)* TOKEN_SEP ')';
+call_param = expression | calculation(uint | sint | real) | condition;
 ```
 
 **Example**: A fixed section is always 256 bytes long, split into three standard 8-bit length prefixed records. The first two records always have a length of 100 bytes, and the third has a length of 53 bytes.
@@ -277,14 +269,14 @@ Since the function is opaque, its types cannot be inferred like for macros, and 
 Functions must specify the [types](#types) of all parameters and its return value. A function cannot produce anything if its input types are mismatched.
 
 ```kbnf
-function               = identifier_restricted '(' TOKEN_SEP function_param (ARG_SEP function_param)* TOKEN_SEP ')' TOKEN_SEP ':' TOKEN_SEP type;
-function_param         = param_name TOKEN_SEP ':' TOKEN_SEP type;
-type                   = "expression"
-                       | "condition"
-                       | "uint"
-                       | "sint"
-                       | "real"
-                       ;
+function       = identifier_restricted '(' TOKEN_SEP function_param (ARG_SEP function_param)* TOKEN_SEP ')' TOKEN_SEP ':' TOKEN_SEP type;
+function_param = param_name TOKEN_SEP ':' TOKEN_SEP type;
+type           = "expression"
+               | "condition"
+               | "uint"
+               | "sint"
+               | "real"
+               ;
 ```
 
 **Example**: A function to convert an unsigned int to its unsigned little endian base 128 representation.
@@ -300,44 +292,42 @@ Builtin Functions
 
 KBNF comes with a number of fundamental functions built-in:
 
-### Limit Function
+### `sized_to` Function
 
-The `limit` function accepts an expression and a bit count, and limits the expression to that many bits.
-
-```
-limit(bit_count: uint, expr: expression): expression
-```
-
-**Example**: A name field may contain up to 200 bytes worth of character data.
+The `sized_to` function requires a production to be exactly `bit_count` bits.
 
 ```kbnf
-name_field = limit(200*8, cp_category(L,M,N,P,Zs)+)
+sized_to(bit_count: uint, expr: expression): expression
+```
+
+**Example**: A name field must contain 200 bytes worth of character data.
+
+```kbnf
+name_field = sized_to(200*8, cp_category(L,M,N,P,Zs)+)
 ```
 
 
-### `pad_to` Function
+### `padded_to` Function
 
-The `pad_to` function repeatedly adds a padding expression to the given expression until the final combined expression produces exactly the specified number of bits. The addition must not cause the final combined expression to produce more than the specified number of bits.
+The `padded_to` function requires a production to reach `bit_count` bits, padding if necessary according to the allowed `padding` expression.
 
 ```kbnf
-pad_to(bit_count: uint, expr: expression, padding: expression): expression
+paded_to(bit_count: uint, expr: expression, padding: expression): expression
 ```
 
 **Example**: A record consists of exactly 100 bytes of character data between square brackets, padded with spaces.
 
 ```kbnf
-record = "[" pad_to(100*8, record_char*, " "*) "]"
+record = "[" padded_to(100*8, record_char*, " "*) "]"
 record_char = cp_category(L,M,N,P,Zs)
 ```
 
-### `pad_align` Function
+### `aligned_to` Function
 
-The `pad_align` function repeatedly adds a padding expression to the given expression until the final combined expression produces a number of bits that is a multiple of the given count.
-
-The `pad_align` function requires that any match be sized to a multiple of the specified bit count, and adds the padding expression repeatedly to any potential match until the length matches. `pad_align` does not limit the size, so if a potential match is already over-sized or becomes over-sized as a result of the padding, no match occurs.
+The `aligned_to` function requires a production to produce a number of bits that is a multiple of `bit_count`, padding if necessary according to the allowed `padding` expression.
 
 ```kbnf
-pad_align(bit_count: uint, expr: expression, padding: expression): expression
+aligned_to(bit_count: uint, expr: expression, padding: expression): expression
 ```
 
 **Example**: The "records" section can contain any number of length-delimited records, but must end on a 32-bit boundary. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload).
@@ -509,8 +499,8 @@ Escape sequences are allowed in string literals, codepoint literals, and prose. 
 Prose is meant as a last resort in attempting to describe an expression. If an expression's contents have already been described elsewhere, you could put a URL in here. Otherise you could put in a natural language description.
 
 ```kbnf
-prose = "'''" (((printable_wsl ! '\\') | escape)+ ! "'''") "'''"
-      | '"""' (((printable_wsl ! '\\') | escape)+ ! '"""') '"""'
+prose = '"""' (escapable_char(printable_wsl, '"')+ ! '"""') '"""'
+      | "'''" (escapable_char(printable_wsl, "'")+ ! "'''") "'''"
       ;
 ```
 
@@ -768,8 +758,8 @@ enc_signed_integer     = fname_signed_integer "(" TOKEN_SEP bit_count ARG_SEP ma
 enc_ieee754_binary     = fname_ieee754_binary "(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(real) TOKEN_SEP ')';
 enc_little_endian      = fname_little_endian "(" TOKEN_SEP expression TOKEN_SEP ')';
 
-builtin_functions      = function_limit | function_pad_to | function_pad_align | function_if | function_bind | function_cp_category;
-function_limit         = fname_limit "(" TOKEN_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
+builtin_functions      = function_sized_to | function_pad_to | function_pad_align | function_if | function_bind | function_cp_category;
+function_sized_to      = fname_sized_to "(" TOKEN_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
 function_pad_to        = fname_pad_to "(" TOKEN_SEP bit_count ARG_SEP expression ARG_SEP padding TOKEN_SEP ")";
 function_pad_align     = fname_pad_align "(" TOKEN_SEP bit_count ARG_SEP expression ARG_SEP padding TOKEN_SEP ")";
 function_when          = fname_when "(" TOKEN_SEP condition ARG_SEP any TOKEN_SEP ')';
@@ -816,7 +806,7 @@ identifier_any         = identifier_firstchar identifier_nextchar*;
 identifier_restricted  = identifier_any ! reserved_identifiers;
 identifier_firstchar   = cp_category(L,M);
 identifier_nextchar    = identifier_firstchar | cp_category(N) | '_';
-reserved_identifiers   = fname_limit
+reserved_identifiers   = fname_sized_to
                        | fname_pad_to
                        | fname_pad_align
                        | fname_if
@@ -827,7 +817,7 @@ reserved_identifiers   = fname_limit
                        | fname_little_endian
                        ;
 
-fname_limit            = "limit";
+fname_sized_to         = "sized_to";
 fname_pad_to           = "pad_to";
 fname_pad_align        = "pad_align";
 fname_if               = "if";
