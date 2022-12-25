@@ -15,7 +15,7 @@ For an example of using it in a binary format, see [ipv4.kbnf](ipv4.kbnf)
 Introduction
 ------------
 
-Syntactic metalanguages have made only small gains over the past 80 years (with the last major advancement in 1996), and still only describe text-based formats. KBNF is an attempt to modernize the metalanguage and give it better expressivity (and binary support).
+Syntactic metalanguages have made mainly haphazard gains over the past 60 years, and still only describe text-based formats. KBNF is an attempt at a modernized metalanguage with better expressivity and binary support.
 
 
 
@@ -58,16 +58,18 @@ Contents
     - [Codepoints](#codepoints)
     - [Strings](#strings)
     - [Escape Sequence](#escape-sequence)
+      - [Codepoint Escape](#codepoint-escape)
     - [Prose](#prose)
   - [Combinations](#combinations)
     - [Concatenation](#concatenation)
     - [Alternative](#alternative)
     - [Exclusion](#exclusion)
-  - [Repetition](#repetition)
+    - [Repetition](#repetition)
   - [Grouping](#grouping)
   - [Comments](#comments)
   - [Calculations](#calculations)
   - [Conditions](#conditions-1)
+    - [Identifier](#identifier)
     - [Ranges](#ranges)
     - [Precedence](#precedence)
   - [Examples](#examples)
@@ -129,8 +131,11 @@ KBNF documents are versioned to a particular KBNF specification so that changes 
 Grammar Document
 ----------------
 
-A KBNF grammar document begins with a [header section](#document-header), and then contains a series of [production rules](#production-rules). The first rule listed is assumed to be the start rule, and therefore must define a [symbol](#symbols).
+A KBNF grammar document begins with a [header section](#document-header), followed by a series of [production rules](#production-rules). The first rule listed is assumed to be the start rule, and therefore must define a [symbol](#symbols).
 
+```kbnf
+document = document_header (MAYBE_WSLC rule)+;
+```
 
 ### Document Header
 
@@ -179,7 +184,6 @@ rule = (symbol | macro) TOKEN_SEP '=' TOKEN_SEP production TOKEN_SEP ';'
 
 The nonterminal (left) part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their names share the global namespace, and must be unique (they are case sensitive).
 
-TODO: Should they share namespace?
 
 ### Symbols
 
@@ -335,7 +339,7 @@ byte(v)            = unsigned_integer(8, v);
 
 ### `when` Function
 
-The `when` function allows an expression only when a given [condition](#conditions) holds.
+The `when` function allows an expression only when a given [condition](#conditions) is true.
 
 ```kbnf
 when(cond: condition, expr: expression): expression
@@ -348,11 +352,16 @@ extension(type) = when(type = 1, extension_a)
                 | when(type = 2, extension_b)
                 | when(type = 3, extension_c)
                 ;
+extension_a     = ...
+extension_b     = ...
+extension_c     = ...
 ```
 
 ### `bind` Function
 
-The `bind` function transparently binds whatever it surrounds to a local variable for subsequent re-use in the current rule. The surrounding context behaves as though only what the `bind` function surrounded were present. This allows a sequence to be produced as normal, and also to be used again later in the rule.
+The `bind` function binds the resolved value of whatever it surrounds to a local variable for subsequent re-use in the current rule. `bind` transparently passes through whatever it captures, meaning that the context around the `bind` call behaves as though only what the `bind` function surrounded is present. This allows a sequence to be produced as normal, while also allowing the resolved value to be used again later in the rule.
+
+`bind` can capture [expression](#expressions) and [number](#numbers) types.
 
 ```kbnf
 bind(variable_name: identifier, value: any): any
@@ -360,7 +369,7 @@ bind(variable_name: identifier, value: any): any
 
 **Examples**:
 
-Matches "abcd|abcd", "fred|fred" etc.
+Matches "abc|abc", "fred|fred" etc.
 
 ```kbnf
 sequence = bind(repeating_value,('a'~'z')+) '|' repeating_value;
@@ -376,7 +385,7 @@ LF                        = '\{a}';
 NOT_LF                    = ANY_CHAR ! LF;
 ```
 
-Interpret the next 16 bits as a big endian unsigned int and bind the result to "length". That many following bytes make up the record contents.
+Interpret the next 16 bits as a big endian unsigned int and bind the resolved number to "length". That many following bytes make up the record contents.
 
 ```kbnf
 length_delimited_record = uint16(bind(length, 0~)) record_contents(length);
@@ -387,13 +396,13 @@ byte(v)                 = unsigned_int(8, v)
 
 ### `cp_category` Function
 
-The `cp_category` function produces the alternates set of all Unicode codepoints that have any of the given set of Unicode [categories](https://unicode.org/glossary/#general_category).
+The `cp_category` function produces the [alternatives](#alternative) set of all Unicode codepoints that have any of the given Unicode [categories](https://unicode.org/glossary/#general_category).
 
 ```kbnf
 cp_category(category: category_name (ARG_SEP category: category_name)*): set of codepoint alternates
 ```
 
-**Example**:
+**Example**: Allow letter, numeral, and space characters.
 
 ```kbnf
 letter_digit_space = cp_caregory(N,L,Zs);
@@ -401,7 +410,7 @@ letter_digit_space = cp_caregory(N,L,Zs);
 
 ### `unsigned_integer` Function
 
-The `unsigned_integer` function creates an expression that accepts an unsigned integer encoded to the specified number of bits, with the specified value range.
+The `unsigned_integer` function creates an expression that matches an unsigned integer encoded to the specified number of bits, within the specified value range.
 
 TODO: Value ranges...
 
@@ -411,7 +420,7 @@ unsigned_integer(value: uint, bit_count: uint): expression
 
 ### `signed_integer` Function
 
-The `signed_integer` function creates an expression that accepts a two's complement signed integer encoded to the specified number of bits, with the specified value range.
+The `signed_integer` function creates an expression that matches a two's complement signed integer encoded to the specified number of bits, within the specified value range.
 
 ```kbnf
 signed_integer(value: sint, bit_count: uint): expression
@@ -419,7 +428,7 @@ signed_integer(value: sint, bit_count: uint): expression
 
 ### `ieee754_binary` Function
 
-The `signed_integer` function creates an expression that accepts an ieee754 binary floating point value encoded to the specified number of bits, with the specified value range.
+The `signed_integer` function creates an expression that matches an ieee754 binary floating point value encoded to the specified number of bits, within the specified value range.
 
 ```kbnf
 ieee754_binary(value: real, bit_count: uint): expression
@@ -427,7 +436,9 @@ ieee754_binary(value: real, bit_count: uint): expression
 
 ### `little_endian` Function
 
-The `little_endian` function expresses the given expression in little endian byte order (effectively swapping the byte order accepted by the rule).
+The `little_endian` function expresses the resolved expression in little endian byte order (effectively swapping the byte order of the bits that would match the rule).
+
+The expression must resolve to a multiple of 8 bits.
 
 ```kbnf
 little_endian(expr: expression): expression
@@ -462,8 +473,9 @@ u16(v)              = unsigned_integer(16, v);
 Types
 -----
 
-There are three main types in KBNF:
+These are the main types in KBNF:
 
+* `identifier`: a unique identifier for [symbols](#symbols), [macros](#macros), and [functions](#functions) (which are all scoped globally), or [variables](#variables) (which are scoped locally).
 * [`expression`](#expressions)
 * [`condition`](#conditions)
 * [`number`](#numbers), of which there are three subtypes:
@@ -471,18 +483,31 @@ There are three main types in KBNF:
   * `int`: limited to positive and negative integers, and 0
   * `real`: any value from the set of reals
 
-Types become relevant when calling [functions](#functions), which must specify what types they accept and return. There are also type restrictions for what can be used in [repetition](#repetition) and [calculations](#calculations).
+Types become relevant when calling [functions](#functions), which must specify what types they accept and return. There are also type restrictions for what can be used in [repetition](#repetition), [calculations](#calculations), and [comparisons](#comparisons).
 
 
 ### Expressions
 
-An expression represents the set of possible bit sequences that it can produce. When captured via [`bind`](#bind-function), the captured [variable](#variables) is an expression representing the bits that were produced according to the bound expression.
+An expression represents the set of possible bit sequences that can be produced.
 
+```kbnf
+expression = symbol
+           | call
+           | string_literal
+           | maybe_ranged(codepoint_literal)
+           | combination
+           | builtin_encodings
+           | builtin_functions
+           | variable
+           | repetition
+           | prose
+           | grouped(expression)
+           ;
+```
 
 ### Conditions
 
-The `condition` type is the result of comparing numeric types or performing logical operations on conditions, resulting in either true or false. Conditions are used in [`when`](#when-function) calls.
-
+A `condition` type is the result of comparing [numbers](#numbers) or performing [logical operations](#logical-operations) on conditions, resulting in either true or false. Conditions are used in [`when`](#when-function) calls.
 
 ### Numbers
 
@@ -496,13 +521,66 @@ Literals
 
 ### Codepoints
 
-Codepoints can be represented as literals, ranges, and category sets.
+Codepoints can be represented as literals, ranges, and category sets. Codepoint literals are placed between single or double quotes.
+
+Codepoint literals can also be expressed as [ranges](#ranges), which causes every codepoint in the range to be added as an [alternative](#alternative).
+
+```kbnf
+codepoint_literal = ('"' escapable_char(printable_ws, '"'){1} '"') | ("'" escapable_char(printable_ws, "'"){1} "'");
+```
+
+**Examples**:
+
+```kbnf
+letter_a     = 'a';     # or "a"
+a_to_z       = 'a'~'z'; # or "a"~"z"
+alphanumeric = cp_category(L,N);
+```
 
 ### Strings
 
+A string is syntactic sugar for a series of specific codepoints [concatenated](#concatenation) together. String literals are placed between single or double quotes.
+
+```kbnf
+string_literal = ('"' escapable_char(printable_ws, '"'){2~} '"') | ("'" escapable_char(printable_ws, "'"){2~} "'");
+```
+
+**Example**:
+
+```kbnf
+str_abc = "abc"; # or 'abc', or "a" "b" "c", or 'a' 'b' 'c'
+```
+
+
 ### Escape Sequence
 
-Escape sequences are allowed in string literals, codepoint literals, and prose. Codepoint escape sequences allow you to represent troublesome codepoints.
+Codepoint literals, string literals, and prose may contain codepoint escape sequences to represent troublesome codepoints.
+
+Escape sequences are initiated with the backslash (`\`) character. If the next character following is an open curly brace (`{`), it begins a [codepoint escape](#codepoint-escape). Otherwise the sequence represents that literal character.
+
+```kbnf
+escape = '\\' (printable ! '{') | codepoint_escape);
+```
+
+**Example**: A string containing double quotes.
+
+```kbnf
+mystr = "This is a \"string\""; # or you could use single quotes: 'This is a "string"'
+```
+
+#### Codepoint Escape
+
+A codepoint escape interprets the hex digits between the sequence `\{` and `}` as the hexadecimal numeric value of the codepoint being referred to.
+
+```kbnf
+codepoint_escape = '{' digit_hex+ '}';
+```
+
+**Example**: Emoji
+
+```kbnf
+mystr = "This is a \{1f415}"; # "This is a 🐕"
+```
 
 ### Prose
 
@@ -537,26 +615,89 @@ Or sinking as the light wind lives or dies.
 Combinations
 ------------
 
+There are many ways to combine expressions into more powerful expressions.
+
+
 ### Concatenation
 
-Concatenation matches all expressions in order.
+Concatenation is done like in most BNF notations, with whitespace separated expressions that are evaluated in order.
+
+```kbnf
+concatenate = expression (SOME_WSLC expression)+;
+```
+
+**Example**: Assignment consists of an identifier, at least one space, an equals sign, at least one space, and then an integer value, followed by a linefeed.
+
+```kbnf
+assignment = "a"~"z"+ " "+ "=" " "+ "0"~"9"+ "\{a}";
+```
+
 
 ### Alternative
 
-Alternative matches one of a set of expressions
+Alternatives are separated by a pipe (`|`) character. Only one of the alternatives is taken in a production.
+
+```kbnf
+alternate = expression (TOKEN_SEP '|' TOKEN_SEP expression)+;
+```
+
+**Example**: Addition or subtraction consists of an identifier, at least one space, a plus or minus sign, at least one space, and then another identifier, followed by a linefeed.
+
+```kbnf
+caculation = "a"~"z"+ " "+ ("+" | "-") " "+ "a"~"z"+ "\{a}";
+```
+
 
 ### Exclusion
 
-Exclusion removes an expression from the set of matching expressions.
+Exclusion removes an expression from the set of matchable expression alternatives.
+
+```kbnf
+exclude = expression TOKEN_SEP '!' TOKEN_SEP expression;
+```
+
+**Example**: An identifier can be any lowercase ASCII string except "fred".
+
+```kbnf
+identifier = "a"~"z"+ ! "fred";
+```
 
 
-Repetition
-----------
+### Repetition
+
+"Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Repetition amounts can be defined as a [range](#ranges) or as a discrete amount.
+
+The repetition amount is appended to an expression, between curly braces. There are also shorthand notations made popular in regular expressions, for zero-or-one (`?`), zero-or-more (`*`), and one-or-more (`+`).
+
+```kbnf
+repetition             = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
+repeat_range           = expression '{' TOKEN_SEP maybe_ranged(uint) TOKEN_SEP '}';
+repeat_zero_or_one     = expression '?';
+repeat_zero_or_more    = expression '*';
+repeat_one_or_more     = expression '+';
+```
+
+**Example**: An identifier is between 5 and 8 characters long, made of characters from 'a' to 'z'.
+
+```kbnf
+identifier = 'a'~'z'{5~8};
+```
+
+**Example**: An identifier must start with at least one uppercase ASCII letter, optionally followed by any number of lowercase ASCII letters, and optionally suffixed with an underscore.
+
+```kbnf
+identifier = 'A'~'Z'+ 'a'~'z'* '_'?;
+```
+
+
 
 Grouping
 --------
 
 Expressions, calculations and conditions can be grouped.
+
+TODO
+
 
 
 Comments
@@ -592,16 +733,24 @@ Calculations perform arithmetic operations on [numbers](#numbers), producing a n
 
 add, subtract, multiply, divide, modulus, parentheses, asl, asr
 
+TODO
+
+
 
 Conditions
 ----------
 
 comparators, logic operators, parentheses, when
 
+TODO
 
 
 
 ///////////////////////////////////////////////////
+
+TODO
+
+### Identifier
 
 ### Ranges
 
@@ -672,6 +821,8 @@ type2                   = ...
 Design Notes
 ------------
 
+TODO
+
 This section describes some of the design decisions, and the reasoning behind them.
 
 ### Letter Case
@@ -698,7 +849,7 @@ kbnf_v1 utf-8
 - identifier  = kbnf_v1
 - description = KBNF grammar, version 1
 
-document               = document_header grammar;
+document               = document_header (MAYBE_WSLC rule)+;
 
 kbnf_version           = '1';
 
@@ -708,7 +859,6 @@ header_line            = '-' SOME_WS header_name MAYBE_WS '=' SOME_WS header_val
 header_name            = printable+;
 header_value           = printable_ws+;
 
-grammar                = (MAYBE_WSLC rule)*;
 rule                   = (symbol | macro) TOKEN_SEP '=' TOKEN_SEP production TOKEN_SEP ';'
                        | function TOKEN_SEP '=' TOKEN_SEP prose TOKEN_SEP ';'
                        ;
@@ -721,7 +871,6 @@ expression             = symbol
                        | builtin_encodings
                        | builtin_functions
                        | variable
-                       | repetition
                        | prose
                        | grouped(expression)
                        ;
@@ -743,10 +892,16 @@ call_param             = expression | uint | sint | real | condition;
 
 combination            = alternate | combination_w_exclude;
 combination_w_exclude  = exclude | combination_w_concat
-combination_w_concat   = concatenate | combination;
+combination_w_concat   = concatenate | combination_w_repeat;
+combination_w_repeat   = repetition | combination;
 alternate              = expression (TOKEN_SEP '|' TOKEN_SEP expression)+;
 exclude                = expression TOKEN_SEP '!' TOKEN_SEP expression;
 concatenate            = expression (SOME_WSLC expression)+;
+repetition             = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
+repeat_range           = expression '{' TOKEN_SEP maybe_ranged(uint) TOKEN_SEP '}';
+repeat_zero_or_one     = expression '?';
+repeat_zero_or_more    = expression '*';
+repeat_one_or_more     = expression '+';
 
 prose                  = '"""' (escapable_char(printable_wsl, '"')+ ! '"""') '"""'
                        | "'''" (escapable_char(printable_wsl, "'")+ ! "'''") "'''"
@@ -754,14 +909,8 @@ prose                  = '"""' (escapable_char(printable_wsl, '"')+ ! '"""') '""
 codepoint_literal      = ('"' escapable_char(printable_ws, '"'){1} '"') | ("'" escapable_char(printable_ws, "'"){1} "'");
 string_literal         = ('"' escapable_char(printable_ws, '"'){2~} '"') | ("'" escapable_char(printable_ws, "'"){2~} "'");
 escapable_char(char_set, quote_char) = (char_set ! ('\\' | quote_char)) | escape;
-escape                 = '\\' (printable ! '{') | escape_codepoint);
-escape_codepoint       = '{' digit_hex+ '}';
-
-repetition             = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
-repeat_range           = expression '{' TOKEN_SEP maybe_ranged(uint) TOKEN_SEP '}';
-repeat_zero_or_one     = expression '?';
-repeat_zero_or_more    = expression '*';
-repeat_one_or_more     = expression '+';
+escape                 = '\\' (printable ! '{') | codepoint_escape);
+codepoint_escape       = '{' digit_hex+ '}';
 
 builtin_encodings      = enc_unsigned_integer | enc_signed_integer | enc_ieee754_binary | enc_little_endian;
 enc_unsigned_integer   = fname_unsigned_integer "(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(uint) TOKEN_SEP ')';
