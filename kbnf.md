@@ -40,16 +40,15 @@ Contents
     - [Macros](#macros)
     - [Functions](#functions)
   - [Builtin Functions](#builtin-functions)
-    - [`sized_to` Function](#sized_to-function)
-    - [`padded_to` Function](#padded_to-function)
-    - [`aligned_to` Function](#aligned_to-function)
+    - [`sized` Function](#sized-function)
+    - [`aligned` Function](#aligned-function)
     - [`when` Function](#when-function)
     - [`bind` Function](#bind-function)
     - [`cp_category` Function](#cp_category-function)
     - [`unsigned_integer` Function](#unsigned_integer-function)
     - [`signed_integer` Function](#signed_integer-function)
     - [`ieee754_binary` Function](#ieee754_binary-function)
-    - [`little_endian` EncoFunctionding](#little_endian-encofunctionding)
+    - [`little_endian` Function](#little_endian-function)
   - [Variables](#variables)
   - [Types](#types)
     - [Expressions](#expressions)
@@ -276,6 +275,7 @@ type           = "expression"
                | "uint"
                | "sint"
                | "real"
+               | "any"
                ;
 ```
 
@@ -290,41 +290,34 @@ uleb128(v: uint): expression = """https://en.wikipedia.org/wiki/LEB128#Unsigned_
 Builtin Functions
 -----------------
 
-KBNF comes with a number of fundamental functions built-in:
+KBNF comes with some fundamental functions built-in:
 
-### `sized_to` Function
+### `sized` Function
 
-The `sized_to` function requires a production to be exactly `bit_count` bits.
-
-```kbnf
-sized_to(bit_count: uint, expr: expression): expression
-```
-
-**Example**: A name field must contain 200 bytes worth of character data.
+The `sized` function requires an expression to produce exactly `bit_count` bits.
 
 ```kbnf
-name_field = sized_to(200*8, cp_category(L,M,N,P,Zs)+)
+sized(bit_count: uint, expr: expression): expression
 ```
 
-
-### `padded_to` Function
-
-The `padded_to` function requires a production to reach `bit_count` bits, padding if necessary according to the allowed `padding` expression.
+**Example**: A name field must contain exactly 200 bytes worth of character data, padded with space as needed.
 
 ```kbnf
-paded_to(bit_count: uint, expr: expression, padding: expression): expression
+name_field = sized(200*8, cp_category(L,M,N,P,Zs)* ' '*)
 ```
 
-**Example**: A record consists of exactly 100 bytes of character data between square brackets, padded with spaces.
+**Example**: The "records" section can contain any number of length-delimited records, but must be exactly 1024 bytes long. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload).
 
 ```kbnf
-record = "[" padded_to(100*8, record_char*, " "*) "]"
-record_char = cp_category(L,M,N,P,Zs)
+record_section     = sized(1024*8, record* zero_length_record*);
+record             = byte(bind(length, 0~)) byte(0~){length};
+zero_length_record = byte(0);
+byte(v)            = unsigned_integer(8, v);
 ```
 
-### `aligned_to` Function
+### `aligned` Function
 
-The `aligned_to` function requires a production to produce a number of bits that is a multiple of `bit_count`, padding if necessary according to the allowed `padding` expression.
+The `aligned` function requires an expression to produce a number of bits that is a multiple of `bit_count`.
 
 ```kbnf
 aligned_to(bit_count: uint, expr: expression, padding: expression): expression
@@ -333,7 +326,7 @@ aligned_to(bit_count: uint, expr: expression, padding: expression): expression
 **Example**: The "records" section can contain any number of length-delimited records, but must end on a 32-bit boundary. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload).
 
 ```kbnf
-record_section     = pad_align(32, record*, zero_length_record);
+record_section     = aligned(32, record* zero_length_record*);
 record             = byte(bind(length, 0~)) byte(0~){length};
 zero_length_record = byte(0);
 byte(v)            = unsigned_integer(8, v);
@@ -342,7 +335,7 @@ byte(v)            = unsigned_integer(8, v);
 
 ### `when` Function
 
-The `when` function allows an expression only when a given [condition](#condition) holds.
+The `when` function allows an expression only when a given [condition](#conditions) holds.
 
 ```kbnf
 when(cond: condition, expr: expression): expression
@@ -397,7 +390,7 @@ byte(v)                 = unsigned_int(8, v)
 The `cp_category` function produces the alternates set of all Unicode codepoints that have any of the given set of Unicode [categories](https://unicode.org/glossary/#general_category).
 
 ```kbnf
-cp_category(categories: category_name...): set of codepoint alternates
+cp_category(category: category_name (ARG_SEP category: category_name)*): set of codepoint alternates
 ```
 
 **Example**:
@@ -408,20 +401,37 @@ letter_digit_space = cp_caregory(N,L,Zs);
 
 ### `unsigned_integer` Function
 
-TODO
-- unsigned_integer(value: uint, bit_count: uint): bits
+The `unsigned_integer` function creates an expression that accepts an unsigned integer encoded to the specified number of bits, with the specified value range.
+
+TODO: Value ranges...
+
+```kbnf
+unsigned_integer(value: uint, bit_count: uint): expression
+```
 
 ### `signed_integer` Function
 
-- signed_integer(value: sint, bit_count: uint): bits
+The `signed_integer` function creates an expression that accepts a two's complement signed integer encoded to the specified number of bits, with the specified value range.
+
+```kbnf
+signed_integer(value: sint, bit_count: uint): expression
+```
 
 ### `ieee754_binary` Function
 
-- ieee754_binary(value: real, bit_count: uint): bits
+The `signed_integer` function creates an expression that accepts an ieee754 binary floating point value encoded to the specified number of bits, with the specified value range.
 
-### `little_endian` EncoFunctionding
+```kbnf
+ieee754_binary(value: real, bit_count: uint): expression
+```
 
-- little_endian(value: bits): bits
+### `little_endian` Function
+
+The `little_endian` function expresses the given expression in little endian byte order (effectively swapping the byte order accepted by the rule).
+
+```kbnf
+little_endian(expr: expression): expression
+```
 
 
 
@@ -726,6 +736,7 @@ type                   = "expression"
                        | "uint"
                        | "sint"
                        | "real"
+                       | "any"
                        ;
 call                   = identifier_any '(' TOKEN_SEP call_param (ARG_SEP call_param)* TOKEN_SEP ')';
 call_param             = expression | uint | sint | real | condition;
@@ -758,10 +769,9 @@ enc_signed_integer     = fname_signed_integer "(" TOKEN_SEP bit_count ARG_SEP ma
 enc_ieee754_binary     = fname_ieee754_binary "(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(real) TOKEN_SEP ')';
 enc_little_endian      = fname_little_endian "(" TOKEN_SEP expression TOKEN_SEP ')';
 
-builtin_functions      = function_sized_to | function_pad_to | function_pad_align | function_if | function_bind | function_cp_category;
-function_sized_to      = fname_sized_to "(" TOKEN_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
-function_pad_to        = fname_pad_to "(" TOKEN_SEP bit_count ARG_SEP expression ARG_SEP padding TOKEN_SEP ")";
-function_pad_align     = fname_pad_align "(" TOKEN_SEP bit_count ARG_SEP expression ARG_SEP padding TOKEN_SEP ")";
+builtin_functions      = function_sized | function_aligned | function_if | function_bind | function_cp_category;
+function_sized         = fname_sized "(" TOKEN_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
+function_aligned       = fname_aligned "(" TOKEN_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
 function_when          = fname_when "(" TOKEN_SEP condition ARG_SEP any TOKEN_SEP ')';
 function_bind          = fname_bind "(" TOKEN_SEP local_id ARG_SEP any TOKEN_SEP ')';
 function_cp_category   = fname_cp_category "(" TOKEN_SEP cp_category_name (ARG_SEP cp_category_name)* TOKEN_SEP ')';
@@ -806,9 +816,8 @@ identifier_any         = identifier_firstchar identifier_nextchar*;
 identifier_restricted  = identifier_any ! reserved_identifiers;
 identifier_firstchar   = cp_category(L,M);
 identifier_nextchar    = identifier_firstchar | cp_category(N) | '_';
-reserved_identifiers   = fname_sized_to
-                       | fname_pad_to
-                       | fname_pad_align
+reserved_identifiers   = fname_sized
+                       | fname_aligned
                        | fname_if
                        | fname_bind
                        | fname_unsigned_integer
@@ -817,9 +826,8 @@ reserved_identifiers   = fname_sized_to
                        | fname_little_endian
                        ;
 
-fname_sized_to         = "sized_to";
-fname_pad_to           = "pad_to";
-fname_pad_align        = "pad_align";
+fname_sized            = "sized";
+fname_aligned          = "aligned";
 fname_if               = "if";
 fname_bind             = "bind";
 fname_unsigned_integer = "unsigned_integer";
