@@ -251,7 +251,7 @@ call_param = any;
 
 ```kbnf
 main_section  = record(1) & record(2){2};
-record(type) = byte(type) byte(bind(length, 0~)) & byte(0~){length};
+record(type) = byte(type) byte(bind(length, ~)) & byte(~){length};
 byte(v)        = uint(8,v);
 ```
 
@@ -338,7 +338,7 @@ name_field = sized(200*8, unicode(L,M,N,P,Zs)* & ' '*);
 
 ```kbnf
 record_section     = sized(1024*8, record* & zero_length_record*);
-record             = byte(bind(length 0~)) & byte(0~){length};
+record             = byte(bind(length,~)) & byte(~){length};
 zero_length_record = byte(0);
 byte(v)            = uint(8,v);
 ```
@@ -355,7 +355,7 @@ aligned(bit_count: unsigned, expr: expression, padding: expression): expression
 
 ```kbnf
 record_section     = aligned(32, record*, zero_length_record*);
-record             = byte(bind(length,0~)) & byte(0~){length};
+record             = byte(bind(length,~)) & byte(~){length};
 zero_length_record = byte(0);
 byte(v)            = uint(8, v);
 ```
@@ -392,7 +392,7 @@ when(cond: condition, expr: expression): expression
 
 ```kbnf
 extensions          = extension{32};
-extension           = uint(8,bind(type,0~3)) & uint(24,bind(length,0~))
+extension           = uint(8,bind(type,0~3)) & uint(24,bind(length,~))
                     & ( when(type = 1, extension_1(length))
                       | when(type = 2, extension_2(length))
                       | when(type = 3, extension_3(length))
@@ -433,8 +433,8 @@ NOT_LF                    = ANY_CHAR ! LF;
 **Example**: Interpret the next 16 bits as a big endian unsigned int and bind the resolved number to "length". That many following bytes make up the record contents.
 
 ```kbnf
-length_delimited_record = uint16(bind(length, 0~)) & record_contents(length);
-record_contents(length) = byte(0~){length};
+length_delimited_record = uint16(bind(length, ~)) & record_contents(length);
+record_contents(length) = byte(~){length};
 uint16(v)               = uint(16, v);
 byte(v)                 = uint(8, v);
 ```
@@ -465,7 +465,7 @@ uint(bit_count: unsigned, value: unsigned): expression
 **Example**: The length field is a 16-bit unsigned integer value.
 
 ```kbnf
-length = uint(16, 0~);
+length = uint(16, ~);
 ```
 
 
@@ -514,8 +514,8 @@ When [binding](#bind-function) an [expression](#expressions) that itself binds a
 ```kbnf
 document            = record(1) & (record(5) | record(6) | record(7))* & terminator_record;
 record(type)        = bind(header, record_header(type)) & record_data(header.length);
-record_header(type) = u8(type) & u16(bind(length, 0~));
-record_data(length) = u8(0~){length};
+record_header(type) = u8(type) & u16(bind(length, ~));
+record_data(length) = u8(~){length};
 terminator_record   = u8(0) u16(0);
 u8(v)               = uint(8, v);
 u16(v)              = uint(16, v);
@@ -888,7 +888,7 @@ calc_shr     = calc_mul_div & TOKEN_SEP & '>>' & TOKEN_SEP & calc_val;
 **Example**: A record begins with a 4-bit length field (length is in 32-bit increments) and 4-bit flags field containing (...), followed by the contents of the record.
 
 ```kbnf
-record = uint(4, bind(length, 0~)) & flags & uint(8, 0~){length*4};
+record = uint(4, bind(length, ~)) & flags & uint(8, ~){length*4};
 flags  = ...
 ```
 
@@ -968,7 +968,12 @@ A range consists of one of the following:
 * A tilde and a high value (~ high), indicating a high bound only.
 * A tilde (~), indicating no bound.
 
-[repetition](#repetition), [codepoints](#codepoints), and [numbers](#numbers) can be expressed as ranges, which express the set of all values of the range as [alternatves](#alternative).
+A [codepoint](#codepoints) range represents the set of each codepoint in the range as [alternatves](#alternative).
+
+A [repetition](#repetition) range represents a range in the number of occurrences that will match the rule.
+
+A [number](#numbers) range will ultimately be passed to a numeric encoding function ([uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent the range (as far as it is representable by the encoding) as [alternatves](#alternative).
+
 
 ```kbnf
 expression             = ...
@@ -1019,7 +1024,7 @@ section                 = bind(sentinel,uint(8,0x80~0xfe)) & length_field(0) & r
 record                  = bind(record_type,type_field) & padded_payload & suffix(record_type.type);
 type_field              = uint(8,bind(type,0~2));
 padded_payload          = aligned(32, payload, uint(8,0xff)*)
-payload                 = length_field(bind(byte_count,0~)) & uint(8,0~){byte_count};
+payload                 = length_field(bind(byte_count,~)) & uint(8,~){byte_count};
 length_field(contents)  = swapped(uint(24,contents));
 suffix(type)            = when(type = 2, type2)
                         | when(type = 1, type1)
