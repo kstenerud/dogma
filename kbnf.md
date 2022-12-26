@@ -972,7 +972,7 @@ A [codepoint](#codepoints) range represents the set of each codepoint in the ran
 
 A [repetition](#repetition) range represents a range in the number of occurrences that will match the rule.
 
-A [number](#numbers) range will ultimately be passed to a numeric encoding function ([uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent the range (as far as it is representable by the encoding) as [alternatves](#alternative).
+A [number](#numbers) range will ultimately be passed to a numeric encoding function ([uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent each value in the range (as far as it is representable by the encoding) as [alternatves](#alternative).
 
 
 ```kbnf
