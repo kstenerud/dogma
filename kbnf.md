@@ -85,9 +85,9 @@ The main purpose of KBNF is to describe text and binary grammars in a concise, u
 
 ### Support for binary grammars
 
-Binary grammars generally behave quite differently from textual grammars, and require special support:
+Binary grammars have different needs from textual grammars, and require special support:
 
-* **Bit arrays**: Binary grammars tend to work at bit-level granularity, and thus require support for arbitrarily sized bit arrays.
+* **Bit arrays**: Binary formats tend to work at bit-level granularity, and thus require support for arbitrarily sized bit arrays.
 * **Variables & Functions**: Binary formats often represent data in complex ways that can't be parsed without passing some context around.
 * **Conditionals & Logic**: Binary formats often include or exclude portions based on encoded values elsewhere. Evaluating these requires the use of conditionals and logic operators.
 * **Calculations**: Many binary field sizes are determined by data stored elsewhere in the document, and often they require calculations of some sort to determine the final field size.
@@ -157,7 +157,7 @@ header_value       = printable_ws+;
 
 The following headers are officially recognized (all others are allowed, but are not standardized):
 
-* `identifier`: An identifier for the grammar being described. It's customary to append a version number to the identifier.
+* `identifier`: A unique identifier for the grammar being described. It's customary to append a version number to the identifier.
 * `description`: A brief, one-line description of the grammar.
 
 **Example**: A UTF-8 KBNF grammar called "mygrammar_v1".
@@ -376,7 +376,7 @@ bind(variable_name: identifier, value: any): any
 sequence = bind(repeating_value,('a'~'z')+) & '/' & repeating_value;
 ```
 
-**Example**: Bind the variable "terminator" to whatever follows the "<<" until the next linefeed. The here-document contents continue until the terminator value is encountered again.
+**Example**: BASH "here" document: Bind the variable "terminator" to whatever follows the "<<" until the next linefeed. The here-document contents continue until the terminator value is encountered again.
 
 ```kbnf
 here_document             = "<<" & bind(terminator, NOT_LF+) & LF & here_contents(terminator) & terminator;
@@ -452,6 +452,8 @@ Variables
 ---------
 
 In some contexts, data may be bound to a variable for use elsewhere. Variables are bound either manually using the [`bind`](#bind-function) builtin function, or automatically when passing to a [macro](#macros). The variable's [type](#types) is inferred from what is allowed in the context where it is bound.
+
+Note: Variables cannot be re-bound.
 
 When [binding](#bind-function) an [expression](#expressions) that itself binds a variable, that expression's bound variables can be accessed from the outer scope using dot notation (`this_exp_bound_value.sub_exp_bound_value`).
 
