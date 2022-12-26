@@ -53,7 +53,6 @@ Contents
     - [Identifier](#identifier)
     - [Expressions](#expressions)
     - [Numbers](#numbers)
-    - [Ranges](#ranges)
   - [Literals](#literals)
     - [Codepoints](#codepoints)
     - [Strings](#strings)
@@ -70,6 +69,7 @@ Contents
   - [Calculations](#calculations)
     - [Shifts](#shifts)
   - [Conditions](#conditions)
+  - [Ranges](#ranges)
   - [Complex Example](#complex-example)
   - [Example: Internet Protocol version 4](#example-internet-protocol-version-4)
   - [The KBNF Grammar in KBNF](#the-kbnf-grammar-in-kbnf)
@@ -412,9 +412,7 @@ letter_digit_space = unicode(N,L,Zs);
 
 ### `uint` Function
 
-The `uint` function creates an expression that matches an unsigned integer encoded to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
-
-TODO: Value ranges...
+The `uint` function creates an expression that matches an unsigned integer [range](#ranges) encoded to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
 
 ```kbnf
 uint(bit_count: unsigned, value: unsigned): expression
@@ -422,7 +420,7 @@ uint(bit_count: unsigned, value: unsigned): expression
 
 ### `sint` Function
 
-The `sint` function creates an expression that matches a two's complement signed integer encoded to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
+The `sint` function creates an expression that matches a two's complement signed integer [range](#ranges) encoded to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
 
 ```kbnf
 sint(bit_count: unsigned, value: signed): expression
@@ -430,7 +428,7 @@ sint(bit_count: unsigned, value: signed): expression
 
 ### `float` Function
 
-The `sint` function creates an expression that matches an ieee754 binary floating point value encoded to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
+The `sint` function creates an expression that matches an ieee754 binary floating point [range](#ranges) encoded to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
 
 ```kbnf
 float(bit_count: unsigned, value: real): expression
@@ -536,13 +534,6 @@ expression = symbol
 Numbers are used in [calculations](#calculations), numeric ranges, and as parameters to functions.
 
 Certain functions take numeric parameters but restrict the allowed values (e.g. integers only, min/max value, etc). Only parameters containing compatible values can produce a result in such cases.
-
-
-### Ranges
-
-repetition
-codepoint
-int
 
 
 
@@ -870,6 +861,32 @@ comparator             = "<" | "<=" | "=" | ">= | ">";
 logical_or             = condition & TOKEN_SEP & '|' & TOKEN_SEP & condition;
 logical_and            = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
 logical_not            = '!' & TOKEN_SEP & condition;
+```
+
+
+
+Ranges
+------
+
+A range consists of one of the following:
+
+* A low value and a high value separated by a tilde (low ~ high), indicating a low and high bound.
+* A low value and a tilde (low ~), indicating a low bound only.
+* A tilde and a high value (~ high), indicating a high bound only.
+* A tilde (~), indicating no bound.
+
+[repetition](#repetition), [codepoints](#codepoints), and [numbers](#numbers) can be expressed as ranges, which express the set of all values of the range as [alternatves](#alternative).
+
+```kbnf
+expression             = ...
+                       | maybe_ranged(codepoint_literal)
+                       | ...
+                       ;
+repeat_range           = expression & '{' & TOKEN_SEP & maybe_ranged(unsigned) & TOKEN_SEP & '}';
+enc_uint               = fname_uint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(unsigned) & TOKEN_SEP & ')';
+enc_sint               = fname_sint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(signed) & TOKEN_SEP & ')';
+enc_float              = fname_float & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(real) & TOKEN_SEP & ')';
+maybe_ranged(item)     = item | (item? & TOKEN_SEP & '~' & TOKEN_SEP & item?);
 ```
 
 
