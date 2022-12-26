@@ -824,7 +824,7 @@ calc_asr     = calc_mul_div & TOKEN_SEP & '>>' & TOKEN_SEP & calc_val;
 A shift multiplies (shift left) or divides (shift right) the left side of the operation by 2 to the power of the right side. Shift has special rules:
 
 * Both operands must be integers, and the operation produces an integer.
-* A division that results in a value greater than -1 and less than 1 is clamped to 0.
+* Any fractional amount resulting from the division is discarded (the result is always an integer).
 * Shifting by a negative amount inverts the operation (i.e. `x >> -5` becomes `x << 5`).
 
 
