@@ -31,6 +31,7 @@ Contents
     - [Character set support](#character-set-support)
     - [Codepoints as first-class citizens](#codepoints-as-first-class-citizens)
     - [Future proof](#future-proof)
+  - [About the Descriptions and Examples](#about-the-descriptions-and-examples)
   - [Grammar Document](#grammar-document)
     - [Document Header](#document-header)
   - [Production Rules](#production-rules)
@@ -118,6 +119,13 @@ Codepoints beyond the ASCII range must be directly inputtable into a grammar doc
 No specification is perfect, nor can it stand the test of time. Eventually an incompatible change will become necessary in order to stay relevant.
 
 KBNF documents are versioned to a particular KBNF specification so that changes can be made to the specification without breaking existing tooling.
+
+
+
+About the Descriptions and Examples
+-----------------------------------
+
+Descriptions and examples will usually include some KBNF notation. When in doubt, please see the [full KBNF grammar](#the-kbnf-grammar-in-kbnf).
 
 
 
