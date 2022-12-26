@@ -41,13 +41,13 @@ Contents
   - [Builtin Functions](#builtin-functions)
     - [`sized` Function](#sized-function)
     - [`aligned` Function](#aligned-function)
+    - [`swapped` Function](#swapped-function)
     - [`when` Function](#when-function)
     - [`bind` Function](#bind-function)
     - [`unicode` Function](#unicode-function)
     - [`uint` Function](#uint-function)
     - [`sint` Function](#sint-function)
     - [`float` Function](#float-function)
-    - [`swap` Function](#swap-function)
   - [Variables](#variables)
   - [Types](#types)
     - [Identifier](#identifier)
@@ -363,6 +363,25 @@ byte(v)            = uint(8, v);
 ```
 
 
+### `swapped` Function
+
+The `swapped` function swaps the byte order of the enclosed expression (swapping the byte order of the bits that would match the rule).
+
+The expression must resolve to a multiple of 8 bits, otherwise the grammar is malformed.
+
+```kbnf
+swapped(expr: expression): expression
+```
+
+**Example**: A document begins with a 32-bit little endian unsigned int version field, followed by the contents. Only version 5 documents are supported.
+
+```kbnf
+document  = version_5 & contents;
+version_5 = swapped(uint(32, 5));
+contents  = ...
+```
+
+
 ### `when` Function
 
 The `when` function allows an expression only when a given [condition](#conditions) is true.
@@ -482,24 +501,6 @@ rpm = float(32, -1000~1000);
 ```
 
 
-### `swap` Function
-
-The `swap` function swaps the byte order of the enclosed expression (swapping the byte order of the bits that would match the rule).
-
-The expression must resolve to a multiple of 8 bits, otherwise the grammar is malformed.
-
-```kbnf
-swap(expr: expression): expression
-```
-
-**Example**: A document begins with a 32-bit little endian unsigned int version field, followed by the contents. Only version 5 documents are supported.
-
-```kbnf
-document  = version_5 & contents;
-version_5 = swap(uint(32, 5));
-contents  = ...
-```
-
 
 Variables
 ---------
@@ -557,12 +558,12 @@ identifier_firstchar = unicode(L,M);
 identifier_nextchar  = identifier_firstchar | unicode(N) | '_';
 reserved_identifiers = "sized"
                      | "aligned"
-                     | "if"
+                     | "swapped"
+                     | "when"
                      | "bind"
                      | "uint"
                      | "sint"
                      | "float"
-                     | "swap"
                      ;
 ```
 
@@ -577,7 +578,6 @@ expression = symbol
            | string_literal
            | maybe_ranged(codepoint_literal)
            | combination
-           | builtin_encodings
            | builtin_functions
            | variable
            | repetition
@@ -978,9 +978,9 @@ expression             = ...
                        | ...
                        ;
 repeat_range           = expression & '{' & TOKEN_SEP & maybe_ranged(unsigned) & TOKEN_SEP & '}';
-enc_uint               = fname_uint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(unsigned) & TOKEN_SEP & ')';
-enc_sint               = fname_sint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(signed) & TOKEN_SEP & ')';
-enc_float              = fname_float & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(real) & TOKEN_SEP & ')';
+function_uint          = fname_uint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(unsigned) & TOKEN_SEP & ')';
+function_sint          = fname_sint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(signed) & TOKEN_SEP & ')';
+function_float         = fname_float & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(real) & TOKEN_SEP & ')';
 maybe_ranged(item)     = item | (item? & TOKEN_SEP & '~' & TOKEN_SEP & item?);
 ```
 
@@ -1022,7 +1022,7 @@ record                  = bind(record_type,type_field) & padded_payload & suffix
 type_field              = uint(8,bind(type,0~2));
 padded_payload          = aligned(32, payload, uint(8,0xff)*)
 payload                 = length_field(bind(byte_count,0~)) & uint(8,0~){byte_count};
-length_field(contents)  = swap(uint(24,contents));
+length_field(contents)  = swapped(uint(24,contents));
 suffix(type)            = when(type = 2, type2)
                         | when(type = 1, type1)
                         # type 0 means no suffix
@@ -1072,7 +1072,6 @@ expression             = symbol
                        | string_literal
                        | maybe_ranged(codepoint_literal)
                        | combination
-                       | builtin_encodings
                        | builtin_functions
                        | variable
                        | prose
@@ -1137,18 +1136,25 @@ escapable_char(char_set, quote_char) = (char_set ! ('\\' | quote_char)) | escape
 escape                 = '\\' & (printable ! '{') | codepoint_escape);
 codepoint_escape       = '{' & digit_hex+ & '}';
 
-builtin_encodings      = enc_uint | enc_sint | enc_float | enc_swap;
-enc_uint               = fname_uint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(unsigned) & TOKEN_SEP & ')';
-enc_sint               = fname_sint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(signed) & TOKEN_SEP & ')';
-enc_float              = fname_float & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(real) & TOKEN_SEP & ')';
-enc_swap               = fname_swap & '(' & TOKEN_SEP & expression & TOKEN_SEP & ')';
-
-builtin_functions      = function_sized | function_aligned | function_if | function_bind | function_unicode;
+builtin_functions      = function_sized
+                       | function_aligned
+                       | function_swapped
+                       | function_when
+                       | function_bind
+                       | function_unicode
+                       | function_uint
+                       | function_sint
+                       | function_float
+                       ;
 function_sized         = fname_sized & '(' & TOKEN_SEP & bit_count & ARG_SEP & expression & TOKEN_SEP & ')';
 function_aligned       = fname_aligned & '(' & TOKEN_SEP & bit_count & ARG_SEP & expression & ARG_SEP & padding & TOKEN_SEP & ')';
+function_swapped       = fname_swapped & '(' & TOKEN_SEP & expression & TOKEN_SEP & ')';
 function_when          = fname_when & '(' & TOKEN_SEP & condition & ARG_SEP & any & TOKEN_SEP & ')';
 function_bind          = fname_bind & '(' & TOKEN_SEP & local_id & ARG_SEP & any & TOKEN_SEP & ')';
 function_unicode       = fname_unicode & '(' & TOKEN_SEP & category_name & (ARG_SEP & category_name)* & TOKEN_SEP & ')';
+function_uint          = fname_uint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(unsigned) & TOKEN_SEP & ')';
+function_sint          = fname_sint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(signed) & TOKEN_SEP & ')';
+function_float         = fname_float & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(real) & TOKEN_SEP & ')';
 
 local_id               = identifier_restricted;
 any                    = condition | number | expression;
@@ -1193,22 +1199,22 @@ identifier_firstchar   = unicode(L,M);
 identifier_nextchar    = identifier_firstchar | unicode(N) | '_';
 reserved_identifiers   = fname_sized
                        | fname_aligned
-                       | fname_if
+                       | fname_when
                        | fname_bind
                        | fname_uint
                        | fname_sint
                        | fname_float
-                       | fname_swap
+                       | fname_swapped
                        ;
 
 fname_sized            = "sized";
 fname_aligned          = "aligned";
-fname_if               = "if";
+fname_swapped          = "swapped";
+fname_when             = "when";
 fname_bind             = "bind";
 fname_uint             = "uint";
 fname_sint             = "sint";
 fname_float            = "float";
-fname_swap             = "swap";
 
 printable              = unicode(L,M,N,P,S);
 printable_ws           = printable | WS;
