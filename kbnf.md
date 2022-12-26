@@ -494,6 +494,8 @@ A unique identifier for [symbols](#symbols), [macros](#macros), and [functions](
 
 Identifiers must start with a letter, and can contain letters, numbers and the underscore character. The [builtin function names](#builtin-functions) are reserved.
 
+The general convention is to use all uppercase identifiers for "background-y" things like whitespace and separators to make them easier to gloss over.
+
 ```kbnf
 identifier             = (identifier_firstchar & identifier_nextchar*) !reserved_identifiers;
 identifier_firstchar   = unicode(L,M);
@@ -940,9 +942,16 @@ document               = document_header & (MAYBE_WSLC & rule)+;
 
 kbnf_version           = '1';
 
-document_header        = "kbnf_v" & kbnf_version & SOME_WS & character_encoding & LINE_END & header_line* & LINE_END;
+document_header        = "kbnf_v" & kbnf_version & SOME_WS
+                       & character_encoding & LINE_END
+                       & header_line* & LINE_END
+                       ;
 character_encoding     = ('!' ~ '~')+;
-header_line            = '-' & SOME_WS & header_name & MAYBE_WS & '=' & SOME_WS & header_value & LINE_END;
+header_line            = '-' & SOME_WS
+                       & header_name & MAYBE_WS
+                       & '=' & SOME_WS
+                       & header_value & LINE_END
+                       ;
 header_name            = printable+;
 header_value           = printable_ws+;
 
@@ -963,9 +972,21 @@ expression             = symbol
                        ;
 
 symbol                 = identifier_restricted;
-macro                  = identifier_restricted & '(' & TOKEN_SEP & param_name & (ARG_SEP & param_name)* & TOKEN_SEP & ')';
+macro                  = identifier_restricted
+                       & '(' & TOKEN_SEP
+                       & param_name
+                       & (ARG_SEP & param_name)* & TOKEN_SEP
+                       & ')'
+                       ;
 param_name             = identifier_any;
-function               = identifier_restricted & '(' & TOKEN_SEP & function_param & (ARG_SEP & function_param)* & TOKEN_SEP & ')' & TOKEN_SEP ':' & TOKEN_SEP & type;
+function               = identifier_restricted
+                       & '(' & TOKEN_SEP
+                       & function_param
+                       & (ARG_SEP & function_param)* & TOKEN_SEP
+                       & ')' & TOKEN_SEP
+                       & ':' & TOKEN_SEP
+                       & type
+                       ;
 function_param         = param_name & TOKEN_SEP & ':' & TOKEN_SEP & type;
 type                   = "expression"
                        | "condition"
@@ -974,7 +995,12 @@ type                   = "expression"
                        | "real"
                        | "any"
                        ;
-call                   = identifier_any & '(' & TOKEN_SEP & call_param & (ARG_SEP & call_param)* & TOKEN_SEP & ')';
+call                   = identifier_any
+                       & '(' & TOKEN_SEP
+                       & call_param
+                       & (ARG_SEP & call_param)* & TOKEN_SEP
+                       & ')'
+                       ;
 call_param             = any;
 
 combination            = alternate | combination_w_exclude;
