@@ -148,9 +148,16 @@ The document header identifies the file format as KBNF, and contains the followi
 Optionally, it may also include header lines. An empty line terminates the document header section.
 
 ```kbnf
-document_header    = "kbnf_v" & kbnf_version & SOME_WS & character_encoding & LINE_END & header_line* & LINE_END;
+document_header    = "kbnf_v" & kbnf_version & SOME_WS
+                   & character_encoding & LINE_END
+                   & header_line* & LINE_END
+                   ;
 character_encoding = ('!' ~ '~')+;
-header_line        = '-' & SOME_WS & header_name & MAYBE_WS & '=' & SOME_WS & header_value & LINE_END;
+header_line        = '-' & SOME_WS
+                   & header_name & MAYBE_WS
+                   & '=' & MAYBE_WS
+                   & header_value & LINE_END
+                   ;
 header_name        = printable+;
 header_value       = printable_ws+;
 ```
@@ -198,7 +205,7 @@ symbol = identifier_restricted;
 
 ```kbnf
 記録		= 会社名 & "：：" & 従業員数 & LF;
-会社名		= unicode(L,M) & unicode(L,M,N,P,S,Zs)* !"：：";
+会社名		= unicode(L,M) & unicode(L,M,N,P,S,Zs)* ! "：：";
 従業員数		= '１'~'９' & '０'~'９'* & '万'?;
 LF		= '\{a}';
 ```
@@ -207,7 +214,7 @@ Or if you prefer, the same thing with English symbol names:
 
 ```kbnf
 record         = company_name & "：：" & employee_count & LF;
-company_name   = unicode(L,M) & unicode(L,M,N,P,S,Zs)* !"：：";
+company_name   = unicode(L,M) & unicode(L,M,N,P,S,Zs)* ! "：：";
 employee_count = '１'~'９' & '０'~'９'* & '万'?;
 LF             = '\{a}';
 ```
@@ -217,13 +224,23 @@ LF             = '\{a}';
 A macro is essentially a symbol that accepts parameters, which are bound to local [variables](#variables) for use within the macro. The macro's contents are written like regular rules, but also have access to the injected local variables.
 
 ```kbnf
-macro = identifier_restricted & '(' & TOKEN_SEP & param_name & (ARG_SEP & param_name)* & TOKEN_SEP & ')';
+macro = identifier_restricted
+      & '(' & TOKEN_SEP
+      & param_name
+      & (ARG_SEP & param_name)* & TOKEN_SEP
+      & ')'
+      ;
 ```
 
 When called, a macro substitutes the passed in parameters and proceeds like a normal rule would (the grammar is malformed if a macro is called with the wrong types).
 
 ```kbnf
-call       = identifier_any & '(' & TOKEN_SEP & call_param & (ARG_SEP & call_param)* & TOKEN_SEP & ')';
+call       = identifier_any
+           & '(' & TOKEN_SEP
+           & call_param
+           & (ARG_SEP & call_param)* & TOKEN_SEP
+           & ')'
+           ;
 call_param = any;
 ```
 
@@ -271,7 +288,14 @@ Since the function is opaque, its types cannot be inferred like for macros, and 
 Functions must specify the [types](#types) of all parameters and its return value. A function cannot produce anything if its input types are mismatched.
 
 ```kbnf
-function       = identifier_restricted & '(' & TOKEN_SEP & function_param & (ARG_SEP & function_param)* & TOKEN_SEP & ')' & TOKEN_SEP & ':' & TOKEN_SEP & type;
+function       = identifier_restricted
+               & '(' & TOKEN_SEP
+               & function_param
+               & (ARG_SEP & function_param)* & TOKEN_SEP
+               & ')' & TOKEN_SEP
+               & ':' & TOKEN_SEP
+               & type
+               ;
 function_param = param_name & TOKEN_SEP & ':' & TOKEN_SEP & type;
 type           = "expression"
                | "condition"
@@ -380,10 +404,10 @@ sequence = bind(repeating_value,('a'~'z')+) & '/' & repeating_value;
 
 ```kbnf
 here_document             = "<<" & bind(terminator, NOT_LF+) & LF & here_contents(terminator) & terminator;
-here_contents(terminator) = ANY_CHAR* !terminator;
+here_contents(terminator) = ANY_CHAR* ! terminator;
 ANY_CHAR                  = '\{0}'~;
 LF                        = '\{a}';
-NOT_LF                    = ANY_CHAR !LF;
+NOT_LF                    = ANY_CHAR ! LF;
 ```
 
 **Example**: Interpret the next 16 bits as a big endian unsigned int and bind the resolved number to "length". That many following bytes make up the record contents.
@@ -497,18 +521,18 @@ Identifiers must start with a letter, and can contain letters, numbers and the u
 The general convention is to use all uppercase identifiers for "background-y" things like whitespace and separators to make them easier to gloss over.
 
 ```kbnf
-identifier             = (identifier_firstchar & identifier_nextchar*) !reserved_identifiers;
-identifier_firstchar   = unicode(L,M);
-identifier_nextchar    = identifier_firstchar | unicode(N) | '_';
-reserved_identifiers   = "sized"
-                       | "aligned"
-                       | "if"
-                       | "bind"
-                       | "uint"
-                       | "sint"
-                       | "float"
-                       | "lendian"
-                       ;
+identifier           = (identifier_firstchar & identifier_nextchar*) ! reserved_identifiers;
+identifier_firstchar = unicode(L,M);
+identifier_nextchar  = identifier_firstchar | unicode(N) | '_';
+reserved_identifiers = "sized"
+                     | "aligned"
+                     | "if"
+                     | "bind"
+                     | "uint"
+                     | "sint"
+                     | "float"
+                     | "lendian"
+                     ;
 ```
 
 
@@ -535,7 +559,18 @@ expression = symbol
 
 Numbers are used in [calculations](#calculations), numeric ranges, and as parameters to functions.
 
-Certain functions take numeric parameters but restrict the allowed values (e.g. integers only, min/max value, etc). Only parameters containing compatible values can produce a result in such cases.
+Certain functions take number parameters but restrict the allowed values (e.g. integers only, min/max value, etc). Only parameters containing compatible values can produce a result in such cases.
+
+Numbers can be expressed as number literals (in binary, octal, decimal, hexadecimal notation for integers, and in decimal or hexadecimal notation for reals), or derived from [functions](#functions), [macros](#macros), and [calculations](#calculations).
+
+```kbnf
+number_literal   = int_literal_bin | int_literal_oct | real_literal_dec | real_literal_hex;
+real_literal_dec = neg? digit_dec+ & ('.' & digit_dec+ & (('e' | 'E') ('+' | '-')? & digit_dec+)?)?;
+real_literal_hex = neg? & '0' & ('x' | 'X') & digit_hex+ & ('.' & digit_hex+ & (('p' | 'P') & ('+' | '-')? & digit_dec+)?)?;
+int_literal_bin  = neg? & '0' & ('b' | 'B') & digit_bin+;
+int_literal_oct  = neg? & '0' & ('o' | 'O') & digit_oct+;
+neg              = '-';
+```
 
 
 
@@ -586,7 +621,7 @@ Codepoint literals, string literals, and prose may contain codepoint escape sequ
 Escape sequences are initiated with the backslash (`\`) character. If the next character following is an open curly brace (`{`), it begins a [codepoint escape](#codepoint-escape). Otherwise the sequence represents that literal character.
 
 ```kbnf
-escape = '\\' & (printable !'{') | codepoint_escape);
+escape = '\\' & (printable ! '{') | codepoint_escape);
 ```
 
 **Example**: A string containing double quotes.
@@ -614,8 +649,8 @@ mystr = "This is a \{1f415}"; # "This is a 🐕"
 Prose is meant as a last resort in attempting to describe an expression. If an expression's contents have already been described elsewhere, you could put a URL in here. Otherise you could put in a natural language description.
 
 ```kbnf
-prose = '"""' & (escapable_char(printable_wsl, '"')+ !'"""') & '"""'
-      | "'''" & (escapable_char(printable_wsl, "'")+ !"'''") & "'''"
+prose = '"""' & (escapable_char(printable_wsl, & '"')+ ! '"""') & '"""'
+      | "'''" & (escapable_char(printable_wsl, & "'")+ ! "'''") & "'''"
       ;
 ```
 
@@ -696,7 +731,7 @@ caculation = "a"~"z"+
 
 ### Exclusion
 
-Exclusion removes an expression from the set of matchable expression alternatives. Conventionally, the `!` is placed right against the following expression.
+Exclusion removes an expression from the set of matchable expression alternatives.
 
 ```kbnf
 exclude = expression & TOKEN_SEP & '!' & TOKEN_SEP & expression;
@@ -705,7 +740,7 @@ exclude = expression & TOKEN_SEP & '!' & TOKEN_SEP & expression;
 **Example**: An identifier can be any lowercase ASCII string except "fred".
 
 ```kbnf
-identifier = "a"~"z"+ !"fred";
+identifier = "a"~"z"+ ! "fred";
 ```
 
 
@@ -720,11 +755,11 @@ The repetition amount is appended to an expression, as a discrete amount or [ran
 * `+`: One or more (equivalent to `{1~}`)
 
 ```kbnf
-repetition             = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
-repeat_range           = expression & '{' & TOKEN_SEP & maybe_ranged(unsigned) & TOKEN_SEP & '}';
-repeat_zero_or_one     = expression & '?';
-repeat_zero_or_more    = expression & '*';
-repeat_one_or_more     = expression & '+';
+repetition          = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
+repeat_range        = expression & '{' & TOKEN_SEP & maybe_ranged(unsigned) & TOKEN_SEP & '}';
+repeat_zero_or_one  = expression & '?';
+repeat_zero_or_more = expression & '*';
+repeat_one_or_more  = expression & '+';
 ```
 
 **Example**: An identifier is between 5 and 8 characters long, made of characters from 'a' to 'z'.
@@ -768,7 +803,7 @@ Comments
 A comment begins with a hash char (`#`) and continues to the end of the current line. Comments can be placed after pretty much any token.
 
 ```kbnf
-comment = '#' & (printable_ws !LINE_END)* & LINE_END;
+comment = '#' & (printable_ws ! LINE_END)* & LINE_END;
 ```
 
 **Example**:
@@ -949,7 +984,7 @@ document_header        = "kbnf_v" & kbnf_version & SOME_WS
 character_encoding     = ('!' ~ '~')+;
 header_line            = '-' & SOME_WS
                        & header_name & MAYBE_WS
-                       & '=' & SOME_WS
+                       & '=' & MAYBE_WS
                        & header_value & LINE_END
                        ;
 header_name            = printable+;
