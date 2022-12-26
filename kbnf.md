@@ -489,7 +489,7 @@ points = sint(32, -10000~10000);
 
 ### `float` Function
 
-The `sint` function creates an expression that matches the given [range](#ranges) of big endian ieee754 binary floating point values with the given number of bits (16, 32, 64, 128, or 256).
+The `float` function creates an expression that matches the given [range](#ranges) of big endian ieee754 binary floating point values with the given number of bits (which must be a valid number of bits for ieee754 binary).
 
 ```kbnf
 float(bit_count: unsigned, value: real): expression
