@@ -4,11 +4,9 @@ Karl's Bachus-Naur Form
 Version 0
 
 
-## WORK IN PROGRESS!
+## WORK IN PROGRESS
 
-The descriptions are all a mess atm. Only the [grammar](#the-kbnf-grammar-in-kbnf) is in decent shape right now.
-
-For an example of using it in a binary format, see [ipv4.kbnf](ipv4.kbnf)
+Full release will happen soon, but there are still parts to clean up.
 
 
 
@@ -23,7 +21,7 @@ Contents
 --------
 
 - [Karl's Bachus-Naur Form](#karls-bachus-naur-form)
-  - [WORK IN PROGRESS!](#work-in-progress)
+  - [WORK IN PROGRESS](#work-in-progress)
   - [Introduction](#introduction)
   - [Contents](#contents)
   - [Design Objectives](#design-objectives)
@@ -71,12 +69,8 @@ Contents
   - [Calculations](#calculations)
     - [Shifts](#shifts)
   - [Conditions](#conditions)
-  - [Examples](#examples)
-    - [Complex Example](#complex-example)
-  - [Design Notes](#design-notes)
-    - [Letter Case](#letter-case)
-    - [Single vs Double Quotes](#single-vs-double-quotes)
-    - [No predefined symbols](#no-predefined-symbols)
+  - [Complex Example](#complex-example)
+  - [Example: Internet Protocol version 4](#example-internet-protocol-version-4)
   - [The KBNF Grammar in KBNF](#the-kbnf-grammar-in-kbnf)
 
 
@@ -475,7 +469,7 @@ Types
 
 These are the main types in KBNF:
 
-* [`identifier`](#identifier) 
+* [`identifier`](#identifier)
 * [`expression`](#expressions)
 * [`condition`](#conditions)
 * [`number`](#numbers), of which there are three subtypes:
@@ -483,12 +477,12 @@ These are the main types in KBNF:
   * `int`: limited to positive and negative integers, and 0
   * `real`: any value from the set of reals
 
-Types become relevant when calling [functions](#functions), which must specify what types they accept and return. There are also type restrictions for what can be used in [repetition](#repetition), [calculations](#calculations), and [comparisons](#comparisons).
+Types become relevant when calling [functions](#functions), which must specify what types they accept and return. There are also type restrictions for what can be used in [repetition](#repetition), [calculations](#calculations), and [comparisons](#conditions).
 
 
 ### Identifier
 
-A unique identifier for [symbols](#symbols), [macros](#macros), and [functions](#functions) (which are all scoped globally), or [variables](#variables) (which are scoped locally).
+A unique identifier for [symbols](#symbols), [macros](#macros), and [functions](#functions) (which are all scoped globally), or [variables](#variables) (which are scoped locally). Identifiers are case sensitive.
 
 Identifiers must start with a letter, and can contain letters, numbers and the underscore character. The [builtin function names](#builtin-functions) are reserved.
 
@@ -868,13 +862,10 @@ logical_and            = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
 logical_not            = '!' & TOKEN_SEP & condition;
 ```
 
-///////////////////////////////////////////////////
 
 
-Examples
---------
-
-### Complex Example
+Complex Example
+---------------
 
 * A `document` contains one or more `sections`, and terminates on EOF.
 * A `section` begins with a `sentinel` (a record type of 0x80 or higher, with a length of 0), followed by an arbitrary number of `records`, followed by the same `sentinel` value again to terminate the list of `records` in this `section`.
@@ -907,26 +898,10 @@ type2                   = ...
 
 
 
-Design Notes
-------------
+Example: Internet Protocol version 4
+------------------------------------
 
-TODO
-
-This section describes some of the design decisions, and the reasoning behind them.
-
-### Letter Case
-
-KBNF documents are case-sensitive, and all symbol, codepoint and string comparisons are done in a case sensitive manner. There is no significance to the letter case of a symbol, only an aesthetic convention: If the symbol has no semantic significance (such as whitespace or other aesthetic tokens that are thrown out by the parser), its name is usually all uppercase to give visual differentiation between important symbols and those that merely serve as scaffolding.
-
-
-### Single vs Double Quotes
-
-Both are allowed in order to avoid excessive escaping, but the general convention is to use single-quotes for single codepoints, and double-quotes for strings - unless the contents would be easier to express the other way (e.g. a string containing double-quotes).
-
-
-### No predefined symbols
-
-Such as whitespace (which would have different meaning, depending on the character set).
+See accompanying document: [ipv4.kbnf](ipv4.kbnf)
 
 
 
