@@ -711,7 +711,11 @@ identifier = "a"~"z"+ !"fred";
 
 "Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Repetition amounts can be defined as a [range](#ranges) or as a discrete amount. Think of repetition as "this [expression](#expressions), [concatenated](#concatenation) together for this range of occurrences".
 
-The repetition amount is appended to an expression, between curly braces. There are also shorthand notations made popular in regular expressions, for zero-or-one (`?`), zero-or-more (`*`), and one-or-more (`+`).
+The repetition amount is appended to an expression, as a discrete amount or [range](#ranges) between curly braces (e.g. `{10}` or `{1~5}`). There are also shorthand notations for common cases:
+
+* `?`: Zero or one (equivalent to `{0~1}`)
+* `*`: Zero or more (equivalent to `{0~}`)
+* `+`: One or more (equivalent to `{1~}`)
 
 ```kbnf
 repetition             = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
