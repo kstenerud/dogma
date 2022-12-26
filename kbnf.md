@@ -914,8 +914,8 @@ Comparisons:
 * Less than (`<`)
 * Less than or equal to (`<=`)
 * Equal to (`=`)
-* Greater than or equal to (`>=')
-* Greater than (`>')
+* Greater than or equal to (`>=`)
+* Greater than (`>`)
 
 Logical operations:
 
