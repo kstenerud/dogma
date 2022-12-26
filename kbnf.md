@@ -133,7 +133,7 @@ Descriptions and examples will usually include some KBNF notation. When in doubt
 Grammar Document
 ----------------
 
-A KBNF grammar document begins with a [header section](#document-header), followed by a series of [production rules](#production-rules). The first rule listed is assumed to be the start rule, and therefore must define a [symbol](#symbols).
+A KBNF grammar document begins with a [header section](#document-header), followed by a series of [production rules](#production-rules).
 
 ```kbnf
 document = document_header (MAYBE_WSLC rule)+;
@@ -192,6 +192,8 @@ rule = (symbol | macro) & TOKEN_SEP & '=' & TOKEN_SEP & production & TOKEN_SEP &
 ```
 
 The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their names share the global namespace, and must be unique (they are case sensitive).
+
+The first rule listed in the document is assumed to be the start rule, and therefore must define a [symbol](#symbols).
 
 
 ### Symbols
