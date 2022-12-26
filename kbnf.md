@@ -247,11 +247,11 @@ call       = identifier_any
 call_param = any;
 ```
 
-**Example**: A fixed section is always 256 bytes long, split into three standard 8-bit length prefixed records. The first two records always have a length of 100 bytes, and the third has a length of 53 bytes.
+**Example**: The main section consists of three records: A type 1 record and two type 2 records. A record begins with a type byte, followed by a length byte, followed by that many bytes of data.
 
 ```kbnf
-fixed_section  = record(100) & record(100) & record(53);
-record(length) = byte(length) & byte(0~){length};
+main_section  = record(1) & record(2) & record(2);
+record(type) = byte(type) byte(bind(length, 0~)) & byte(0~){length};
 byte(v)        = uint(8,v);
 ```
 
@@ -286,9 +286,7 @@ payload_contents(protocol)   = when(protocol = 0, protocol_hopopt)
 
 Functions behave similarly to macros, except that they are opaque: Whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions), or is user-defined in [prose](#prose) (either as a description, or as a URL pointing to a description).
 
-Since the function is opaque, its types cannot be inferred like for macros, and therefore must be specified.
-
-Functions must specify the [types](#types) of all parameters and its return value. A function cannot produce anything if its input types are mismatched.
+Functions must specify the [types](#types) of all parameters and its return value (since the function is opaque, its types cannot be inferred like for macros, and therefore must be specified). A function cannot produce anything if its input types are mismatched.
 
 ```kbnf
 function       = identifier_restricted
