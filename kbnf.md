@@ -899,14 +899,14 @@ Complex Example
 ---------------
 
 * A `document` contains one or more `sections`, and terminates on EOF.
-* A `section` begins with a `sentinel` (a record type of 0x80 or higher, with a length of 0), followed by an arbitrary number of `records`, followed by the same `sentinel` value again to terminate the list of `records` in this `section`.
+* A `section` begins with a `sentinel` (a record with type between 0x80 and 0xfe, and a length of 0), followed by an arbitrary number of `records`, followed by the same `sentinel` value again to terminate the list of `records` in this `section`.
 * A `record` is comprised of an 8-bit `record_type`, a `payload`, and a possible `suffix` depending on the `record_type`.
 * The `payload` is comprised of a little endian 24-bit `length` field representing the number of bytes in the payload, followed by the payload bytes, followed by possible 0xff padding to bring it to a multiple of 32 bits.
 * Depending on the `record_type`, there may be a `suffix`.
 
 ```kbnf
 document                = section+;
-section                 = bind(sentinel,uint(8,0x80~)) & length_field(0) & record* & sentinel;
+section                 = bind(sentinel,uint(8,0x80~0xfe)) & length_field(0) & record* & sentinel;
 record                  = bind(record_type,type_field) & payload & suffix(record_type.type);
 type_field              = uint(8,bind(type,0~2));
 length_field(contents)  = lendian(uint(24,contents));
@@ -918,14 +918,6 @@ suffix(type)            = when(type = 2, type2)
 type1                   = ...
 type2                   = ...
 ```
-
-`section` captures a 32-bit `sentinel`, and then re-uses that `sentinel` to match the section terminator.
-
-`record_type` captures the result of the expression from `type_field`. Since `type_field` captured `type`, it can be accessed from `record` using the dot notation `record_type.type`.
-
-`pad_32_high` uses calculations to decide how many 0xff bytes to match.
-
-`suffix` uses conditions to decide based on `type` which suffix (if any) should be present.
 
 
 
