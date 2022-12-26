@@ -70,8 +70,9 @@ Contents
     - [Shifts](#shifts)
   - [Conditions](#conditions)
   - [Ranges](#ranges)
-  - [Complex Example](#complex-example)
-  - [Example: Internet Protocol version 4](#example-internet-protocol-version-4)
+  - [Examples](#examples)
+    - [A Complex Example](#a-complex-example)
+    - [Example: Internet Protocol version 4](#example-internet-protocol-version-4)
   - [The KBNF Grammar in KBNF](#the-kbnf-grammar-in-kbnf)
 
 
@@ -856,6 +857,13 @@ calc_lsl     = calc_mul_div & TOKEN_SEP & '<<' & TOKEN_SEP & calc_val;
 calc_asr     = calc_mul_div & TOKEN_SEP & '>>' & TOKEN_SEP & calc_val;
 ```
 
+**Example**:
+
+```kbnf
+TODO
+```
+
+
 ### Shifts
 
 A shift multiplies (shift left) or divides (shift right) the left side of the operation by 2 to the power of the right side. Shift has special rules:
@@ -904,6 +912,12 @@ logical_and            = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
 logical_not            = '!' & TOKEN_SEP & condition;
 ```
 
+**Example**:
+
+```kbnf
+TODO
+```
+
 
 
 Ranges
@@ -930,10 +944,18 @@ enc_float              = fname_float & '(' & TOKEN_SEP & bit_count & ARG_SEP & m
 maybe_ranged(item)     = item | (item? & TOKEN_SEP & '~' & TOKEN_SEP & item?);
 ```
 
+**Example**:
+
+```kbnf
+TODO
+```
 
 
-Complex Example
----------------
+
+Examples
+--------
+
+### A Complex Example
 
 * A `document` contains one or more `sections`, and terminates on EOF.
 * A `section` begins with a `sentinel` (a record with type between 0x80 and 0xfe, and a length of 0), followed by an arbitrary number of `records`, followed by the same `sentinel` value again to terminate the list of `records` in this `section`.
@@ -957,9 +979,7 @@ type2                   = ...
 ```
 
 
-
-Example: Internet Protocol version 4
-------------------------------------
+### Example: Internet Protocol version 4
 
 See accompanying document: [ipv4.kbnf](ipv4.kbnf)
 
