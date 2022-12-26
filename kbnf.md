@@ -53,7 +53,6 @@ Contents
   - [Types](#types)
     - [Identifier](#identifier)
     - [Expressions](#expressions)
-    - [Conditions](#conditions)
     - [Numbers](#numbers)
     - [Ranges](#ranges)
   - [Literals](#literals)
@@ -70,7 +69,8 @@ Contents
   - [Grouping](#grouping)
   - [Comments](#comments)
   - [Calculations](#calculations)
-  - [Conditions](#conditions-1)
+    - [Shifts](#shifts)
+  - [Conditions](#conditions)
   - [Examples](#examples)
     - [Complex Example](#complex-example)
   - [Design Notes](#design-notes)
@@ -347,10 +347,11 @@ when(cond: condition, expr: expression): expression
 ```kbnf
 extensions          = extension{32};
 extension           = uint(8,bind(type,0~3)) & uint(24,bind(length,0~))
-                      when(type = 1, extension_1(length))
-                    | when(type = 2, extension_2(length))
-                    | when(type = 3, extension_3(length))
-                    # When type is 0, no extension and length is ignored
+                    & ( when(type = 1, extension_1(length))
+                      | when(type = 2, extension_2(length))
+                      | when(type = 3, extension_3(length))
+                      # When type is 0, no extension and length is ignored
+                      )
                     ;
 extension_1(length) = ...
 extension_2(length) = ...
@@ -376,7 +377,7 @@ sequence = bind(repeating_value,('a'~'z')+) & '/' & repeating_value;
 **Example**: Bind the variable "terminator" to whatever follows the "<<" until the next linefeed. The here-document contents continue until the terminator value is encountered again.
 
 ```kbnf
-here_document             = "<<" bind(terminator, NOT_LF+) & LF & here_contents(terminator) & terminator;
+here_document             = "<<" & bind(terminator, NOT_LF+) & LF & here_contents(terminator) & terminator;
 here_contents(terminator) = ANY_CHAR* !terminator;
 ANY_CHAR                  = '\{0}'~;
 LF                        = '\{a}';
@@ -394,10 +395,11 @@ byte(v)                 = uint(8, v);
 
 ### `unicode` Function
 
-The `unicode` function produces the [alternatives](#alternative) set of all Unicode codepoints that have any of the given Unicode [categories](https://unicode.org/glossary/#general_category).
+The `unicode` function creates an expression containing the [alternatives](#alternative) set of all Unicode codepoints that have any of the given [Unicode categories](https://unicode.org/glossary/#general_category).
 
 ```kbnf
-unicode(category: category_name (ARG_SEP category: category_name)*): set of codepoint alternates
+unicode(c: category (ARG_SEP c: category)*): expression
+category = """https://unicode.org/glossary/#general_category""";
 ```
 
 **Example**: Allow letter, numeral, and space characters.
@@ -408,7 +410,7 @@ letter_digit_space = unicode(N,L,Zs);
 
 ### `uint` Function
 
-The `uint` function creates an expression that matches an unsigned integer encoded to the specified number of bits, within the specified value range.
+The `uint` function creates an expression that matches an unsigned integer encoded to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
 
 TODO: Value ranges...
 
@@ -418,7 +420,7 @@ uint(bit_count: unsigned, value: unsigned): expression
 
 ### `sint` Function
 
-The `sint` function creates an expression that matches a two's complement signed integer encoded to the specified number of bits, within the specified value range.
+The `sint` function creates an expression that matches a two's complement signed integer encoded to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
 
 ```kbnf
 sint(bit_count: unsigned, value: signed): expression
@@ -426,7 +428,7 @@ sint(bit_count: unsigned, value: signed): expression
 
 ### `float` Function
 
-The `sint` function creates an expression that matches an ieee754 binary floating point value encoded to the specified number of bits, within the specified value range.
+The `sint` function creates an expression that matches an ieee754 binary floating point value encoded to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
 
 ```kbnf
 float(bit_count: unsigned, value: real): expression
@@ -436,7 +438,7 @@ float(bit_count: unsigned, value: real): expression
 
 The `lendian` function expresses the resolved expression in little endian byte order (effectively swapping the byte order of the bits that would match the rule).
 
-The expression must resolve to a multiple of 8 bits.
+The expression must resolve to a multiple of 8 bits, otherwise the grammar is malformed.
 
 ```kbnf
 lendian(expr: expression): expression
@@ -524,10 +526,6 @@ expression = symbol
            | grouped(expression)
            ;
 ```
-
-### Conditions
-
-A `condition` type is the result of comparing [numbers](#numbers) or performing [logical operations](#logical-operations) on conditions, resulting in either true or false. Conditions are used in [`when`](#when-function) calls.
 
 ### Numbers
 
@@ -649,6 +647,13 @@ Combinations
 
 There are many ways to combine expressions into more powerful expressions.
 
+Combination precedence (low to high):
+
+* [Alternative](#alternative)
+* [Exclusion](#exclusion)
+* [Concatenation](#concatenation)
+* [Repetition](#repetition)
+
 
 ### Concatenation
 
@@ -733,14 +738,12 @@ identifier = 'a'~'z'{5~8};
 identifier = 'A'~'Z'+ & 'a'~'z'* & '_'?;
 ```
 
-TODO: precedence...
-
 
 
 Grouping
 --------
 
-Expressions, calculations and conditions can be grouped in order to override the default [precedence](#precedence), or as a visual aid. To group, place the item between parentheses.
+Expressions, calculations and conditions can be grouped in order to override the default precedence, or as a visual aid. To group, place the item between parentheses.
 
 ```kbnf
 grouped(item) = '(' & TOKEN_SEP & item & TOKEN_SEP & ')';
@@ -796,32 +799,62 @@ The following operations can be used:
 * Multiply (`*`)
 * Divide (`/`)
 * Modulus (`%`)
-* Logical shift left (`<<`)
-* Arithmetic shift right (`>>`)
+* Shift left (`<<`)
+* Shift right (`>>`)
 
-TODO
+Operator precedence (low to high):
+
+* add, subtract
+* multiply, divide, modulus, shift left, shift right
 
 ```kbnf
 number       = calc_add | calc_sub | calc_mul_div;
-calc_mul_div = calc_mul | calc_div | calc_mod | calc_val;
+calc_mul_div = calc_mul | calc_div | calc_mod | calc_val | calc_lsl | calc_asr;
 calc_val     = number_literal | variable | number | grouped(number);
 calc_add     = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
 calc_sub     = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
 calc_mul     = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_val;
 calc_div     = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_val;
 calc_mod     = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_val;
+calc_lsl     = calc_mul_div & TOKEN_SEP & '<<' & TOKEN_SEP & calc_val;
+calc_asr     = calc_mul_div & TOKEN_SEP & '>>' & TOKEN_SEP & calc_val;
 ```
 
-TODO: precedence...
+### Shifts
+
+A shift multiplies (shift left) or divides (shift right) the left side of the operation by 2 to the power of the right side. Shift has special rules:
+
+* Both operands must be integers, and the operation produces an integer.
+* A division that results in a value greater than -1 and less than 1 is clamped to 0.
+* Shifting by a negative amount inverts the operation (i.e. `x >> -5` becomes `x << 5`).
 
 
 
 Conditions
 ----------
 
-comparators, logic operators, parentheses, when
+Conditions are set by comparing realized [numbers](#numbers), and by performing logical operations on those comparisons, resulting in either true or false. Conditions are used in [`when`](#when-function) calls.
 
-TODO
+Comparisons:
+
+* Less than (`<`)
+* Less than or equal to (`<=`)
+* Equal to (`=`)
+* Greater than or equal to (`>=')
+* Greater than (`>')
+
+Logical operations:
+
+* And (`&`)
+* Or (`|`)
+* Not (`!`), which is a unary operator
+
+Condition precedence (low to high):
+
+* comparisons
+* logical or
+* logical and
+* logical not
 
 ```kbnf
 condition              = comparison | logical_op;
@@ -834,8 +867,6 @@ logical_or             = condition & TOKEN_SEP & '|' & TOKEN_SEP & condition;
 logical_and            = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
 logical_not            = '!' & TOKEN_SEP & condition;
 ```
-
-TODO: precedence...
 
 ///////////////////////////////////////////////////
 
@@ -952,9 +983,9 @@ combination            = alternate | combination_w_exclude;
 combination_w_exclude  = exclude | combination_w_concat
 combination_w_concat   = concatenate | combination_w_repeat;
 combination_w_repeat   = repetition | combination;
-alternate              = expression (TOKEN_SEP & '|' & TOKEN_SEP & expression)+;
-exclude                = expression TOKEN_SEP & '!' & TOKEN_SEP & expression;
-concatenate            = expression (SOME_WSLC & expression)+;
+alternate              = expression & (TOKEN_SEP & '|' & TOKEN_SEP & expression)+;
+exclude                = expression & TOKEN_SEP & '!' & TOKEN_SEP & expression;
+concatenate            = expression & (SOME_WSLC & expression)+;
 repetition             = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
 repeat_range           = expression & '{' & TOKEN_SEP & maybe_ranged(unsigned) & TOKEN_SEP & '}';
 repeat_zero_or_one     = expression & '?';
@@ -1004,13 +1035,15 @@ logical_and            = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
 logical_not            = '!' & TOKEN_SEP & condition;
 
 number                 = calc_add | calc_sub | calc_mul_div;
-calc_mul_div           = calc_mul | calc_div | calc_mod | calc_val;
+calc_mul_div           = calc_mul | calc_div | calc_mod | calc_val | calc_lsl | calc_asr;
 calc_val               = number_literal | variable | number | grouped(number);
 calc_add               = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
 calc_sub               = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
 calc_mul               = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_val;
 calc_div               = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_val;
 calc_mod               = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_val;
+calc_lsl               = calc_mul_div & TOKEN_SEP & '<<' & TOKEN_SEP & calc_val;
+calc_asr               = calc_mul_div & TOKEN_SEP & '>>' & TOKEN_SEP & calc_val;
 
 grouped(item)          = '(' & TOKEN_SEP & item & TOKEN_SEP & ')';
 maybe_ranged(item)     = item | (item? & TOKEN_SEP & '~' & TOKEN_SEP & item?);
