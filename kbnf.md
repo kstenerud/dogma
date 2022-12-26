@@ -47,7 +47,7 @@ Contents
     - [`uint` Function](#uint-function)
     - [`sint` Function](#sint-function)
     - [`float` Function](#float-function)
-    - [`lendian` Function](#lendian-function)
+    - [`swap` Function](#swap-function)
   - [Variables](#variables)
   - [Types](#types)
     - [Identifier](#identifier)
@@ -437,38 +437,66 @@ letter_digit_space = unicode(N,L,Zs);
 
 ### `uint` Function
 
-The `uint` function creates an expression that matches an unsigned integer [range](#ranges) encoded to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
+The `uint` function creates an expression that matches an unsigned integer [range](#ranges) encoded big endian to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
 
 ```kbnf
 uint(bit_count: unsigned, value: unsigned): expression
 ```
 
+**Example**: The length field is a 16-bit unsigned integer value.
+
+```kbnf
+length = uint(16, 0~);
+```
+
+
 ### `sint` Function
 
-The `sint` function creates an expression that matches a two's complement signed integer [range](#ranges) encoded to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
+The `sint` function creates an expression that matches a two's complement signed integer [range](#ranges) encoded big endian to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
 
 ```kbnf
 sint(bit_count: unsigned, value: signed): expression
 ```
 
+**Example**: The points field is a 16-bit signed integer value from -10000 to 10000.
+
+```kbnf
+points = sint(32, -10000~10000);
+```
+
+
 ### `float` Function
 
-The `sint` function creates an expression that matches an ieee754 binary floating point [range](#ranges) encoded to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
+The `sint` function creates an expression that matches an ieee754 binary floating point [range](#ranges) encoded big endian to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
 
 ```kbnf
 float(bit_count: unsigned, value: real): expression
 ```
 
-### `lendian` Function
+**Example**: The temperature field is a 32-bit float value from -1000 to 1000.
 
-The `lendian` function expresses the resolved expression in little endian byte order (effectively swapping the byte order of the bits that would match the rule).
+```kbnf
+rpm = float(32, -1000~1000);
+```
+
+
+### `swap` Function
+
+The `swap` function swaps the byte order of the enclosed expression (swapping the byte order of the bits that would match the rule).
 
 The expression must resolve to a multiple of 8 bits, otherwise the grammar is malformed.
 
 ```kbnf
-lendian(expr: expression): expression
+swap(expr: expression): expression
 ```
 
+**Example**: A document begins with a 32-bit little endian unsigned int version field, followed by the contents. Only version 5 documents are supported.
+
+```kbnf
+document  = version_5 & contents;
+version_5 = swap(uint(32, 5));
+contents  = ...
+```
 
 
 Variables
@@ -532,7 +560,7 @@ reserved_identifiers = "sized"
                      | "uint"
                      | "sint"
                      | "float"
-                     | "lendian"
+                     | "swap"
                      ;
 ```
 
@@ -966,10 +994,10 @@ hex_digit = ('0'~'9' | 'a'~'f');
 name_field = unicode(L,M,N,P,S){1~100};
 ```
 
-**Example**: Number range: The temperature value is a signed 16 bit big endian integer from -1000 to 1000.
+**Example**: Number range: The RPM value is an unsigned 16 bit big endian integer from 0 to 1000.
 
 ```kbnf
-temperature = sint(16, -1000~1000);
+rpm = uint(16, 0~1000);
 ```
 
 
@@ -990,7 +1018,7 @@ document                = section+;
 section                 = bind(sentinel,uint(8,0x80~0xfe)) & length_field(0) & record* & sentinel;
 record                  = bind(record_type,type_field) & payload & suffix(record_type.type);
 type_field              = uint(8,bind(type,0~2));
-length_field(contents)  = lendian(uint(24,contents));
+length_field(contents)  = swap(uint(24,contents));
 payload                 = aligned(32, length_field(bind(byte_count,0~)) & uint(8,0~){byte_count}, uint(8,0xff)*);
 suffix(type)            = when(type = 2, type2)
                         | when(type = 1, type1)
@@ -1106,11 +1134,11 @@ escapable_char(char_set, quote_char) = (char_set ! ('\\' | quote_char)) | escape
 escape                 = '\\' & (printable ! '{') | codepoint_escape);
 codepoint_escape       = '{' & digit_hex+ & '}';
 
-builtin_encodings      = enc_uint | enc_sint | enc_float | enc_lendian;
+builtin_encodings      = enc_uint | enc_sint | enc_float | enc_swap;
 enc_uint               = fname_uint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(unsigned) & TOKEN_SEP & ')';
 enc_sint               = fname_sint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(signed) & TOKEN_SEP & ')';
 enc_float              = fname_float & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(real) & TOKEN_SEP & ')';
-enc_lendian            = fname_lendian & '(' & TOKEN_SEP & expression & TOKEN_SEP & ')';
+enc_swap               = fname_swap & '(' & TOKEN_SEP & expression & TOKEN_SEP & ')';
 
 builtin_functions      = function_sized | function_aligned | function_if | function_bind | function_unicode;
 function_sized         = fname_sized & '(' & TOKEN_SEP & bit_count & ARG_SEP & expression & TOKEN_SEP & ')';
@@ -1167,7 +1195,7 @@ reserved_identifiers   = fname_sized
                        | fname_uint
                        | fname_sint
                        | fname_float
-                       | fname_lendian
+                       | fname_swap
                        ;
 
 fname_sized            = "sized";
@@ -1177,7 +1205,7 @@ fname_bind             = "bind";
 fname_uint             = "uint";
 fname_sint             = "sint";
 fname_float            = "float";
-fname_lendian          = "lendian";
+fname_swap             = "swap";
 
 printable              = unicode(L,M,N,P,S);
 printable_ws           = printable | WS;
