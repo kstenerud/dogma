@@ -144,7 +144,7 @@ document = document_header (MAYBE_WSLC rule)+;
 The document header identifies the file format as KBNF, and contains the following mandatory information:
 
 * The version of the KBNF specification that the document adheres to.
-* The character encoding used in the document itself, and also for all codepoint related expressions.
+* The character encoding used for all codepoint related expressions.
 
 Optionally, it may also include header lines. An empty line terminates the document header section.
 
