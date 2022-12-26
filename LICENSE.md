@@ -1,5 +1,5 @@
-License for Concise Encoding Specifications
-===========================================
+License for KBNF
+================
 
 License Type: Creative Commons Attribution 4.0 International Public License
 
