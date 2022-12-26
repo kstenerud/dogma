@@ -66,7 +66,6 @@ Contents
     - [Repetition](#repetition)
   - [Grouping](#grouping)
   - [Calculations](#calculations)
-    - [Shifts](#shifts)
   - [Conditions](#conditions)
   - [Ranges](#ranges)
   - [Comments](#comments)
@@ -458,6 +457,8 @@ letter_digit_space = unicode(N,L,Zs);
 
 The `uint` function creates an expression that matches the given [range](#ranges) of big endian unsigned integers with the given number of bits.
 
+A `bit_count` of 0 causes it to create an expression for the minimum number of bits required to represent the value. This is useful for passing to encoding functions for arbitrarily large numbers.
+
 ```kbnf
 uint(bit_count: unsigned, value: unsigned): expression
 ```
@@ -472,6 +473,8 @@ length = uint(16, ~);
 ### `sint` Function
 
 The `sint` function creates an expression that matches the given [range](#ranges) of big endian two's complement signed integers with the given number of bits.
+
+A `bit_count` of 0 causes it to create an expression for the minimum number of bits required to represent the value. This is useful for passing to encoding functions for arbitrarily large numbers.
 
 ```kbnf
 sint(bit_count: unsigned, value: signed): expression
@@ -838,25 +841,21 @@ The following operations can be used:
 * Multiply (`*`)
 * Divide (`/`)
 * Modulus (`%`)
-* Shift left (`<<`)
-* Shift right (`>>`)
 
 Operator precedence (low to high):
 
 * add, subtract
-* multiply, divide, modulus, shift left, shift right
+* multiply, divide, modulus
 
 ```kbnf
 number       = calc_add | calc_sub | calc_mul_div;
-calc_mul_div = calc_mul | calc_div | calc_mod | calc_val | calc_shl | calc_shr;
+calc_mul_div = calc_mul | calc_div | calc_mod | calc_val;
 calc_val     = number_literal | variable | number | grouped(number);
 calc_add     = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
 calc_sub     = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
 calc_mul     = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_val;
 calc_div     = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_val;
 calc_mod     = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_val;
-calc_shl     = calc_mul_div & TOKEN_SEP & '<<' & TOKEN_SEP & calc_val;
-calc_shr     = calc_mul_div & TOKEN_SEP & '>>' & TOKEN_SEP & calc_val;
 ```
 
 **Example**: A record begins with a 4-bit length field (length is in 32-bit increments) and 4-bit flags field containing (...), followed by the contents of the record.
@@ -865,16 +864,6 @@ calc_shr     = calc_mul_div & TOKEN_SEP & '>>' & TOKEN_SEP & calc_val;
 record = uint(4, bind(length, ~)) & flags & uint(8, ~){length*4};
 flags  = ...
 ```
-
-
-### Shifts
-
-A shift multiplies (shift left) or divides (shift right) the left side of the operation by 2 to the power of the right side. Shift has special rules:
-
-* Both operands must be integers, and the operation produces an integer.
-* Shifting does not change the sign of the value being shifted.
-* Any fractional amount resulting from the division is discarded (the result is always an integer).
-* Shifting by a negative amount inverts the operation (i.e. `x >> -5` becomes `x << 5`).
 
 
 
@@ -1176,15 +1165,13 @@ logical_and            = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
 logical_not            = '!' & TOKEN_SEP & condition;
 
 number                 = calc_add | calc_sub | calc_mul_div;
-calc_mul_div           = calc_mul | calc_div | calc_mod | calc_val | calc_shl | calc_shr;
+calc_mul_div           = calc_mul | calc_div | calc_mod | calc_val;
 calc_val               = number_literal | variable | number | grouped(number);
 calc_add               = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
 calc_sub               = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
 calc_mul               = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_val;
 calc_div               = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_val;
 calc_mod               = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_val;
-calc_shl               = calc_mul_div & TOKEN_SEP & '<<' & TOKEN_SEP & calc_val;
-calc_shr               = calc_mul_div & TOKEN_SEP & '>>' & TOKEN_SEP & calc_val;
 
 grouped(item)          = '(' & TOKEN_SEP & item & TOKEN_SEP & ')';
 maybe_ranged(item)     = item | (item? & TOKEN_SEP & '~' & TOKEN_SEP & item?);
