@@ -196,7 +196,7 @@ The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or 
 
 ### Symbols
 
-A symbol acts as a placeholder for an [expression](#expressions). Symbol names are not limited to ASCII.
+A symbol acts as a placeholder for something to be substituted in another rule. Symbol names are not limited to ASCII.
 
 ```kbnf
 symbol = identifier_restricted;
@@ -846,21 +846,22 @@ Operator precedence (low to high):
 
 ```kbnf
 number       = calc_add | calc_sub | calc_mul_div;
-calc_mul_div = calc_mul | calc_div | calc_mod | calc_val | calc_lsl | calc_asr;
+calc_mul_div = calc_mul | calc_div | calc_mod | calc_val | calc_shl | calc_shr;
 calc_val     = number_literal | variable | number | grouped(number);
 calc_add     = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
 calc_sub     = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
 calc_mul     = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_val;
 calc_div     = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_val;
 calc_mod     = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_val;
-calc_lsl     = calc_mul_div & TOKEN_SEP & '<<' & TOKEN_SEP & calc_val;
-calc_asr     = calc_mul_div & TOKEN_SEP & '>>' & TOKEN_SEP & calc_val;
+calc_shl     = calc_mul_div & TOKEN_SEP & '<<' & TOKEN_SEP & calc_val;
+calc_shr     = calc_mul_div & TOKEN_SEP & '>>' & TOKEN_SEP & calc_val;
 ```
 
-**Example**:
+**Example**: A record begins with a 4-bit length field (length in 32-bit increments) and 5-bit flags field, followed by the contents of the record.
 
 ```kbnf
-TODO
+record = uint(4, bind(length, 0~)) & flags & byte{length*4};
+flags  = ...
 ```
 
 
@@ -869,6 +870,7 @@ TODO
 A shift multiplies (shift left) or divides (shift right) the left side of the operation by 2 to the power of the right side. Shift has special rules:
 
 * Both operands must be integers, and the operation produces an integer.
+* Shifting does not change the sign of the value being shifted.
 * Any fractional amount resulting from the division is discarded (the result is always an integer).
 * Shifting by a negative amount inverts the operation (i.e. `x >> -5` becomes `x << 5`).
 
@@ -915,7 +917,15 @@ logical_not            = '!' & TOKEN_SEP & condition;
 **Example**:
 
 ```kbnf
-TODO
+record       = uint(8, bind(type, 1~))
+             & ( when(type = 1, type_1)
+               | when(type = 2, type_2)
+               | when(type > 2, type_default)
+               )
+             ;
+type_1       = ...
+type_2       = ...
+type_default = ...
 ```
 
 
@@ -944,10 +954,22 @@ enc_float              = fname_float & '(' & TOKEN_SEP & bit_count & ARG_SEP & m
 maybe_ranged(item)     = item | (item? & TOKEN_SEP & '~' & TOKEN_SEP & item?);
 ```
 
-**Example**:
+**Example**: Codepoint range.
 
 ```kbnf
-TODO
+hex_digit = ('0'~'9' | 'a'~'f');
+```
+
+**Example**: Repetition range: A name field contains between 1 and 100 characters.
+
+```kbnf
+name_field = unicode(L,M,N,P,S){1~100};
+```
+
+**Example**: Number range: The temperature value is a signed 16 bit big endian integer from -1000 to 1000.
+
+```kbnf
+temperature = sint(16, -1000~1000);
 ```
 
 
@@ -1114,15 +1136,15 @@ logical_and            = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
 logical_not            = '!' & TOKEN_SEP & condition;
 
 number                 = calc_add | calc_sub | calc_mul_div;
-calc_mul_div           = calc_mul | calc_div | calc_mod | calc_val | calc_lsl | calc_asr;
+calc_mul_div           = calc_mul | calc_div | calc_mod | calc_val | calc_shl | calc_shr;
 calc_val               = number_literal | variable | number | grouped(number);
 calc_add               = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
 calc_sub               = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
 calc_mul               = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_val;
 calc_div               = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_val;
 calc_mod               = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_val;
-calc_lsl               = calc_mul_div & TOKEN_SEP & '<<' & TOKEN_SEP & calc_val;
-calc_asr               = calc_mul_div & TOKEN_SEP & '>>' & TOKEN_SEP & calc_val;
+calc_shl               = calc_mul_div & TOKEN_SEP & '<<' & TOKEN_SEP & calc_val;
+calc_shr               = calc_mul_div & TOKEN_SEP & '>>' & TOKEN_SEP & calc_val;
 
 grouped(item)          = '(' & TOKEN_SEP & item & TOKEN_SEP & ')';
 maybe_ranged(item)     = item | (item? & TOKEN_SEP & '~' & TOKEN_SEP & item?);
