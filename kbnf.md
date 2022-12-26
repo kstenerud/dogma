@@ -885,10 +885,10 @@ calc_shl     = calc_mul_div & TOKEN_SEP & '<<' & TOKEN_SEP & calc_val;
 calc_shr     = calc_mul_div & TOKEN_SEP & '>>' & TOKEN_SEP & calc_val;
 ```
 
-**Example**: A record begins with a 4-bit length field (length in 32-bit increments) and 5-bit flags field, followed by the contents of the record.
+**Example**: A record begins with a 4-bit length field (length is in 32-bit increments) and 4-bit flags field containing (...), followed by the contents of the record.
 
 ```kbnf
-record = uint(4, bind(length, 0~)) & flags & byte{length*4};
+record = uint(4, bind(length, 0~)) & flags & uint(8, 0~){length*4};
 flags  = ...
 ```
 
