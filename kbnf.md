@@ -269,7 +269,7 @@ ip_packet                    = ...
                              & payload(protocol, (total_length-(header_length*4)) * 8)
                              ;
 
-options(bit_count)           = limit(option*, bit_count);
+options(bit_count)           = sized(bit_count, option*);
 option                       = option_eool
                              | option_nop
                              | ...

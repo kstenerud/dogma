@@ -78,7 +78,7 @@ rfc1108                            = """https://www.rfc-editor.org/rfc/rfc1108.h
 rfc791                             = """https://www.rfc-editor.org/rfc/rfc791.html""";
 draft_ietf_cipso_ipsecurity_01     = """https://datatracker.ietf.org/doc/draft-ietf-cipso-ipsecurity/01/""";
 
-payload(protocol, bit_count)       = sized(bit_count, payload_contents(protocol) u1(0)*);
+payload(protocol, bit_count)       = sized(bit_count, payload_contents(protocol) & u1(0)*);
 payload_contents(protocol)         = when(protocol = 0, protocol_hopopt)
                                    | when(protocol = 1, protocol_icmp)
                                    # TODO: the rest of the protocols
