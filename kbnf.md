@@ -1016,10 +1016,11 @@ Examples
 ```kbnf
 document                = section+;
 section                 = bind(sentinel,uint(8,0x80~0xfe)) & length_field(0) & record* & sentinel;
-record                  = bind(record_type,type_field) & payload & suffix(record_type.type);
+record                  = bind(record_type,type_field) & padded_payload & suffix(record_type.type);
 type_field              = uint(8,bind(type,0~2));
+padded_payload          = aligned(32, payload, uint(8,0xff)*)
+payload                 = length_field(bind(byte_count,0~)) & uint(8,0~){byte_count};
 length_field(contents)  = swap(uint(24,contents));
-payload                 = aligned(32, length_field(bind(byte_count,0~)) & uint(8,0~){byte_count}, uint(8,0xff)*);
 suffix(type)            = when(type = 2, type2)
                         | when(type = 1, type1)
                         # type 0 means no suffix
