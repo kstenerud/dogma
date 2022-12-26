@@ -45,10 +45,10 @@ Contents
     - [`when` Function](#when-function)
     - [`bind` Function](#bind-function)
     - [`cp_category` Function](#cp_category-function)
-    - [`unsigned_integer` Function](#unsigned_integer-function)
-    - [`signed_integer` Function](#signed_integer-function)
-    - [`ieee754_binary` Function](#ieee754_binary-function)
-    - [`little_endian` Function](#little_endian-function)
+    - [`uint` Function](#uint-function)
+    - [`sint` Function](#sint-function)
+    - [`float` Function](#float-function)
+    - [`lendian` Function](#lendian-function)
   - [Variables](#variables)
   - [Types](#types)
     - [Identifier](#identifier)
@@ -222,7 +222,7 @@ When called, a macro substitutes the passed in parameters and proceeds like a no
 
 ```kbnf
 call       = identifier_any '(' TOKEN_SEP call_param (ARG_SEP call_param)* TOKEN_SEP ')';
-call_param = expression | calculation(uint | sint | real) | condition;
+call_param = any;
 ```
 
 **Example**: A fixed section is always 256 bytes long, split into three standard 8-bit length prefixed records. The first two records always have a length of 100 bytes, and the third has a length of 53 bytes.
@@ -230,7 +230,7 @@ call_param = expression | calculation(uint | sint | real) | condition;
 ```kbnf
 fixed_section  = record(100) record(100) record(53);
 record(length) = byte(length) byte(0~){length};
-byte(v)        = unsigned_integer(8, v);
+byte(v)        = uint(8, v);
 ```
 
 **Example**: An [IPV4](ipv4.kbnf) packet contains "header length" and "total length" fields, which together determine how big the "options" and "payload" sections are. "protocol" determines the protocol of the payload.
@@ -253,7 +253,7 @@ option                       = option_eool
                              | ...
                              ;
 
-payload(protocol, bit_count) = pad_to(bit_count, payload_contents(protocol), u1(0));
+payload(protocol, bit_count) = sized(bit_count, payload_contents(protocol) u1(0)*);
 payload_contents(protocol)   = when(protocol = 0, protocol_hopopt)
                              | when(protocol = 1, protocol_icmp)
                              | ...
@@ -273,8 +273,8 @@ function       = identifier_restricted '(' TOKEN_SEP function_param (ARG_SEP fun
 function_param = param_name TOKEN_SEP ':' TOKEN_SEP type;
 type           = "expression"
                | "condition"
-               | "uint"
-               | "sint"
+               | "unsigned"
+               | "signed"
                | "real"
                | "any"
                ;
@@ -283,7 +283,7 @@ type           = "expression"
 **Example**: A function to convert an unsigned int to its unsigned little endian base 128 representation.
 
 ```kbnf
-uleb128(v: uint): expression = """https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128""";
+uleb128(v: unsigned): expression = """https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128""";
 ```
 
 
@@ -295,10 +295,10 @@ KBNF comes with some fundamental functions built-in:
 
 ### `sized` Function
 
-The `sized` function requires an expression to produce exactly `bit_count` bits.
+The `sized` function requires an expression to produce exactly `bit_count` bits. Expressions containing [repetition](#repetition) that would have matched on their own are no longer sufficient until the production fills `bit_count` bits.
 
 ```kbnf
-sized(bit_count: uint, expr: expression): expression
+sized(bit_count: unsigned, expr: expression): expression
 ```
 
 **Example**: A name field must contain exactly 200 bytes worth of character data, padded with space as needed.
@@ -313,24 +313,24 @@ name_field = sized(200*8, cp_category(L,M,N,P,Zs)* ' '*);
 record_section     = sized(1024*8, record* zero_length_record*);
 record             = byte(bind(length, 0~)) byte(0~){length};
 zero_length_record = byte(0);
-byte(v)            = unsigned_integer(8, v);
+byte(v)            = uint(8, v);
 ```
 
 ### `aligned` Function
 
-The `aligned` function requires an expression to produce a number of bits that is a multiple of `bit_count`.
+The `aligned` function requires an expression to produce a number of bits that is a multiple of `bit_count`. If it doesn't, the `padding` expression is used in the same manner as the [`sized` function](#sized-function) to ensure a production of the appropriate size.
 
 ```kbnf
-aligned_to(bit_count: uint, expr: expression, padding: expression): expression
+aligned(bit_count: unsigned, expr: expression, padding: expression): expression
 ```
 
-**Example**: The "records" section can contain any number of length-delimited records, but must end on a 32-bit boundary. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload).
+**Example**: The "records" section can contain any number of length-delimited records, but must end on a 32-bit boundary. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload - essentially a zero byte).
 
 ```kbnf
-record_section     = aligned(32, record* zero_length_record*);
+record_section     = aligned(32, record*, zero_length_record*);
 record             = byte(bind(length, 0~)) byte(0~){length};
 zero_length_record = byte(0);
-byte(v)            = unsigned_integer(8, v);
+byte(v)            = uint(8, v);
 ```
 
 
@@ -405,40 +405,40 @@ cp_category(category: category_name (ARG_SEP category: category_name)*): set of 
 letter_digit_space = cp_caregory(N,L,Zs);
 ```
 
-### `unsigned_integer` Function
+### `uint` Function
 
-The `unsigned_integer` function creates an expression that matches an unsigned integer encoded to the specified number of bits, within the specified value range.
+The `uint` function creates an expression that matches an unsigned integer encoded to the specified number of bits, within the specified value range.
 
 TODO: Value ranges...
 
 ```kbnf
-unsigned_integer(value: uint, bit_count: uint): expression
+uint(bit_count: unsigned, value: unsigned): expression
 ```
 
-### `signed_integer` Function
+### `sint` Function
 
-The `signed_integer` function creates an expression that matches a two's complement signed integer encoded to the specified number of bits, within the specified value range.
+The `sint` function creates an expression that matches a two's complement signed integer encoded to the specified number of bits, within the specified value range.
 
 ```kbnf
-signed_integer(value: sint, bit_count: uint): expression
+sint(bit_count: unsigned, value: signed): expression
 ```
 
-### `ieee754_binary` Function
+### `float` Function
 
-The `signed_integer` function creates an expression that matches an ieee754 binary floating point value encoded to the specified number of bits, within the specified value range.
+The `sint` function creates an expression that matches an ieee754 binary floating point value encoded to the specified number of bits, within the specified value range.
 
 ```kbnf
-ieee754_binary(value: real, bit_count: uint): expression
+float(bit_count: unsigned, value: real): expression
 ```
 
-### `little_endian` Function
+### `lendian` Function
 
-The `little_endian` function expresses the resolved expression in little endian byte order (effectively swapping the byte order of the bits that would match the rule).
+The `lendian` function expresses the resolved expression in little endian byte order (effectively swapping the byte order of the bits that would match the rule).
 
 The expression must resolve to a multiple of 8 bits.
 
 ```kbnf
-little_endian(expr: expression): expression
+lendian(expr: expression): expression
 ```
 
 
@@ -458,8 +458,8 @@ record(type)        = bind(header, record_header(type)) record_data(header.lengt
 record_header(type) = u8(type) u16(bind(length, 0~));
 record_data(length) = u8(0~){length};
 terminator_record   = u8(0) u16(0);
-u8(v)               = unsigned_integer(8, v);
-u16(v)              = unsigned_integer(16, v);
+u8(v)               = uint(8, v);
+u16(v)              = uint(16, v);
 ```
 
 * The `record` rule (a [macro](#macros) because it takes parameters) binds the result of the `record_header` rule to a variable called `header`. This gives it access to the `record_header` `length` variable as `header.length`.
@@ -476,7 +476,7 @@ These are the main types in KBNF:
 * [`expression`](#expressions)
 * [`condition`](#conditions)
 * [`number`](#numbers), of which there are three subtypes:
-  * `uint`: limited to positive integers and 0
+  * `unsigned`: limited to positive integers and 0
   * `int`: limited to positive and negative integers, and 0
   * `real`: any value from the set of reals
 
@@ -485,14 +485,24 @@ Types become relevant when calling [functions](#functions), which must specify w
 
 ### Identifier
 
-TODO
+A unique identifier for [symbols](#symbols), [macros](#macros), and [functions](#functions) (which are all scoped globally), or [variables](#variables) (which are scoped locally).
 
-a unique identifier for [symbols](#symbols), [macros](#macros), and [functions](#functions) (which are all scoped globally), or [variables](#variables) (which are scoped locally).
+Identifiers must start with a letter, and can contain letters, numbers and the underscore character. The [builtin function names](#builtin-functions) are reserved.
 
-local vs global
-restricted
-shadowing?
-dot notation? or leave that in variable?
+```kbnf
+identifier             = (identifier_firstchar identifier_nextchar*) ! reserved_identifiers;
+identifier_firstchar   = cp_category(L,M);
+identifier_nextchar    = identifier_firstchar | cp_category(N) | '_';
+reserved_identifiers   = "sized"
+                       | "aligned"
+                       | "if"
+                       | "bind"
+                       | "uint"
+                       | "sint"
+                       | "float"
+                       | "lendian"
+                       ;
+```
 
 
 ### Expressions
@@ -688,7 +698,7 @@ The repetition amount is appended to an expression, between curly braces. There 
 
 ```kbnf
 repetition             = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
-repeat_range           = expression '{' TOKEN_SEP maybe_ranged(uint) TOKEN_SEP '}';
+repeat_range           = expression '{' TOKEN_SEP maybe_ranged(unsigned) TOKEN_SEP '}';
 repeat_zero_or_one     = expression '?';
 repeat_zero_or_more    = expression '*';
 repeat_one_or_more     = expression '+';
@@ -723,7 +733,7 @@ grouped(item) = '(' TOKEN_SEP item TOKEN_SEP ')';
 
 ```kbnf
 my_rule         = ('a' | 'b') ('x' | 'y');
-my_macro1(a)    = unsigned_integer(8, (a + 5) * 2);
+my_macro1(a)    = uint(8, (a + 5) * 2);
 my_macro2(a, b) = when( (a < 10 | a > 20) & (b < 10 | b > 20), "abc" )
                 | "def"
                 ;
@@ -826,12 +836,11 @@ Examples
 
 ```kbnf
 document                = section+;
-section                 = bind(sentinel,unsigned_integer(8,0x80~)) length_field(0) record* sentinel;
+section                 = bind(sentinel,uint(8,0x80~)) length_field(0) record* sentinel;
 record                  = bind(record_type,type_field) payload suffix(record_type.type);
-type_field              = unsigned_integer(8,bind(type,0~2));
-length_field(contents)  = little_endian(unsigned_integer(24,contents));
-payload                 = length_field(bind(byte_count,0~)) unsigned_integer(8,0~){byte_count} pad_32_high(byte_count);
-pad_32_high(byte_count) = unsigned_integer(8,0xff){(4-byte_count%4)%4};
+type_field              = uint(8,bind(type,0~2));
+length_field(contents)  = lendian(uint(24,contents));
+payload                 = aligned(32, length_field(bind(byte_count,0~)) uint(8,0~){byte_count}, uint(8,0xff)*);
 suffix(type)            = when(type = 2, type2)
                         | when(type = 1, type1)
                         # type 0 means no suffix
@@ -914,13 +923,13 @@ function               = identifier_restricted '(' TOKEN_SEP function_param (ARG
 function_param         = param_name TOKEN_SEP ':' TOKEN_SEP type;
 type                   = "expression"
                        | "condition"
-                       | "uint"
-                       | "sint"
+                       | "unsigned"
+                       | "signed"
                        | "real"
                        | "any"
                        ;
 call                   = identifier_any '(' TOKEN_SEP call_param (ARG_SEP call_param)* TOKEN_SEP ')';
-call_param             = expression | uint | sint | real | condition;
+call_param             = any;
 
 combination            = alternate | combination_w_exclude;
 combination_w_exclude  = exclude | combination_w_concat
@@ -930,7 +939,7 @@ alternate              = expression (TOKEN_SEP '|' TOKEN_SEP expression)+;
 exclude                = expression TOKEN_SEP '!' TOKEN_SEP expression;
 concatenate            = expression (SOME_WSLC expression)+;
 repetition             = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
-repeat_range           = expression '{' TOKEN_SEP maybe_ranged(uint) TOKEN_SEP '}';
+repeat_range           = expression '{' TOKEN_SEP maybe_ranged(unsigned) TOKEN_SEP '}';
 repeat_zero_or_one     = expression '?';
 repeat_zero_or_more    = expression '*';
 repeat_one_or_more     = expression '+';
@@ -944,20 +953,19 @@ escapable_char(char_set, quote_char) = (char_set ! ('\\' | quote_char)) | escape
 escape                 = '\\' (printable ! '{') | codepoint_escape);
 codepoint_escape       = '{' digit_hex+ '}';
 
-builtin_encodings      = enc_unsigned_integer | enc_signed_integer | enc_ieee754_binary | enc_little_endian;
-enc_unsigned_integer   = fname_unsigned_integer "(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(uint) TOKEN_SEP ')';
-enc_signed_integer     = fname_signed_integer "(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(sint) TOKEN_SEP ')';
-enc_ieee754_binary     = fname_ieee754_binary "(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(real) TOKEN_SEP ')';
-enc_little_endian      = fname_little_endian "(" TOKEN_SEP expression TOKEN_SEP ')';
+builtin_encodings      = enc_uint | enc_sint | enc_float | enc_lendian;
+enc_uint               = fname_uint "(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(unsigned) TOKEN_SEP ')';
+enc_sint               = fname_sint "(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(signed) TOKEN_SEP ')';
+enc_float              = fname_float "(" TOKEN_SEP bit_count ARG_SEP maybe_ranged(real) TOKEN_SEP ')';
+enc_lendian            = fname_lendian "(" TOKEN_SEP expression TOKEN_SEP ')';
 
 builtin_functions      = function_sized | function_aligned | function_if | function_bind | function_cp_category;
 function_sized         = fname_sized "(" TOKEN_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
-function_aligned       = fname_aligned "(" TOKEN_SEP bit_count ARG_SEP expression TOKEN_SEP ")";
+function_aligned       = fname_aligned "(" TOKEN_SEP bit_count ARG_SEP expression ARG_SEP padding TOKEN_SEP ")";
 function_when          = fname_when "(" TOKEN_SEP condition ARG_SEP any TOKEN_SEP ')';
 function_bind          = fname_bind "(" TOKEN_SEP local_id ARG_SEP any TOKEN_SEP ')';
 function_cp_category   = fname_cp_category "(" TOKEN_SEP cp_category_name (ARG_SEP cp_category_name)* TOKEN_SEP ')';
 
-padding                = expression;
 local_id               = identifier_restricted;
 any                    = condition | number | expression;
 variable               = local_id | variable '.' local_id;
@@ -1001,20 +1009,20 @@ reserved_identifiers   = fname_sized
                        | fname_aligned
                        | fname_if
                        | fname_bind
-                       | fname_unsigned_integer
-                       | fname_signed_integer
-                       | fname_ieee754_binary
-                       | fname_little_endian
+                       | fname_uint
+                       | fname_sint
+                       | fname_float
+                       | fname_lendian
                        ;
 
 fname_sized            = "sized";
 fname_aligned          = "aligned";
 fname_if               = "if";
 fname_bind             = "bind";
-fname_unsigned_integer = "unsigned_integer";
-fname_signed_integer   = "signed_integer";
-fname_ieee754_binary   = "ieee754_binary";
-fname_little_endian    = "little_endian";
+fname_uint             = "uint";
+fname_sint             = "sint";
+fname_float            = "float";
+fname_lendian          = "lendian";
 
 printable              = cp_category(L,M,N,P,S);
 printable_ws           = printable | WS;
