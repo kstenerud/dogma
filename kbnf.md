@@ -143,7 +143,7 @@ The document header identifies the file format as KBNF, and contains the followi
 * The version of the KBNF specification that the document adheres to.
 * The character encoding used in the document itself, and also for all codepoint related expressions.
 
-Optionally, it may also include headers. An empty line terminates the document header section.
+Optionally, it may also include header lines. An empty line terminates the document header section.
 
 ```kbnf
 document_header    = "kbnf_v" kbnf_version SOME_WS character_encoding LINE_END header_line* LINE_END;
@@ -165,7 +165,7 @@ kbnf_v1 utf-8
 - identifier  = mygrammar_v1
 - description = My first grammar, version 1
 
-# grammar rules begin here, after the empty line terminating the header
+document = "a"; # Yeah, this grammar doesn't do much...
 ```
 
 
@@ -181,7 +181,7 @@ rule = (symbol | macro) TOKEN_SEP '=' TOKEN_SEP production TOKEN_SEP ';'
      ;
 ```
 
-The nonterminal (left) part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their names share the global namespace, and must be unique (they are case sensitive).
+The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their names share the global namespace, and must be unique (they are case sensitive).
 
 
 ### Symbols
@@ -295,19 +295,19 @@ KBNF comes with some fundamental functions built-in:
 
 ### `sized` Function
 
-The `sized` function requires an expression to produce exactly `bit_count` bits. Expressions containing [repetition](#repetition) that would have matched on their own are no longer sufficient until the production fills `bit_count` bits.
+The `sized` function requires an expression to produce exactly `bit_count` bits. Expressions containing [repetition](#repetition) that would have matched on their own are no longer sufficient until the production fills exactly `bit_count` bits.
 
 ```kbnf
 sized(bit_count: unsigned, expr: expression): expression
 ```
 
-**Example**: A name field must contain exactly 200 bytes worth of character data, padded with space as needed.
+**Example**: A name field must contain exactly 200 bytes worth of character data, padded with spaces as needed.
 
 ```kbnf
 name_field = sized(200*8, cp_category(L,M,N,P,Zs)* ' '*);
 ```
 
-**Example**: The "records" section can contain any number of length-delimited records, but must be exactly 1024 bytes long. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload).
+**Example**: The "records" section can contain any number of length-delimited records, but must be exactly 1024 bytes long. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload - essentially a zero byte).
 
 ```kbnf
 record_section     = sized(1024*8, record* zero_length_record*);
@@ -318,7 +318,7 @@ byte(v)            = uint(8, v);
 
 ### `aligned` Function
 
-The `aligned` function requires an expression to produce a number of bits that is a multiple of `bit_count`. If it doesn't, the `padding` expression is used in the same manner as the [`sized` function](#sized-function) to ensure a production of the appropriate size.
+The `aligned` function requires a production that is a multiple of `bit_count`. If the expression doesn't produce this, the `padding` expression is used in the same manner as the [`sized` function](#sized-function) to ensure a production of the appropriate size.
 
 ```kbnf
 aligned(bit_count: unsigned, expr: expression, padding: expression): expression
@@ -342,16 +342,19 @@ The `when` function allows an expression only when a given [condition](#conditio
 when(cond: condition, expr: expression): expression
 ```
 
-**Example**:
+**Example**: The extensions section contains 32 extension slots. Each extension starts with a 1-byte type field, followed by a 24-bit big endian field containing the length of the payload. Valid payload types are 1, 2, or 3 (payload type 0 is a dummy type meaning "no extension", so the length field is ignored and there is no payload data). The same extension type can be used multiple times.
 
 ```kbnf
-extension(type) = when(type = 1, extension_a)
-                | when(type = 2, extension_b)
-                | when(type = 3, extension_c)
-                ;
-extension_a     = ...
-extension_b     = ...
-extension_c     = ...
+extensions          = extension{32};
+extension           = uint(8, bind(type, 0~3)) uint(24, bind(length, 0~))
+                      when(type = 1, extension_1(length))
+                    | when(type = 2, extension_2(length))
+                    | when(type = 3, extension_3(length))
+                    # When type is 0, no extension and length is ignored
+                    ;
+extension_1(length) = ...
+extension_2(length) = ...
+extension_3(length) = ...
 ```
 
 ### `bind` Function
@@ -364,15 +367,13 @@ The `bind` function binds the resolved value of whatever it surrounds to a local
 bind(variable_name: identifier, value: any): any
 ```
 
-**Examples**:
-
-Matches "abc|abc", "fred|fred" etc.
+**Example**: Match "abc|abc", "fred|fred" etc.
 
 ```kbnf
 sequence = bind(repeating_value,('a'~'z')+) '|' repeating_value;
 ```
 
-Bind the variable "terminator" to whatever follows the "<<" until the next linefeed. The here-document contents continue until the terminator value is encountered again.
+**Example**: Bind the variable "terminator" to whatever follows the "<<" until the next linefeed. The here-document contents continue until the terminator value is encountered again.
 
 ```kbnf
 here_document             = "<<" bind(terminator, NOT_LF+) LF here_contents(terminator) terminator;
@@ -382,7 +383,10 @@ LF                        = '\{a}';
 NOT_LF                    = ANY_CHAR ! LF;
 ```
 
-Interpret the next 16 bits as a big endian unsigned int and bind the resolved number to "length". That many following bytes make up the record contents.
+TODO: ranges must prohibit whitespace. e.g. `'\{0}'~ 'x'` could mean a range or a concatenation.
+- Maybe start using `+` for concat?
+
+**Example**: Interpret the next 16 bits as a big endian unsigned int and bind the resolved number to "length". That many following bytes make up the record contents.
 
 ```kbnf
 length_delimited_record = uint16(bind(length, 0~)) record_contents(length);
