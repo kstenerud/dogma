@@ -250,7 +250,7 @@ call_param = any;
 **Example**: The main section consists of three records: A type 1 record and two type 2 records. A record begins with a type byte, followed by a length byte, followed by that many bytes of data.
 
 ```kbnf
-main_section  = record(1) & record(2) & record(2);
+main_section  = record(1) & record(2){2};
 record(type) = byte(type) byte(bind(length, 0~)) & byte(0~){length};
 byte(v)        = uint(8,v);
 ```
