@@ -65,11 +65,11 @@ Contents
     - [Exclusion](#exclusion)
     - [Repetition](#repetition)
   - [Grouping](#grouping)
-  - [Comments](#comments)
   - [Calculations](#calculations)
     - [Shifts](#shifts)
   - [Conditions](#conditions)
   - [Ranges](#ranges)
+  - [Comments](#comments)
   - [Examples](#examples)
     - [A Complex Example](#a-complex-example)
     - [Example: Internet Protocol version 4](#example-internet-protocol-version-4)
@@ -826,32 +826,6 @@ my_macro2(a, b) = when( (a < 10 | a > 20) & (b < 10 | b > 20), "abc" )
 
 
 
-Comments
---------
-
-A comment begins with a hash char (`#`) and continues to the end of the current line. Comments can be placed after pretty much any token.
-
-```kbnf
-comment = '#' & (printable_ws ! LINE_END)* & LINE_END;
-```
-
-**Example**:
-
-```kbnf
-kbnf_v1 utf-8
-- identifier = mygrammar_v1
-- description = My first grammar
-
-# This is the first place where a comment can exist.
-myrule # comment
- = # comment
- myexpression # comment
- ; # comment
-# comment
-```
-
-
-
 Calculations
 ------------
 
@@ -1003,6 +977,32 @@ name_field = unicode(L,M,N,P,S){1~100};
 
 ```kbnf
 rpm = uint(16, 0~1000);
+```
+
+
+
+Comments
+--------
+
+A comment begins with a hash char (`#`) and continues to the end of the current line. Comments can be placed after pretty much any token.
+
+```kbnf
+comment = '#' & (printable_ws ! LINE_END)* & LINE_END;
+```
+
+**Example**:
+
+```kbnf
+kbnf_v1 utf-8
+- identifier = mygrammar_v1
+- description = My first grammar
+
+# This is the first place where a comment can exist.
+myrule # comment
+ = # comment
+ myexpression # comment
+ ; # comment
+# comment
 ```
 
 
