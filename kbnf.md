@@ -250,9 +250,9 @@ call_param = any;
 **Example**: The main section consists of three records: A type 1 record and two type 2 records. A record begins with a type byte, followed by a length byte, followed by that many bytes of data.
 
 ```kbnf
-main_section  = record(1) & record(2){2};
+main_section = record(1) & record(2){2};
 record(type) = byte(type) byte(bind(length, ~)) & byte(~){length};
-byte(v)        = uint(8,v);
+byte(v)      = uint(8,v);
 ```
 
 **Example**: An [IPV4](ipv4.kbnf) packet contains "header length" and "total length" fields, which together determine how big the "options" and "payload" sections are. "protocol" determines the protocol of the payload.
@@ -363,7 +363,7 @@ byte(v)            = uint(8, v);
 
 ### `swapped` Function
 
-The `swapped` function swaps the byte order of the enclosed expression (swapping the byte order of the bits that would match the rule).
+The `swapped` function swaps the byte order of the enclosed expression. This is useful for matching little endian values.
 
 The expression must resolve to a multiple of 8 bits, otherwise the grammar is malformed.
 
@@ -382,7 +382,7 @@ contents  = ...
 
 ### `when` Function
 
-The `when` function allows an expression only when a given [condition](#conditions) is true.
+The `when` function allows the given expression only when the given [condition](#conditions) is true.
 
 ```kbnf
 when(cond: condition, expr: expression): expression
@@ -406,12 +406,12 @@ extension_3(length) = ...
 
 ### `bind` Function
 
-The `bind` function binds the resolved value of whatever it surrounds to a local variable for subsequent re-use in the current rule. `bind` transparently passes through whatever it captures, meaning that the context around the `bind` call behaves as though only what the `bind` function surrounded is present. This allows a sequence to be produced as normal, while also allowing the resolved value to be used again later in the rule.
+The `bind` function binds the resolved value (the actual value that has been matched so far) of whatever it surrounds to a local variable for subsequent re-use in the current rule. `bind` transparently passes through whatever it captures, meaning that the context around the `bind` call behaves as though only what the `bind` function surrounded is present. This allows a sequence to be produced as normal, while also allowing the resolved value to be used again later in the rule.
 
 `bind` can capture [expression](#expressions) and [number](#numbers) types.
 
 ```kbnf
-bind(variable_name: identifier, value: any): any
+bind(variable_name: identifier, value: expression | number): expression | number
 ```
 
 **Example**: Match "abc/abc", "fred/fred" etc.
@@ -425,7 +425,7 @@ sequence = bind(repeating_value,('a'~'z')+) & '/' & repeating_value;
 ```kbnf
 here_document             = "<<" & bind(terminator, NOT_LF+) & LF & here_contents(terminator) & terminator;
 here_contents(terminator) = ANY_CHAR* ! terminator;
-ANY_CHAR                  = '\{0}'~;
+ANY_CHAR                  = ~;
 LF                        = '\{a}';
 NOT_LF                    = ANY_CHAR ! LF;
 ```
@@ -456,7 +456,7 @@ letter_digit_space = unicode(N,L,Zs);
 
 ### `uint` Function
 
-The `uint` function creates an expression that matches an unsigned integer [range](#ranges) encoded big endian to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
+The `uint` function creates an expression that matches the given [range](#ranges) of big endian unsigned integers with the given number of bits.
 
 ```kbnf
 uint(bit_count: unsigned, value: unsigned): expression
@@ -471,7 +471,7 @@ length = uint(16, ~);
 
 ### `sint` Function
 
-The `sint` function creates an expression that matches a two's complement signed integer [range](#ranges) encoded big endian to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
+The `sint` function creates an expression that matches the given [range](#ranges) of big endian two's complement signed integers with the given number of bits.
 
 ```kbnf
 sint(bit_count: unsigned, value: signed): expression
@@ -486,7 +486,7 @@ points = sint(32, -10000~10000);
 
 ### `float` Function
 
-The `sint` function creates an expression that matches an ieee754 binary floating point [range](#ranges) encoded big endian to the specified number of bits, within the specified value range. If the value range doesn't fit, the grammar is malformed.
+The `sint` function creates an expression that matches the given [range](#ranges) of big endian ieee754 binary floating point values with the given number of bits.
 
 ```kbnf
 float(bit_count: unsigned, value: real): expression
@@ -503,9 +503,9 @@ rpm = float(32, -1000~1000);
 Variables
 ---------
 
-In some contexts, data may be bound to a variable for use elsewhere. Variables are bound either manually using the [`bind`](#bind-function) builtin function, or automatically when passing to a [macro](#macros). The variable's [type](#types) is inferred from what is allowed in the context where it is bound.
+In some contexts, resolved data (data that has already been matched) can be bound to a variable for use elsewhere. Variables are bound either manually using the [`bind`](#bind-function) builtin function, or automatically when passing parameters to a [macro](#macros). The variable's [type](#types) is inferred from what is allowed in the context where it is bound.
 
-Note: Variables cannot be re-bound.
+**Note**: Variables cannot be re-bound.
 
 When [binding](#bind-function) an [expression](#expressions) that itself binds a variable, that expression's bound variables can be accessed from the outer scope using dot notation (`this_exp_bound_value.sub_exp_bound_value`).
 
@@ -522,8 +522,8 @@ u16(v)              = uint(16, v);
 ```
 
 * The `record` rule (a [macro](#macros) because it takes parameters) binds the result of the `record_header` rule to a variable called `header`. This gives it access to the `record_header` `length` variable as `header.length`.
-* The `record_header` rule specifies an 8-bit type value (a variable passed in to the macro as a parameter), and binds a number (that must be usable as a 16-bit unsigned integer) to a variable called `length`.
-* The `record_data` rule is a [macro](#macros) that takes a length parameter and matches that many bytes using [repetition](#repetition).
+* The `record_header` rule specifies an 8-bit type value (a variable passed in to the macro as a parameter), and binds a 16-bit integer value to a variable called `length`.
+* The `record_data` rule takes a length parameter and matches that many bytes using [repetition](#repetition).
 
 
 Types
@@ -718,7 +718,7 @@ Combination precedence (low to high):
 
 ### Concatenation
 
-Concatenation is done like in most BNF notations, with expressions separated by `&` that are evaluated in order. Think of the `&` meaning "and then".
+The concatenation operation evaluates the left expression, and then the right. The operator symbol is `&` (think of it as meaning "x and then y").
 
 ```kbnf
 concatenate = expression & '&' & (SOME_WSLC expression)+;
@@ -808,7 +808,7 @@ identifier = 'A'~'Z'+ & 'a'~'z'* & '_'?;
 Grouping
 --------
 
-Expressions, calculations and conditions can be grouped in order to override the default precedence, or as a visual aid. To group, place the item between parentheses.
+[Expressions](#expressions), [calculations](#calculations) and [conditions](#conditions) can be grouped in order to override the default precedence, or as a visual aid to make things more readable. To group, place the items between parentheses.
 
 ```kbnf
 grouped(item) = '(' & TOKEN_SEP & item & TOKEN_SEP & ')';
