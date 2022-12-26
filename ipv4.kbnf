@@ -3,21 +3,21 @@ kbnf_v1 utf-8
 - description = Internet Protocol, version 4
 
 ip_packet                          = version
-                                     u4(bind(header_length, 5~)) # length is in 32-bit words
-                                     differentiated_services_code_point
-                                     explicit_congestion_notification
-                                     u16(bind(total_length, 20~)) # length is in bytes
-                                     identification
-                                     flags
-                                     fragment_offset
-                                     time_to_live
-                                     u8(bind(protocol, registered_protocol))
-                                     header_checksum
-                                     source_ip_address
-                                     destination_ip_address
-                                     options((header_length-5) * 32)
-                                     payload(protocol, (total_length-(header_length*4)) * 8)
-                                     ;
+                                   & u4(bind(header_length, 5~)) # length is in 32-bit words
+                                   & differentiated_services_code_point
+                                   & explicit_congestion_notification
+                                   & u16(bind(total_length, 20~)) # length is in bytes
+                                   & identification
+                                   & flags
+                                   & fragment_offset
+                                   & time_to_live
+                                   & u8(bind(protocol, registered_protocol))
+                                   & header_checksum
+                                   & source_ip_address
+                                   & destination_ip_address
+                                   & options((header_length-5) * 32)
+                                   & payload(protocol, (total_length-(header_length*4)) * 8)
+                                   ;
 
 version                            = u4(4);
 differentiated_services_code_point = u6(dcsp_0 | dcsp_1 | dcsp_2 | dcsp_3 | dcsp_4 | dcsp_5 | dcsp_6 | dcsp_7);
@@ -35,7 +35,7 @@ explicit_congestion_notification   = u2(ect_none | ect_0 | ect_1 | ect_congestio
   ect_1                            = 2;
   ect_congestion                   = 3;
 identification                     = u16(0~);
-flags                              = u1(0) do_not_fragment more_fragments;
+flags                              = u1(0) & do_not_fragment & more_fragments;
   do_not_fragment                  = u1(0~);
   more_fragments                   = u1(0~);
 fragment_offset                    = u13(0~);
@@ -46,7 +46,7 @@ source_ip_address                  = u32(address_space);
 destination_ip_address             = u32(address_space);
 address_space                      = """https://www.iana.org/assignments/ipv4-address-space/ipv4-address-space.xhtml""";
 
-options(bit_count)                 = sized_to(option*, bit_count);
+options(bit_count)                 = sized(bit_count, option*);
 option                             = option_eool
                                    | option_nop
                                    | option_sec
@@ -59,16 +59,16 @@ option                             = option_eool
                                    | option_ssr
                                    # TODO: the rest of the options
                                    ;
-option_eool                        = copy_no  class_control       u5(0);
-option_nop                         = copy_no  class_control       u5(1);
-option_sec                         = copy_yes class_debug_measure u5(2) option_length rfc1108;
-option_lsr                         = copy_yes class_control       u5(3) option_length rfc791;
-option_ts                          = copy_yes class_debug_measure u5(4) option_length rfc791;
-option_e_sec                       = copy_yes class_debug_measure u5(5) option_length rfc1108;
-option_cipso                       = copy_yes class_debug_measure u5(6) option_length draft_ietf_cipso_ipsecurity_01;
-option_rr                          = copy_no  class_control       u5(7) option_length rfc791;
-option_sid                         = copy_yes class_control       u5(8) option_length rfc791;
-option_ssr                         = copy_yes class_control       u5(9) option_length rfc791;
+option_eool                        = copy_no  & class_control       & u5(0);
+option_nop                         = copy_no  & class_control       & u5(1);
+option_sec                         = copy_yes & class_debug_measure & u5(2) & option_length & rfc1108;
+option_lsr                         = copy_yes & class_control       & u5(3) & option_length & rfc791;
+option_ts                          = copy_yes & class_debug_measure & u5(4) & option_length & rfc791;
+option_e_sec                       = copy_yes & class_debug_measure & u5(5) & option_length & rfc1108;
+option_cipso                       = copy_yes & class_debug_measure & u5(6) & option_length & draft_ietf_cipso_ipsecurity_01;
+option_rr                          = copy_no  & class_control       & u5(7) & option_length & rfc791;
+option_sid                         = copy_yes & class_control       & u5(8) & option_length & rfc791;
+option_ssr                         = copy_yes & class_control       & u5(9) & option_length & rfc791;
 option_length                      = u8(0~);
 copy_yes                           = u1(1);
 copy_no                            = u1(0);
@@ -78,7 +78,7 @@ rfc1108                            = """https://www.rfc-editor.org/rfc/rfc1108.h
 rfc791                             = """https://www.rfc-editor.org/rfc/rfc791.html""";
 draft_ietf_cipso_ipsecurity_01     = """https://datatracker.ietf.org/doc/draft-ietf-cipso-ipsecurity/01/""";
 
-payload(protocol, bit_count)       = padded_to(bit_count, payload_contents(protocol), u1(0)*);
+payload(protocol, bit_count)       = sized(bit_count, payload_contents(protocol) u1(0)*);
 payload_contents(protocol)         = when(protocol = 0, protocol_hopopt)
                                    | when(protocol = 1, protocol_icmp)
                                    # TODO: the rest of the protocols
@@ -86,12 +86,12 @@ payload_contents(protocol)         = when(protocol = 0, protocol_hopopt)
 protocol_hopopt                    = """https://www.rfc-editor.org/rfc/rfc8200.html""";
 protocol_icmp                      = """https://www.rfc-editor.org/rfc/rfc792.html""";
 
-u1(v)                              = unsigned_integer(1, v);
-u2(v)                              = unsigned_integer(2, v);
-u4(v)                              = unsigned_integer(4, v);
-u5(v)                              = unsigned_integer(5, v);
-u6(v)                              = unsigned_integer(6, v);
-u8(v)                              = unsigned_integer(8, v);
-u13(v)                             = unsigned_integer(13, v);
-u16(v)                             = unsigned_integer(16, v);
-u32(v)                             = unsigned_integer(32, v);
+u1(v)                              = uint(1, v);
+u2(v)                              = uint(2, v);
+u4(v)                              = uint(4, v);
+u5(v)                              = uint(5, v);
+u6(v)                              = uint(6, v);
+u8(v)                              = uint(8, v);
+u13(v)                             = uint(13, v);
+u16(v)                             = uint(16, v);
+u32(v)                             = uint(32, v);
