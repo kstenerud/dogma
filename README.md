@@ -51,6 +51,13 @@ KBNF documents are versioned to a particular KBNF specification so that changes 
 
 
 
+Specification
+-------------
+
+[The KBNF Specification](kbnf.md)
+
+
+
 Example
 -------
 
