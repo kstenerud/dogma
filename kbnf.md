@@ -930,6 +930,7 @@ A range consists of one of the following:
 * A low value and a tilde (low ~), indicating a low bound only.
 * A tilde and a high value (~ high), indicating a high bound only.
 * A tilde (~), indicating no bound.
+* A value, restricting the "range" to only that value.
 
 A [codepoint](#codepoints) range represents the set of each codepoint in the range as [alternatves](#alternative).
 
@@ -965,7 +966,7 @@ name_field = unicode(L,M,N,P,S){1~100};
 **Example**: Number range: The RPM value is an unsigned 16 bit big endian integer from 0 to 1000.
 
 ```kbnf
-rpm = uint(16, 0~1000);
+rpm = uint(16, ~1000); # It's a uint, so already limited to 0~
 ```
 
 
