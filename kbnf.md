@@ -596,7 +596,9 @@ reserved_identifiers = "sized"
 
 ### Expressions
 
-An expression represents the set of possible bit sequences that can be produced.
+An expression represents the set of possible bit sequences that can be produced. All sequences of bits are assumed to be in big endian bit order (higher bits come first), and if necessary can be swapped at any granularity using the [`swapped` function](#swapped-function).
+
+For example, the expression `uint(3,6) & uint(13,0x1f)` matches the bit sequence 1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1 (or the big endian 16-bit unsigned integer 0xc01f).
 
 ```kbnf
 expression = symbol
