@@ -244,7 +244,7 @@ macro = identifier_restricted
       ;
 ```
 
-When called, a macro substitutes the passed in parameters and proceeds like a normal rule would (the grammar is malformed if a macro is called with the wrong types).
+When called, a macro substitutes the passed in parameters and proceeds like a normal rule would (the grammar is malformed if a macro is called with incompatible types).
 
 ```kbnf
 call       = identifier_any
@@ -297,7 +297,7 @@ Functions behave similarly to macros, except that they are opaque: Whereas a mac
 
 Functions must specify the [types](#types) of all parameters and its return value (since the function is opaque, its types cannot be inferred like for macros, and therefore must be specified). A function cannot produce anything if its input types are mismatched.
 
-Functions that take no parameters are defined and called without the trailing parentheses (as if calling a [symbol](#symbols)).
+Functions that take no parameters are defined and called without the trailing parentheses (as if defining or calling a [symbol](#symbols)).
 
 ```kbnf
 function        = function_noargs | function_args;
@@ -390,7 +390,7 @@ The `swapped` function swaps the order of `expr`'s bits with a granularity of `b
 `expr` must resolve to a multiple of `bit_granularity` bits, otherwise the grammar is malformed.
 
 ```kbnf
-swapped(bit_granularity: uint, expr: expression): expression
+swapped(bit_granularity: unsigned, expr: expression): expression
 ```
 
 **Example**: A document begins with a 32-bit little endian unsigned int version field, followed by the contents. Only version 5 documents are supported.
@@ -492,7 +492,7 @@ letter_digit_space = unicode(N,L,Zs);
 
 The `uint` function creates an expression that matches the given [range](#ranges) of big endian unsigned integers with the given number of bits.
 
-A `bit_count` of 0 causes it to create an expression for the minimum number of bits required to represent the value. This is useful for passing to encoding functions for arbitrarily large numbers.
+A `bit_count` of 0 causes the function to create an expression for the minimum number of bits required to represent the value. This is useful for passing to encoding functions for arbitrarily large numbers such as [ULEB](https://en.wikipedia.org/wiki/LEB128).
 
 ```kbnf
 uint(bit_count: unsigned, value: unsigned): expression
@@ -509,7 +509,7 @@ length = uint(16, ~);
 
 The `sint` function creates an expression that matches the given [range](#ranges) of big endian two's complement signed integers with the given number of bits.
 
-A `bit_count` of 0 causes it to create an expression for the minimum number of bits required to represent the value. This is useful for passing to encoding functions for arbitrarily large numbers.
+A `bit_count` of 0 causes the function to create an expression for the minimum number of bits required to represent the value. This is useful for passing to encoding functions for arbitrarily large numbers such as [ULEB](https://en.wikipedia.org/wiki/LEB128).
 
 ```kbnf
 sint(bit_count: unsigned, value: signed): expression
@@ -541,7 +541,7 @@ rpm = float(32, -1000~1000);
 Variables
 ---------
 
-In some contexts, resolved data (data that has already been matched) can be bound to a variable for use elsewhere. Variables are bound either manually using the [`bind`](#bind-function) builtin function, or automatically when passing parameters to a [macro](#macros). The variable's [type](#types) is inferred from what is allowed in the context where it is bound.
+In some contexts, resolved data (data that has already been matched) can be bound to a variable for use elsewhere. Variables are bound either manually using the [`bind`](#bind-function) builtin function, or automatically when passing parameters to a [macro](#macros). The variable's [type](#types) is inferred from the context where it is bound.
 
 **Note**: Variables cannot be re-bound.
 
@@ -574,7 +574,7 @@ These are the main types in KBNF:
 * [`condition`](#conditions)
 * [`number`](#numbers), of which there are three subtypes:
   * `unsigned`: limited to positive integers and 0
-  * `int`: limited to positive and negative integers, and 0
+  * `signed`: limited to positive and negative integers, and 0
   * `real`: any value from the set of reals
 
 Types become relevant when calling [functions](#functions), which must specify what types they accept and return. There are also type restrictions for what can be used in [repetition](#repetition), [calculations](#calculations), and [comparisons](#conditions).
@@ -586,7 +586,7 @@ A unique identifier for [symbols](#symbols), [macros](#macros), and [functions](
 
 Identifiers must start with a letter, and can contain letters, numbers and the underscore character. The [builtin function names](#builtin-functions) are reserved.
 
-The general convention is to use all uppercase identifiers for "background-y" things like whitespace and separators to make them easier to gloss over.
+The general convention is to use all uppercase identifiers for "background-y" things like whitespace and separators to make them easier to gloss over (see [the KBNF grammar document](#the-kbnf-grammar-in-kbnf) as an example).
 
 ```kbnf
 identifier           = (identifier_firstchar & identifier_nextchar*) ! reserved_identifiers;
@@ -645,7 +645,7 @@ Literals
 
 ### Codepoints
 
-Codepoints can be represented as literals, ranges, and category sets. Codepoint literals are placed between single or double quotes.
+Codepoints can be represented as literals, [ranges](#ranges), and [category sets](#unicode-function). Codepoint literals are placed between single or double quotes.
 
 Codepoint literals can also be expressed as [ranges](#ranges), which causes every codepoint in the range to be added as an [alternative](#alternative).
 
@@ -682,7 +682,7 @@ str_abc = "abc"; # or 'abc', or "a" & "b" & "c", or 'a' & 'b' & 'c'
 
 ### Escape Sequence
 
-Codepoint literals, string literals, and prose may contain codepoint escape sequences to represent troublesome codepoints.
+[Codepoint literals](#codepoints), [string literals](#strings), and [prose](#prose) may contain codepoint escape sequences to represent troublesome codepoints.
 
 Escape sequences are initiated with the backslash (`\`) character. If the next character following is an open curly brace (`{`), it begins a [codepoint escape](#codepoint-escape). Otherwise the sequence represents that literal character.
 
@@ -712,7 +712,7 @@ mystr = "This is a \{1f415}"; # "This is a 🐕"
 
 ### Prose
 
-Prose is meant as a last resort in attempting to describe an expression. If an expression's contents have already been described elsewhere, you could put a URL in here. Otherise you could put in a natural language description.
+Prose is meant as a last resort in attempting to describe something. If it has already been described elsewhere, you could put a URL in here. Otherise you could put in a natural language description.
 
 ```kbnf
 prose = '"""' & (escapable_char(printable_wsl, & '"')+ ! '"""') & '"""'
@@ -737,7 +737,7 @@ And touch the stubble-plains with rosy hue;
 Then in a wailful choir the small gnats mourn
 Among the river sallows, borne aloft
 Or sinking as the light wind lives or dies.
-"""
+""";
 ```
 
 
@@ -868,7 +868,9 @@ my_macro2(a, b) = when( (a < 10 | a > 20) & (b < 10 | b > 20), "abc" )
 Calculations
 ------------
 
-Calculations perform arithmetic operations on [numbers](#numbers), producing a new number.
+Calculations perform arithmetic operations on [numbers](#numbers), producing a new number. The left or right operand will be promoted to the wider type of the two ([unsigned, signed, real](#types)), and the operation will be performed in the wider type (i.e. `signed / signed` performs integer division, but `signed / real` or `real / signed` performs real division). Numbers cannot be coerced to a narrower type.
+
+**Note**: As an exception, unsigned subtraction produces a signed result when the subtraction produces a negative value. Care must be taken to ensure type compatibility.
 
 The following operations can be used:
 
