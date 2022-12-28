@@ -577,9 +577,9 @@ These are the main types in KBNF:
   * `signed`: limited to positive and negative integers, and 0
   * `real`: any value from the set of reals
 
-Types become relevant when calling [functions](#functions), which must specify what types they accept and return. There are also type restrictions for what can be used in [repetition](#repetition), [calculations](#calculations), and [comparisons](#conditions).
+Types become relevant when calling [functions](#functions), which must specify what types they accept and return. Also, [repetition](#repetition) amounts are restricted to unsigned integers.
 
-Number types are automatically promoted when passed into a context requiring a wider type, but they cannot be coerced to a narrower type.
+**Note**: Number "subtypes" (signed, unsigned, real) aren't actual types per se, but rather restrictions on what values are allowed in a particular context. [calculations](#calculations), for example, are done as if all operands were reals (subtracting two unsigned numbers can give a signed result, dividing integers can result in a real, etc).
 
 
 ### Identifier
@@ -870,9 +870,7 @@ my_macro2(a, b) = when( (a < 10 | a > 20) & (b < 10 | b > 20), "abc" )
 Calculations
 ------------
 
-Calculations perform arithmetic operations on [numbers](#numbers), producing a new number. The left or right operand will be promoted to the wider type of the two ([unsigned, signed, real](#types)), and the operation will be performed in the wider type (i.e. `signed / signed` performs integer division, but `signed / real` or `real / signed` performs real division). Numbers cannot be coerced to a narrower type.
-
-**Note**: As an exception, unsigned subtraction produces a signed result when the subtraction produces a negative value. Care must be taken to ensure type compatibility.
+Calculations perform arithmetic operations on [numbers](#numbers), producing a new number. All operands are treated as [reals](#types) for the purpose of the calculation.
 
 The following operations can be used:
 
