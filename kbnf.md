@@ -362,20 +362,26 @@ byte(v)            = uint(8, v);
 
 ### `swapped` Function
 
-The `swapped` function swaps the byte order of the enclosed expression. This is useful for matching little endian values.
+The `swapped` function swaps the order of the enclosed expression's bits at the specified granularity. This is useful for matching little endian values, for example.
 
-The expression must resolve to a multiple of 8 bits, otherwise the grammar is malformed.
+`expr` must resolve to a multiple of `bit_granularity` bits, otherwise the grammar is malformed.
 
 ```kbnf
-swapped(expr: expression): expression
+swapped(bit_granularity: uint, expr: expression): expression
 ```
 
 **Example**: A document begins with a 32-bit little endian unsigned int version field, followed by the contents. Only version 5 documents are supported.
 
 ```kbnf
 document  = version_5 & contents;
-version_5 = swapped(uint(32, 5));
+version_5 = swapped(8, uint(32, 5));
 contents  = ...
+```
+
+**Example**: Matches a uint8 value that has been completely bit-swapped (e.g. 0b01001110 <-> 0b01110010).
+
+```kbnf
+swapped_value  = swapped(1, uint(8, ~));
 ```
 
 
@@ -1015,7 +1021,7 @@ record                  = bind(record_type,type_field) & padded_payload & suffix
 type_field              = uint(8,bind(type,0~2));
 padded_payload          = aligned(32, payload, uint(8,0xff)*)
 payload                 = length_field(bind(byte_count,~)) & uint(8,~){byte_count};
-length_field(contents)  = swapped(uint(24,contents));
+length_field(contents)  = swapped(8, uint(24,contents));
 suffix(type)            = when(type = 2, type2)
                         | when(type = 1, type1)
                         # type 0 means no suffix
@@ -1141,7 +1147,7 @@ builtin_functions      = function_sized
                        ;
 function_sized         = fname_sized & '(' & TOKEN_SEP & bit_count & ARG_SEP & expression & TOKEN_SEP & ')';
 function_aligned       = fname_aligned & '(' & TOKEN_SEP & bit_count & ARG_SEP & expression & ARG_SEP & padding & TOKEN_SEP & ')';
-function_swapped       = fname_swapped & '(' & TOKEN_SEP & expression & TOKEN_SEP & ')';
+function_swapped       = fname_swapped & '(' & TOKEN_SEP & bit_granularity & ARG_SEP & expression & TOKEN_SEP & ')';
 function_when          = fname_when & '(' & TOKEN_SEP & condition & ARG_SEP & any & TOKEN_SEP & ')';
 function_bind          = fname_bind & '(' & TOKEN_SEP & local_id & ARG_SEP & any & TOKEN_SEP & ')';
 function_unicode       = fname_unicode & '(' & TOKEN_SEP & category_name & (ARG_SEP & category_name)* & TOKEN_SEP & ')';
