@@ -1051,7 +1051,7 @@ document                = section+;
 section                 = bind(sentinel,uint(8,0x80~0xfe)) & length_field(0) & record* & sentinel;
 record                  = bind(record_type,type_field) & padded_payload & suffix(record_type.type);
 type_field              = uint(8,bind(type,0~2));
-padded_payload          = aligned(32, payload, uint(8,0xff)*)
+padded_payload          = aligned(32, payload, uint(8,0xff)*);
 payload                 = length_field(bind(byte_count,~)) & uint(8,~){byte_count};
 length_field(contents)  = swapped(8, uint(24,contents));
 suffix(type)            = when(type = 2, type2)
@@ -1143,7 +1143,7 @@ call                   = identifier_any
 call_param             = any;
 
 combination            = alternate | combination_w_exclude;
-combination_w_exclude  = exclude | combination_w_concat
+combination_w_exclude  = exclude | combination_w_concat;
 combination_w_concat   = concatenate | combination_w_repeat;
 combination_w_repeat   = repetition | combination;
 alternate              = expression & (TOKEN_SEP & '|' & TOKEN_SEP & expression)+;
