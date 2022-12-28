@@ -391,10 +391,16 @@ version_5 = swapped(8, uint(32, 5));
 contents  = ...
 ```
 
-**Example**: Matches a uint8 value that has been completely bit-swapped (e.g. 0b01001110 <-> 0b01110010).
+**Example**: A header begins with a 16-bit unsigned int identifier that is actually bit-swapped, followed by contents based on the identifier.
 
 ```kbnf
-swapped_value  = swapped(1, uint(8, ~));
+header               = bitswapped_uint16(bind(identifier, ~)) & contents(identifier);
+bitswapped_uint16(v) = swapped(1, uint(16, v));
+contents(identifier) = when(identifier = 1, type_1)
+                     | when(identifier = 2, type_2)
+                     ;
+type_1               = ...
+type_2               = ...
 ```
 
 
