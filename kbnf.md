@@ -287,29 +287,42 @@ Functions behave similarly to macros, except that they are opaque: Whereas a mac
 
 Functions must specify the [types](#types) of all parameters and its return value (since the function is opaque, its types cannot be inferred like for macros, and therefore must be specified). A function cannot produce anything if its input types are mismatched.
 
+Functions that take no parameters are defined and called without the trailing parentheses (as if calling a [symbol](#symbols)).
+
 ```kbnf
-function       = identifier_restricted
-               & '(' & TOKEN_SEP
-               & function_param
-               & (ARG_SEP & function_param)* & TOKEN_SEP
-               & ')' & TOKEN_SEP
-               & ':' & TOKEN_SEP
-               & type
-               ;
-function_param = param_name & TOKEN_SEP & ':' & TOKEN_SEP & type;
-type           = "expression"
-               | "condition"
-               | "unsigned"
-               | "signed"
-               | "real"
-               | "any"
-               ;
+function        = function_noargs | function_args;
+function_noargs = identifier_restricted & ':' & TOKEN_SEP & type;
+function_args   = identifier_restricted
+                & '(' & TOKEN_SEP
+                & function_param
+                & (ARG_SEP & function_param)* & TOKEN_SEP
+                & ')' & TOKEN_SEP
+                & ':' & TOKEN_SEP
+                & type
+                ;
+function_param  = param_name & TOKEN_SEP & ':' & TOKEN_SEP & type;
+type            = "expression"
+                | "condition"
+                | "unsigned"
+                | "signed"
+                | "real"
+                | "any"
+                ;
 ```
 
 **Example**: A function to convert an unsigned int to its unsigned little endian base 128 representation.
 
 ```kbnf
 uleb128(v: unsigned): expression = """https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128""";
+```
+
+**Example**: A record contains a date followed by a colon, followed by a temperature reading.
+
+```kbnf
+record              = iso8601 & ':' & temperature;
+iso8601: expression = """https://en.wikipedia.org/wiki/ISO_8601""";
+temperature         = digit+ & ('.' & digit+)?;
+digit               = '0'~'9';
 ```
 
 
@@ -588,7 +601,6 @@ expression = symbol
            | builtin_functions
            | variable
            | repetition
-           | prose
            | grouped(expression)
            ;
 ```
@@ -691,6 +703,8 @@ prose = '"""' & (escapable_char(printable_wsl, & '"')+ ! '"""') & '"""'
       | "'''" & (escapable_char(printable_wsl, & "'")+ ! "'''") & "'''"
       ;
 ```
+
+**Note**: Prose can only be used to define a [function](#functions) because it is by nature opaque; the function definition will assign types.
 
 **Example**: A record contains a date and temperature separated by `:`, followed by a newline, followed by a flowery description of any length in iambic pentameter (newlines allowed), terminated by `=====` on its own line.
 
@@ -1073,7 +1087,6 @@ expression             = symbol
                        | combination
                        | builtin_functions
                        | variable
-                       | prose
                        | grouped(expression)
                        ;
 
@@ -1085,7 +1098,9 @@ macro                  = identifier_restricted
                        & ')'
                        ;
 param_name             = identifier_any;
-function               = identifier_restricted
+function               = function_noargs | function_args;
+function_noargs        = identifier_restricted & ':' & TOKEN_SEP & type;
+function_args          = identifier_restricted
                        & '(' & TOKEN_SEP
                        & function_param
                        & (ARG_SEP & function_param)* & TOKEN_SEP
