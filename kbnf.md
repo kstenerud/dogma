@@ -579,6 +579,8 @@ These are the main types in KBNF:
 
 Types become relevant when calling [functions](#functions), which must specify what types they accept and return. There are also type restrictions for what can be used in [repetition](#repetition), [calculations](#calculations), and [comparisons](#conditions).
 
+Number types are automatically promoted when passed into a context requiring a wider type, but they cannot be coerced to a narrower type.
+
 
 ### Identifier
 
