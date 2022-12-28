@@ -344,7 +344,7 @@ KBNF comes with some fundamental functions built-in:
 
 ### `sized` Function
 
-The `sized` function requires an expression to produce exactly `bit_count` bits. Expressions containing [repetition](#repetition) that would have matched on their own are no longer sufficient until the production fills exactly `bit_count` bits.
+The `sized` function requires `expr` to produce exactly `bit_count` bits. Expressions containing [repetition](#repetition) that would have matched on their own are no longer sufficient until the production fills exactly `bit_count` bits.
 
 ```kbnf
 sized(bit_count: unsigned, expr: expression): expression
@@ -367,7 +367,7 @@ byte(v)            = uint(8,v);
 
 ### `aligned` Function
 
-The `aligned` function requires a production that is a multiple of `bit_count`. If the expression doesn't produce this, the `padding` expression is used in the same manner as the [`sized` function](#sized-function) to ensure a production of the appropriate size.
+The `aligned` function requires a production that is a multiple of `bit_count`. If `expr` doesn't produce this, the `padding` expression is used in the same manner as the [`sized` function](#sized-function) to ensure a production of the appropriate size.
 
 ```kbnf
 aligned(bit_count: unsigned, expr: expression, padding: expression): expression
@@ -385,7 +385,7 @@ byte(v)            = uint(8, v);
 
 ### `swapped` Function
 
-The `swapped` function swaps the order of the enclosed expression's bits at the specified granularity. This is useful for matching little endian values, for example.
+The `swapped` function swaps the order of `expr`'s bits with a granularity of `bit_granularity`. This is useful for matching little endian values, for example.
 
 `expr` must resolve to a multiple of `bit_granularity` bits, otherwise the grammar is malformed.
 
@@ -416,7 +416,7 @@ type_2               = ...
 
 ### `when` Function
 
-The `when` function allows the given expression only when the given [condition](#conditions) is true.
+The `when` function allows `expr` only when the given [condition](#conditions) is true.
 
 ```kbnf
 when(cond: condition, expr: expression): expression
