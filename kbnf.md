@@ -1,12 +1,16 @@
 Karl's Bachus-Naur Form
 =======================
 
-Version 0
+Version 1-prerelease
 
 
 ## WORK IN PROGRESS
 
-Full release will happen soon, but there are still parts to clean up.
+Current status: Settling-in phase (Dec 29, 2022).
+
+I'm letting the specification sit for two 2-week periods, after each of which I'll do a full document review to look for issues.
+
+If no major issues are found, I'll release version 1.
 
 
 
