@@ -58,7 +58,9 @@ Specification
 
 
 
-Example
--------
+Examples
+--------
 
-Internet Prodocol, version 4: [ipv4.kbnf](ipv4.kbnf)
+* Internet Prodocol, version 4: [ipv4.kbnf](ipv4.kbnf)
+* Concise Text Encoding: [cte.kbnf](https://github.com/kstenerud/concise-encoding/blob/master/cte.kbnf)
+* Concise Binary Encoding: [cbe.kbnf](https://github.com/kstenerud/concise-encoding/blob/master/cbe.kbnf)
