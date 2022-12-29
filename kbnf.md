@@ -126,7 +126,7 @@ KBNF documents are versioned to a particular KBNF specification so that changes 
 About the Descriptions and Examples
 -----------------------------------
 
-Descriptions and examples will usually include some KBNF notation. When in doubt, please see the [full KBNF grammar](#the-kbnf-grammar-in-kbnf).
+Descriptions and examples will usually include some KBNF notation. When in doubt, please see the [full KBNF grammar at the end of this document](#the-kbnf-grammar-in-kbnf).
 
 
 
@@ -153,7 +153,7 @@ document = document_header (MAYBE_WSLC rule)+;
 The document header identifies the file format as KBNF, and contains the following mandatory information:
 
 * The version of the KBNF specification that the document adheres to.
-* The character encoding used for all codepoint related expressions.
+* The character encoding used for all codepoint related expressions (use the case-insensitive [IANA preferred MIME name](https://www.iana.org/assignments/character-sets/character-sets.xhtml) whenever possible).
 
 Optionally, it may also include header lines. An empty line terminates the document header section.
 
@@ -162,7 +162,7 @@ document_header    = "kbnf_v" & kbnf_version & SOME_WS
                    & character_encoding & LINE_END
                    & header_line* & LINE_END
                    ;
-character_encoding = ('!' ~ '~')+;
+character_encoding = ('a'~'z' | 'A'~'Z' | '0'~'9' | '_' | '-' | '.' | ':' | '+' | '(' | ')'){1~40};
 header_line        = '-' & SOME_WS
                    & header_name & MAYBE_WS
                    & '=' & MAYBE_WS
@@ -264,6 +264,8 @@ record(type) = byte(type) byte(bind(length, ~)) & byte(~){length};
 byte(v)      = uint(8,v);
 ```
 
+In this example, `record` must only be called with an unsigned integer, because the `type` field is passed to the `byte` macro, which calls the [`uint` function](#uint-function), which expects an unsigned parameter.
+
 **Example**: An [IPV4](ipv4.kbnf) packet contains "header length" and "total length" fields, which together determine how big the "options" and "payload" sections are. "protocol" determines the protocol of the payload.
 
 ```kbnf
@@ -295,7 +297,7 @@ payload_contents(protocol)   = when(protocol = 0, protocol_hopopt)
 
 Functions behave similarly to macros, except that they are opaque: Whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions), or is user-defined in [prose](#prose) (either as a description, or as a URL pointing to a description).
 
-Functions must specify the [types](#types) of all parameters and its return value (since the function is opaque, its types cannot be inferred like for macros, and therefore must be specified). A function cannot produce anything if its input types are mismatched.
+Functions must specify the [types](#types) of all parameters and its return value (since the function is opaque, its types cannot be inferred like for macros, and therefore must be specified). If a function is called with the wrong types, the grammar is malformed.
 
 Functions that take no parameters are defined and called without the trailing parentheses (as if defining or calling a [symbol](#symbols)).
 
@@ -354,6 +356,16 @@ sized(bit_count: unsigned, expr: expression): expression
 
 ```kbnf
 name_field = sized(200*8, unicode(L,M,N,P,Zs)* & ' '*);
+```
+
+Technically, the `& ' '*` part is superfluous since Unicode category `Zs` already includes space, but it helps readability to highlight how to pad the field. One could even be more explicit:
+
+```kbnf
+name_field = sized(200*8,
+                      unicode(L,M,N,P,Zs)*
+                      # padded with spaces
+                      & ' '*
+                  );
 ```
 
 **Example**: The "records" section can contain any number of length-delimited records, but must be exactly 1024 bytes long. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload - essentially a zero byte).
@@ -440,7 +452,7 @@ extension_3(length) = ...
 
 ### `bind` Function
 
-The `bind` function binds the resolved value (the actual value that has been matched so far) of whatever it surrounds to a local variable for subsequent re-use in the current rule. `bind` transparently passes through whatever it captures, meaning that the context around the `bind` call behaves as though only what the `bind` function surrounded is present. This allows a sequence to be produced as normal, while also allowing the resolved value to be used again later in the rule.
+The `bind` function binds the resolved value (the actual value once this part of the expression has been matched) of whatever it surrounds to a local variable for subsequent re-use in the current rule. `bind` transparently passes through whatever it captures, meaning that the context around the `bind` call behaves as though only what the `bind` function surrounded is present. This allows a sequence to be produced as normal, while also allowing the resolved value to be used again later in the rule.
 
 `bind` can capture [expression](#expressions) and [number](#numbers) types.
 
@@ -524,7 +536,7 @@ points = sint(32, -10000~10000);
 
 ### `float` Function
 
-The `float` function creates an expression that matches the given [range](#ranges) of big endian ieee754 binary floating point values with the given number of bits (which must be a valid number of bits for ieee754 binary).
+The `float` function creates an expression that matches the given [range](#ranges) of big endian [ieee754 binary floating point](https://en.wikipedia.org/wiki/IEEE_754) values with the given number of bits (which must be a valid number of bits for [ieee754 binary](https://en.wikipedia.org/wiki/IEEE_754)).
 
 ```kbnf
 float(bit_count: unsigned, value: real): expression
@@ -541,7 +553,7 @@ rpm = float(32, -1000~1000);
 Variables
 ---------
 
-In some contexts, resolved data (data that has already been matched) can be bound to a variable for use elsewhere. Variables are bound either manually using the [`bind`](#bind-function) builtin function, or automatically when passing parameters to a [macro](#macros). The variable's [type](#types) is inferred from the context where it is bound.
+In some contexts, resolved data (data that has already been matched) or literal values can be bound to a variable for use elsewhere. Variables are bound either manually using the [`bind`](#bind-function) builtin function, or automatically when passing parameters to a [macro](#macros). The variable's [type](#types) is inferred from its provenance and where it is ultimately used (a type mismatch indicates a malformed grammar).
 
 **Note**: Variables cannot be re-bound.
 
@@ -584,9 +596,11 @@ Types become relevant when calling [functions](#functions), which must specify w
 
 ### Identifier
 
-A unique identifier for [symbols](#symbols), [macros](#macros), and [functions](#functions) (which are all scoped globally), or [variables](#variables) (which are scoped locally). Identifiers are case sensitive.
+A unique identifier for [symbols](#symbols), [macros](#macros), and [functions](#functions) (which are all scoped globally), or [variables](#variables) (which are scoped locally).
 
-Identifiers must start with a letter, and can contain letters, numbers and the underscore character. The [builtin function names](#builtin-functions) are reserved.
+Identifiers are case sensitive.
+
+Identifiers start with a letter, and can contain letters, numbers and the underscore character. The [builtin function names](#builtin-functions) are reserved.
 
 The general convention is to use all uppercase identifiers for "background-y" things like whitespace and separators to make them easier to gloss over (see [the KBNF grammar document](#the-kbnf-grammar-in-kbnf) as an example).
 
@@ -627,7 +641,7 @@ expression = symbol
 
 Numbers are used in [calculations](#calculations), numeric ranges, and as parameters to functions.
 
-Certain functions take number parameters but restrict the allowed values (e.g. integers only, min/max value, etc). Only parameters containing compatible values can produce a result in such cases.
+Certain functions take number parameters but restrict the allowed values (e.g. integers only, min/max value, etc).
 
 Numbers can be expressed as number literals (in binary, octal, decimal, hexadecimal notation for integers, and in decimal or hexadecimal notation for reals), or derived from [functions](#functions), [macros](#macros), and [calculations](#calculations).
 
@@ -731,7 +745,7 @@ record              = date & ':' & temperature & LF & flowery_description & LF &
 date                = """https://en.wikipedia.org/wiki/ISO_8601""";
 temperature         = digit+ & ('.' & digit+)?;
 digit               = '0'~'9';
-flowery_description = """
+flowery_description: expression = """
 A poetic description of the weather, written in iambic pentameter. For example:
 
 While barred clouds bloom the soft-dying day,
@@ -818,7 +832,7 @@ identifier = "a"~"z"+ ! "fred";
 
 "Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Repetition amounts can be defined as a [range](#ranges) or as a discrete amount. Think of repetition as "this [expression](#expressions), [concatenated](#concatenation) together for this range of occurrences".
 
-The repetition amount is appended to an expression, as a discrete amount or [range](#ranges) between curly braces (e.g. `{10}` or `{1~5}`). There are also shorthand notations for common cases:
+The repetition amount is an unsigned integer, appended to an expression as a discrete amount or [range](#ranges) between curly braces (e.g. `{10}` or `{1~5}`). There are also shorthand notations for common cases:
 
 * `?`: Zero or one (equivalent to `{0~1}`)
 * `*`: Zero or more (equivalent to `{0~}`)
@@ -908,7 +922,7 @@ flags  = ...
 Conditions
 ----------
 
-Conditions are set by comparing realized [numbers](#numbers), and by performing logical operations on those comparisons, resulting in either true or false. Conditions are used in [`when`](#when-function) calls.
+Conditions are set by comparing realized [numbers](#numbers), and by performing logical operations on those comparisons, resulting in either true or false. Conditions are used in [`when`](#when-function) calls. Conditions can also be [grouped](#grouping).
 
 Comparisons:
 
@@ -974,7 +988,7 @@ A [codepoint](#codepoints) range represents the set of each codepoint in the ran
 
 A [repetition](#repetition) range represents a range in the number of occurrences that will match the rule.
 
-A [number](#numbers) range will ultimately be passed to a numeric encoding function ([uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent each value in the range (as far as it is representable by the encoding) as [alternatves](#alternative).
+A [number](#numbers) range will ultimately be passed to a numeric encoding function ([uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent each value in the range (as far as it is representable by the [type](#types)) as [alternatves](#alternative).
 
 
 ```kbnf
@@ -1085,7 +1099,7 @@ document_header        = "kbnf_v" & kbnf_version & SOME_WS
                        & character_encoding & LINE_END
                        & header_line* & LINE_END
                        ;
-character_encoding     = ('!' ~ '~')+;
+character_encoding     = ('a'~'z' | 'A'~'Z' | '0'~'9' | '_' | '-' | '.' | ':' | '+' | '(' | ')'){1~40};
 header_line            = '-' & SOME_WS
                        & header_name & MAYBE_WS
                        & '=' & MAYBE_WS
