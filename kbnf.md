@@ -1093,7 +1093,7 @@ The KBNF Grammar in KBNF
 ```kbnf
 kbnf_v1 utf-8
 - identifier  = kbnf_v1
-- description = KBNF grammar, version 1
+- description = Karl's Bachus-Naur Form, version 1
 
 document               = document_header & (MAYBE_WSLC & rule)+;
 
