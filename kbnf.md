@@ -143,9 +143,9 @@ All sequences of bits (i.e. all [expressions](#expressions)) are assumed to be i
 
 **For example**:
 
-* `uint(3,6) & uint(13,0x1f)` matches bit sequence 1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1 (big endian 16-bit unsigned integer 0xc01f).
-* `swapped(8, uint(3,6) & uint(13,0x1f))` matches bit sequence 0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0 (little endian 16-bit unsigned integer 0xc01f).
-* `swapped(1, uint(3,6) & uint(13,0x1f))` matches bit sequence 1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1 (bit-swapped 16-bit unsigned integer 0xc01f).
+* `uint(16,0xc01f)` matches big endian 0xc01f (bit sequence 1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1).
+* `swapped(8, uint(16,0xc01f))` matches little endian 0xc01f (bit sequence 0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0).
+* `swapped(1, uint(16,0xc01f))` matches bit-swapped 0xc01f (bit sequence 1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1).
 
 
 
@@ -208,7 +208,7 @@ Production Rules
 Production rules are written in the form `nonterminal = expression;`, with optional whitespace (including newlines) between rule elements. The terminating semicolon makes it more clear where a rule ends, and also allows more freedom for visually laying out the elements of a rule.
 
 ```kbnf
-rule = (symbol | macro) & TOKEN_SEP & '=' & TOKEN_SEP & production & TOKEN_SEP & ';'
+rule = (symbol | macro) & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';'
      | function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';'
      ;
 ```
@@ -251,24 +251,14 @@ LF             = '\{a}';
 A macro is essentially a symbol that accepts parameters, which are bound to local [variables](#variables) for use within the macro. The macro's contents are written like regular rules, but also have access to the injected local variables.
 
 ```kbnf
-macro = identifier_restricted
-      & '(' & TOKEN_SEP
-      & param_name
-      & (ARG_SEP & param_name)* & TOKEN_SEP
-      & ')'
-      ;
+macro = identifier_restricted & PARENTHESIZED(param_name & (ARG_SEP & param_name)*);
 ```
 
 When called, a macro substitutes the passed-in parameters and proceeds like a normal rule would (the grammar is malformed if a macro is called with incompatible types).
 
 ```kbnf
-call       = identifier_any
-           & '(' & TOKEN_SEP
-           & call_param
-           & (ARG_SEP & call_param)* & TOKEN_SEP
-           & ')'
-           ;
-call_param = any;
+call       = identifier_any & PARENTHESIZED(call_param & (ARG_SEP & call_param)*);
+call_param = any_type;
 ```
 
 **Example**: The main section consists of three records: A type 1 record and two type 2 records. A record begins with a type byte, followed by a length byte, followed by that many bytes of data.
@@ -318,16 +308,13 @@ Functions that take no parameters are defined and called without the trailing pa
 
 ```kbnf
 function        = function_noargs | function_args;
-function_noargs = identifier_restricted & ':' & TOKEN_SEP & type;
+function_noargs = identifier_restricted & type_specifier;
 function_args   = identifier_restricted
-                & '(' & TOKEN_SEP
-                & function_param
-                & (ARG_SEP & function_param)* & TOKEN_SEP
-                & ')' & TOKEN_SEP
-                & ':' & TOKEN_SEP
-                & type
+                & PARENTHESIZED(function_param & (ARG_SEP & function_param)*)
+                & type_specifier
                 ;
-function_param  = param_name & TOKEN_SEP & ':' & TOKEN_SEP & type;
+function_param  = param_name & type_specifier;
+type_specifier  = TOKEN_SEP & ':' & TOKEN_SEP & type;
 type            = "expression"
                 | "condition"
                 | "unsigned"
@@ -637,7 +624,7 @@ reserved_identifiers = "sized"
 
 ### Expressions
 
-An expression represents the set of possible bit sequences that can be produced.
+An expression represents the set of possible bit sequences that can be produced. Expressions are non-greedy (the shortest possible interpretation of an expression will be matched first).
 
 ```kbnf
 expression = symbol
@@ -647,7 +634,6 @@ expression = symbol
            | combination
            | builtin_functions
            | variable
-           | repetition
            | grouped(expression)
            ;
 ```
@@ -662,8 +648,12 @@ Numbers can be expressed as number literals (in binary, octal, decimal, hexadeci
 
 ```kbnf
 number_literal   = int_literal_bin | int_literal_oct | real_literal_dec | real_literal_hex;
-real_literal_dec = neg? digit_dec+ & ('.' & digit_dec+ & (('e' | 'E') ('+' | '-')? & digit_dec+)?)?;
-real_literal_hex = neg? & '0' & ('x' | 'X') & digit_hex+ & ('.' & digit_hex+ & (('p' | 'P') & ('+' | '-')? & digit_dec+)?)?;
+real_literal_dec = neg? digit_dec+
+                 & ('.' & digit_dec+ & (('e' | 'E') ('+' | '-')? & digit_dec+)?)?
+                 ;
+real_literal_hex = neg? & '0' & ('x' | 'X') & digit_hex+
+                 & ('.' & digit_hex+ & (('p' | 'P') & ('+' | '-')? & digit_dec+)?)?
+                 ;
 int_literal_bin  = neg? & '0' & ('b' | 'B') & digit_bin+;
 int_literal_oct  = neg? & '0' & ('o' | 'O') & digit_oct+;
 neg              = '-';
@@ -681,8 +671,8 @@ Codepoints can be represented as literals, [ranges](#ranges), and [category sets
 Codepoint literals can also be expressed as [ranges](#ranges), which causes every codepoint in the range to be added as an [alternative](#alternative).
 
 ```kbnf
-codepoint_literal = '"' & escapable_char(printable_ws, '"'){1} & '"'
-                  | "'" & escapable_char(printable_ws, "'"){1} & "'"
+codepoint_literal = '"' & maybe_escaped(printable_ws ! '"'){1} & '"'
+                  | "'" & maybe_escaped(printable_ws ! "'"){1} & "'"
                   ;
 ```
 
@@ -699,8 +689,8 @@ alphanumeric = unicode(L,N);
 A string is syntactic sugar for a series of specific codepoints [concatenated](#concatenation) together. String literals are placed between single or double quotes.
 
 ```kbnf
-string_literal = '"' & escapable_char(printable_ws, '"'){2~} & '"'
-               | "'" & escapable_char(printable_ws, "'"){2~} & "'"
+string_literal = '"' & maybe_escaped(printable_ws ! '"'){2~} & '"'
+               | "'" & maybe_escaped(printable_ws ! "'"){2~} & "'"
                ;
 ```
 
@@ -718,7 +708,7 @@ str_abc = "abc"; # or 'abc', or "a" & "b" & "c", or 'a' & 'b' & 'c'
 Escape sequences are initiated with the backslash (`\`) character. If the next character following is an open curly brace (`{`), it begins a [codepoint escape](#codepoint-escape). Otherwise the sequence represents that literal character.
 
 ```kbnf
-escape = '\\' & (printable ! '{') | codepoint_escape);
+escape_sequence = '\\' & (printable ! '{') | codepoint_escape);
 ```
 
 **Example**: A string containing double quotes.
@@ -746,8 +736,8 @@ mystr = "This is a \{1f415}"; # "This is a 🐕"
 Prose is meant as a last resort in attempting to describe something. If it has already been described elsewhere, you could put a URL in here. Otherise you could put in a natural language description.
 
 ```kbnf
-prose = '"""' & (escapable_char(printable_wsl, & '"')+ ! '"""') & '"""'
-      | "'''" & (escapable_char(printable_wsl, & "'")+ ! "'''") & "'''"
+prose = '"""' & (maybe_escaped(printable_wsl)+ ! '"""') & '"""'
+      | "'''" & (maybe_escaped(printable_wsl)+ ! "'''") & "'''"
       ;
 ```
 
@@ -791,7 +781,7 @@ Combination precedence (low to high):
 The concatenation operation evaluates the left expression, and then the right. The operator symbol is `&` (think of it as meaning "x and then y").
 
 ```kbnf
-concatenate = expression & '&' & (SOME_WSLC expression)+;
+concatenate = expression & TOKEN_SEP & '&' & TOKEN_SEP & expression;
 ```
 
 **Example**: Assignment consists of an identifier, at least one space, an equals sign, at least one space, and then an integer value, followed by a linefeed.
@@ -812,7 +802,7 @@ assignment = "a"~"z"+
 Alternatives are separated by a pipe (`|`) character. Only one of the alternatives is taken in a production.
 
 ```kbnf
-alternate = expression & (TOKEN_SEP & '|' & TOKEN_SEP & expression)+;
+alternate = expression & TOKEN_SEP & '|' & TOKEN_SEP & expression;
 ```
 
 **Example**: Addition or subtraction consists of an identifier, at least one space, a plus or minus sign, at least one space, and then another identifier, followed by a linefeed.
@@ -855,7 +845,7 @@ The repetition amount is an unsigned integer, appended to an expression as a dis
 
 ```kbnf
 repetition          = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
-repeat_range        = expression & '{' & TOKEN_SEP & maybe_ranged(unsigned) & TOKEN_SEP & '}';
+repeat_range        = expression & '{' & TOKEN_SEP & maybe_ranged(number) & TOKEN_SEP & '}';
 repeat_zero_or_one  = expression & '?';
 repeat_zero_or_more = expression & '*';
 repeat_one_or_more  = expression & '+';
@@ -881,7 +871,7 @@ Grouping
 [Expressions](#expressions), [calculations](#calculations) and [conditions](#conditions) can be grouped in order to override the default precedence, or as a visual aid to make things more readable. To group, place the items between parentheses.
 
 ```kbnf
-grouped(item) = '(' & TOKEN_SEP & item & TOKEN_SEP & ')';
+grouped(item) = PARENTHESIZED(item);
 ```
 
 **Exmples**:
@@ -917,7 +907,7 @@ Operator precedence (low to high):
 ```kbnf
 number       = calc_add | calc_sub | calc_mul_div;
 calc_mul_div = calc_mul | calc_div | calc_mod | calc_val;
-calc_val     = number_literal | variable | number | grouped(number);
+calc_val     = number_literal | variable | maybe_grouped(number);
 calc_add     = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
 calc_sub     = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
 calc_mul     = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_val;
@@ -961,15 +951,15 @@ Condition precedence (low to high):
 * logical not
 
 ```kbnf
-condition              = comparison | logical_op;
-logical_op             = logical_or | logical_op_and_not;
-logical_op_and_not     = logical_and | logical_op_not;
-logical_op_not         = logical_not | condition | grouped(condition);
-comparison             = number & TOKEN_SEP & comparator & TOKEN_SEP & number;
-comparator             = "<" | "<=" | "=" | ">= | ">";
-logical_or             = condition & TOKEN_SEP & '|' & TOKEN_SEP & condition;
-logical_and            = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
-logical_not            = '!' & TOKEN_SEP & condition;
+condition          = comparison | logical_op;
+logical_op         = logical_or | logical_op_and_not;
+logical_op_and_not = logical_and | logical_op_not;
+logical_op_not     = logical_not | maybe_grouped(condition);
+comparison         = number & TOKEN_SEP & comparator & TOKEN_SEP & number;
+comparator         = "<" | "<=" | "=" | ">= | ">";
+logical_or         = condition & TOKEN_SEP & '|' & TOKEN_SEP & condition;
+logical_and        = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
+logical_not        = '!' & TOKEN_SEP & condition;
 ```
 
 **Example**:
@@ -1007,15 +997,16 @@ A [number](#numbers) range will ultimately be passed to a numeric encoding funct
 
 
 ```kbnf
-expression             = ...
-                       | maybe_ranged(codepoint_literal)
-                       | ...
-                       ;
-repeat_range           = expression & '{' & TOKEN_SEP & maybe_ranged(unsigned) & TOKEN_SEP & '}';
-function_uint          = fname_uint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(unsigned) & TOKEN_SEP & ')';
-function_sint          = fname_sint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(signed) & TOKEN_SEP & ')';
-function_float         = fname_float & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(real) & TOKEN_SEP & ')';
-maybe_ranged(item)     = item | (item? & TOKEN_SEP & '~' & TOKEN_SEP & item?);
+expression         = ...
+                   | maybe_ranged(codepoint_literal)
+                   | ...
+                   ;
+repeat_range       = expression & '{' & TOKEN_SEP & maybe_ranged(number) & TOKEN_SEP & '}';
+function_uint      = fname_uint & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
+function_sint      = fname_sint & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
+function_float     = fname_float & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
+ranged(item)       = (item & TOKEN_SEP)? & '~' & (TOKEN_SEP & item)?;
+maybe_ranged(item) = item | ranged(item);
 ```
 
 **Example**: Codepoint range.
@@ -1123,10 +1114,9 @@ header_line            = '-' & SOME_WS
 header_name            = printable+;
 header_value           = printable_ws+;
 
-rule                   = (symbol | macro) & TOKEN_SEP & '=' & TOKEN_SEP & production & TOKEN_SEP & ';'
+rule                   = (symbol | macro) & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';'
                        | function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';'
                        ;
-production             = expression;
 expression             = symbol
                        | call
                        | string_literal
@@ -1138,24 +1128,16 @@ expression             = symbol
                        ;
 
 symbol                 = identifier_restricted;
-macro                  = identifier_restricted
-                       & '(' & TOKEN_SEP
-                       & param_name
-                       & (ARG_SEP & param_name)* & TOKEN_SEP
-                       & ')'
-                       ;
+macro                  = identifier_restricted & PARENTHESIZED(param_name & (ARG_SEP & param_name)*);
 param_name             = identifier_any;
 function               = function_noargs | function_args;
-function_noargs        = identifier_restricted & ':' & TOKEN_SEP & type;
+function_noargs        = identifier_restricted & type_specifier;
 function_args          = identifier_restricted
-                       & '(' & TOKEN_SEP
-                       & function_param
-                       & (ARG_SEP & function_param)* & TOKEN_SEP
-                       & ')' & TOKEN_SEP
-                       & ':' & TOKEN_SEP
-                       & type
+                       & PARENTHESIZED(function_param & (ARG_SEP & function_param)*)
+                       & type_specifier
                        ;
-function_param         = param_name & TOKEN_SEP & ':' & TOKEN_SEP & type;
+function_param         = param_name & type_specifier;
+type_specifier         = TOKEN_SEP & ':' & TOKEN_SEP & type;
 type                   = "expression"
                        | "condition"
                        | "unsigned"
@@ -1163,38 +1145,33 @@ type                   = "expression"
                        | "real"
                        | "any"
                        ;
-call                   = identifier_any
-                       & '(' & TOKEN_SEP
-                       & call_param
-                       & (ARG_SEP & call_param)* & TOKEN_SEP
-                       & ')'
-                       ;
-call_param             = any;
+call                   = identifier_any & PARENTHESIZED(call_param & (ARG_SEP & call_param)*);
+call_param             = any_type;
 
 combination            = alternate | combination_w_exclude;
 combination_w_exclude  = exclude | combination_w_concat;
 combination_w_concat   = concatenate | combination_w_repeat;
 combination_w_repeat   = repetition | combination;
-alternate              = expression & (TOKEN_SEP & '|' & TOKEN_SEP & expression)+;
+alternate              = expression & TOKEN_SEP & '|' & TOKEN_SEP & expression;
+concatenate            = expression & TOKEN_SEP & '&' & TOKEN_SEP & expression;
 exclude                = expression & TOKEN_SEP & '!' & TOKEN_SEP & expression;
-concatenate            = expression & (SOME_WSLC & expression)+;
 repetition             = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
-repeat_range           = expression & '{' & TOKEN_SEP & maybe_ranged(unsigned) & TOKEN_SEP & '}';
+repeat_range           = expression & '{' & TOKEN_SEP & maybe_ranged(number) & TOKEN_SEP & '}';
 repeat_zero_or_one     = expression & '?';
 repeat_zero_or_more    = expression & '*';
 repeat_one_or_more     = expression & '+';
 
-prose                  = '"""' & (escapable_char(printable_wsl, & '"')+ ! '"""') & '"""'
-                       | "'''" & (escapable_char(printable_wsl, & "'")+ ! "'''") & "'''"
+prose                  = '"""' & (maybe_escaped(printable_wsl)+ ! '"""') & '"""'
+                       | "'''" & (maybe_escaped(printable_wsl)+ ! "'''") & "'''"
                        ;
-codepoint_literal      = '"' & escapable_char(printable_ws, '"'){1} & '"'
-                       | "'" & escapable_char(printable_ws, "'"){1} & "'"
+codepoint_literal      = '"' & maybe_escaped(printable_ws ! '"'){1} & '"'
+                       | "'" & maybe_escaped(printable_ws ! "'"){1} & "'"
                        ;
-string_literal         = '"' & escapable_char(printable_ws, '"'){2~} & '"'
-                       | "'" & escapable_char(printable_ws, "'"){2~} & "'"
+string_literal         = '"' & maybe_escaped(printable_ws ! '"'){2~} & '"'
+                       | "'" & maybe_escaped(printable_ws ! "'"){2~} & "'"
                        ;
-escapable_char(char_set, quote_char) = (char_set ! ('\\' | quote_char)) | escape;
-escape                 = '\\' & (printable ! '{') | codepoint_escape);
+maybe_escaped(charset) = (charset ! '\\') | escape_sequence;
+escape_sequence        = '\\' & (printable ! '{') | codepoint_escape);
 codepoint_escape       = '{' & digit_hex+ & '}';
 
 builtin_functions      = function_sized
@@ -1207,26 +1184,28 @@ builtin_functions      = function_sized
                        | function_sint
                        | function_float
                        ;
-function_sized         = fname_sized & '(' & TOKEN_SEP & bit_count & ARG_SEP & expression & TOKEN_SEP & ')';
-function_aligned       = fname_aligned & '(' & TOKEN_SEP & bit_count & ARG_SEP & expression & ARG_SEP & padding & TOKEN_SEP & ')';
-function_swapped       = fname_swapped & '(' & TOKEN_SEP & bit_granularity & ARG_SEP & expression & TOKEN_SEP & ')';
-function_when          = fname_when & '(' & TOKEN_SEP & condition & ARG_SEP & any & TOKEN_SEP & ')';
-function_bind          = fname_bind & '(' & TOKEN_SEP & local_id & ARG_SEP & any & TOKEN_SEP & ')';
-function_unicode       = fname_unicode & '(' & TOKEN_SEP & category_name & (ARG_SEP & category_name)* & TOKEN_SEP & ')';
-function_uint          = fname_uint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(unsigned) & TOKEN_SEP & ')';
-function_sint          = fname_sint & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(signed) & TOKEN_SEP & ')';
-function_float         = fname_float & '(' & TOKEN_SEP & bit_count & ARG_SEP & maybe_ranged(real) & TOKEN_SEP & ')';
+function_sized         = fname_sized   & PARENTHESIZED(bit_count & ARG_SEP & expression);
+function_aligned       = fname_aligned & PARENTHESIZED(bit_count & ARG_SEP & expression & ARG_SEP & padding);
+function_swapped       = fname_swapped & PARENTHESIZED(bit_granularity & ARG_SEP & expression);
+function_when          = fname_when    & PARENTHESIZED(condition & ARG_SEP & any_type);
+function_bind          = fname_bind    & PARENTHESIZED(local_id & ARG_SEP & any_type);
+function_unicode       = fname_unicode & PARENTHESIZED(category_name & (ARG_SEP & category_name)*);
+function_uint          = fname_uint    & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
+function_sint          = fname_sint    & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
+function_float         = fname_float   & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
 
+padding                = expression;
 local_id               = identifier_restricted;
-any                    = condition | number | expression;
-variable               = (local_id | variable) & '.' & local_id;
+any_type               = condition | number | expression;
+variable               = local_id | variable & '.' & local_id;
 bit_count              = number;
+bit_granularity        = number;
 category_name          = ('A'~'Z') & ('a'~'z')?;
 
 condition              = comparison | logical_op;
 logical_op             = logical_or | logical_op_and_not;
 logical_op_and_not     = logical_and | logical_op_not;
-logical_op_not         = logical_not | condition | grouped(condition);
+logical_op_not         = logical_not | maybe_grouped(condition);
 comparison             = number & TOKEN_SEP & comparator & TOKEN_SEP & number;
 comparator             = "<" | "<=" | "=" | ">= | ">";
 logical_or             = condition & TOKEN_SEP & '|' & TOKEN_SEP & condition;
@@ -1235,19 +1214,25 @@ logical_not            = '!' & TOKEN_SEP & condition;
 
 number                 = calc_add | calc_sub | calc_mul_div;
 calc_mul_div           = calc_mul | calc_div | calc_mod | calc_val;
-calc_val               = number_literal | variable | number | grouped(number);
+calc_val               = number_literal | variable | maybe_grouped(number);
 calc_add               = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
 calc_sub               = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
 calc_mul               = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_val;
 calc_div               = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_val;
 calc_mod               = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_val;
 
-grouped(item)          = '(' & TOKEN_SEP & item & TOKEN_SEP & ')';
-maybe_ranged(item)     = item | (item? & TOKEN_SEP & '~' & TOKEN_SEP & item?);
+grouped(item)          = PARENTHESIZED(item);
+ranged(item)           = (item & TOKEN_SEP)? & '~' & (TOKEN_SEP & item)?;
+maybe_grouped(item)    = item | grouped(item);
+maybe_ranged(item)     = item | ranged(item);
 
 number_literal         = int_literal_bin | int_literal_oct | real_literal_dec | real_literal_hex;
-real_literal_dec       = neg? digit_dec+ & ('.' & digit_dec+ & (('e' | 'E') ('+' | '-')? & digit_dec+)?)?;
-real_literal_hex       = neg? & '0' & ('x' | 'X') & digit_hex+ & ('.' & digit_hex+ & (('p' | 'P') & ('+' | '-')? & digit_dec+)?)?;
+real_literal_dec       = neg? digit_dec+
+                       & ('.' & digit_dec+ & (('e' | 'E') ('+' | '-')? & digit_dec+)?)?
+                       ;
+real_literal_hex       = neg? & '0' & ('x' | 'X') & digit_hex+
+                       & ('.' & digit_hex+ & (('p' | 'P') & ('+' | '-')? & digit_dec+)?)?
+                       ;
 int_literal_bin        = neg? & '0' & ('b' | 'B') & digit_bin+;
 int_literal_oct        = neg? & '0' & ('o' | 'O') & digit_oct+;
 neg                    = '-';
@@ -1258,12 +1243,12 @@ identifier_firstchar   = unicode(L,M);
 identifier_nextchar    = identifier_firstchar | unicode(N) | '_';
 reserved_identifiers   = fname_sized
                        | fname_aligned
+                       | fname_swapped
                        | fname_when
                        | fname_bind
                        | fname_uint
                        | fname_sint
                        | fname_float
-                       | fname_swapped
                        ;
 
 fname_sized            = "sized";
@@ -1285,6 +1270,7 @@ digit_bin              = ('0'~'9') | ('a'~'f') | ('A'~'F');
 
 comment                = '#' & (printable_ws ! LINE_END)* & LINE_END;
 
+PARENTHESIZED(expr)    = '(' & TOKEN_SEP expr TOKEN_SEP & ')';
 ARG_SEP                = TOKEN_SEP & ',' & TOKEN_SEP;
 TOKEN_SEP              = MAYBE_WSLC;
 
