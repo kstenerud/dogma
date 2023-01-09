@@ -43,16 +43,6 @@ Contents
     - [Symbols](#symbols)
     - [Macros](#macros)
     - [Functions](#functions)
-  - [Builtin Functions](#builtin-functions)
-    - [`sized` Function](#sized-function)
-    - [`aligned` Function](#aligned-function)
-    - [`swapped` Function](#swapped-function)
-    - [`when` Function](#when-function)
-    - [`bind` Function](#bind-function)
-    - [`unicode` Function](#unicode-function)
-    - [`uint` Function](#uint-function)
-    - [`sint` Function](#sint-function)
-    - [`float` Function](#float-function)
   - [Variables](#variables)
   - [Types](#types)
     - [Identifier](#identifier)
@@ -74,6 +64,16 @@ Contents
   - [Conditions](#conditions)
   - [Ranges](#ranges)
   - [Comments](#comments)
+  - [Builtin Functions](#builtin-functions)
+    - [`sized` Function](#sized-function)
+    - [`aligned` Function](#aligned-function)
+    - [`swapped` Function](#swapped-function)
+    - [`when` Function](#when-function)
+    - [`bind` Function](#bind-function)
+    - [`unicode` Function](#unicode-function)
+    - [`uint` Function](#uint-function)
+    - [`sint` Function](#sint-function)
+    - [`float` Function](#float-function)
   - [Examples](#examples)
     - [A Complex Example](#a-complex-example)
     - [Example: Internet Protocol version 4](#example-internet-protocol-version-4)
@@ -337,217 +337,6 @@ record              = iso8601 & ':' & temperature;
 iso8601: expression = """https://en.wikipedia.org/wiki/ISO_8601""";
 temperature         = digit+ & ('.' & digit+)?;
 digit               = '0'~'9';
-```
-
-
-
-Builtin Functions
------------------
-
-KBNF comes with some fundamental functions built-in:
-
-### `sized` Function
-
-The `sized` function requires `expr` to produce exactly `bit_count` bits. Expressions containing [repetition](#repetition) that would have matched on their own are no longer sufficient until the production fills exactly `bit_count` bits.
-
-```kbnf
-sized(bit_count: unsigned, expr: expression): expression
-```
-
-**Example**: A name field must contain exactly 200 bytes worth of character data, padded with spaces as needed.
-
-```kbnf
-name_field = sized(200*8, unicode(L,M,N,P,Zs)* & ' '*);
-```
-
-Technically, the `& ' '*` part is superfluous since Unicode category `Zs` already includes space, but it helps readability to highlight how to pad the field. One could even be more explicit:
-
-```kbnf
-name_field = sized(200*8,
-                      unicode(L,M,N,P,Zs)*
-                      # padded with spaces
-                      & ' '*
-                  );
-```
-
-**Example**: The "records" section can contain any number of length-delimited records, but must be exactly 1024 bytes long. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload - essentially a zero byte).
-
-```kbnf
-record_section     = sized(1024*8, record* & zero_length_record*);
-record             = byte(bind(length,~)) & byte(~){length};
-zero_length_record = byte(0);
-byte(v)            = uint(8,v);
-```
-
-### `aligned` Function
-
-The `aligned` function requires a production that is a multiple of `bit_count`. If `expr` doesn't produce this, the `padding` expression is used in the same manner as the [`sized` function](#sized-function) to ensure a production of the appropriate size.
-
-```kbnf
-aligned(bit_count: unsigned, expr: expression, padding: expression): expression
-```
-
-**Example**: The "records" section can contain any number of length-delimited records, but must end on a 32-bit boundary. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload - essentially a zero byte).
-
-```kbnf
-record_section     = aligned(32, record*, zero_length_record*);
-record             = byte(bind(length,~)) & byte(~){length};
-zero_length_record = byte(0);
-byte(v)            = uint(8, v);
-```
-
-
-### `swapped` Function
-
-The `swapped` function swaps the order of `expr`'s bits with a granularity of `bit_granularity`. This is useful for matching little endian values, for example.
-
-`expr` must resolve to a multiple of `bit_granularity` bits, otherwise the grammar is malformed.
-
-```kbnf
-swapped(bit_granularity: unsigned, expr: expression): expression
-```
-
-**Example**: A document begins with a 32-bit little endian unsigned int version field, followed by the contents. Only version 5 documents are supported.
-
-```kbnf
-document  = version_5 & contents;
-version_5 = swapped(8, uint(32, 5));
-contents  = ...
-```
-
-**Example**: A header begins with a 16-bit unsigned int identifier that is actually bit-swapped, followed by contents based on the identifier.
-
-```kbnf
-header               = bitswapped_uint16(bind(identifier, ~)) & contents(identifier);
-bitswapped_uint16(v) = swapped(1, uint(16, v));
-contents(identifier) = when(identifier = 1, type_1)
-                     | when(identifier = 2, type_2)
-                     ;
-type_1               = ...
-type_2               = ...
-```
-
-
-### `when` Function
-
-The `when` function allows `expr` only when the given [condition](#conditions) is true.
-
-```kbnf
-when(cond: condition, expr: expression): expression
-```
-
-**Example**: The extensions section contains 32 extension slots. Each extension starts with a 1-byte type field, followed by a 24-bit big endian field containing the length of the payload. Valid payload types are 1, 2, or 3 (payload type 0 is a dummy type meaning "no extension", so the length field is ignored and there is no payload data). The same extension type can be used multiple times.
-
-```kbnf
-extensions          = extension{32};
-extension           = uint(8,bind(type,0~3)) & uint(24,bind(length,~))
-                    & ( when(type = 1, extension_1(length))
-                      | when(type = 2, extension_2(length))
-                      | when(type = 3, extension_3(length))
-                      # When type is 0, no extension and length is ignored
-                      )
-                    ;
-extension_1(length) = ...
-extension_2(length) = ...
-extension_3(length) = ...
-```
-
-### `bind` Function
-
-The `bind` function binds the resolved value (the actual value once this part of the expression has been matched) of whatever it surrounds to a local variable for subsequent re-use in the current rule. `bind` transparently passes through whatever it captures, meaning that the context around the `bind` call behaves as though only what the `bind` function surrounded is present. This allows a sequence to be produced as normal, while also allowing the resolved value to be used again later in the rule.
-
-`bind` can capture [expression](#expressions) and [number](#numbers) types.
-
-```kbnf
-bind(variable_name: identifier, value: expression | number): expression | number
-```
-
-**Example**: Match "abc/abc", "fred/fred" etc.
-
-```kbnf
-sequence = bind(repeating_value,('a'~'z')+) & '/' & repeating_value;
-```
-
-**Example**: BASH "here" document: Bind the variable "terminator" to whatever follows the "<<" until the next linefeed. The here-document contents continue until the terminator value is encountered again.
-
-```kbnf
-here_document             = "<<" & bind(terminator, NOT_LF+) & LF & here_contents(terminator) & terminator;
-here_contents(terminator) = ANY_CHAR* ! terminator;
-ANY_CHAR                  = ~;
-LF                        = '\{a}';
-NOT_LF                    = ANY_CHAR ! LF;
-```
-
-**Example**: Interpret the next 16 bits as a big endian unsigned int and bind the resolved number to "length". That many following bytes make up the record contents.
-
-```kbnf
-length_delimited_record = uint16(bind(length, ~)) & record_contents(length);
-record_contents(length) = byte(~){length};
-uint16(v)               = uint(16, v);
-byte(v)                 = uint(8, v);
-```
-
-### `unicode` Function
-
-The `unicode` function creates an expression containing the [alternatives](#alternative) set of all Unicode codepoints that have any of the given [Unicode categories](https://unicode.org/glossary/#general_category).
-
-```kbnf
-unicode(c: category (ARG_SEP c: category)*): expression
-category = """https://unicode.org/glossary/#general_category""";
-```
-
-**Example**: Allow letter, numeral, and space characters.
-
-```kbnf
-letter_digit_space = unicode(N,L,Zs);
-```
-
-### `uint` Function
-
-The `uint` function creates an expression that matches the given [range](#ranges) of big endian unsigned integers with the given number of bits.
-
-A `bit_count` of 0 causes the function to create an expression for the minimum number of bits required to represent the value. This is useful for passing to encoding functions for arbitrarily large numbers such as [ULEB](https://en.wikipedia.org/wiki/LEB128).
-
-```kbnf
-uint(bit_count: unsigned, value: unsigned): expression
-```
-
-**Example**: The length field is a 16-bit unsigned integer value.
-
-```kbnf
-length = uint(16, ~);
-```
-
-
-### `sint` Function
-
-The `sint` function creates an expression that matches the given [range](#ranges) of big endian two's complement signed integers with the given number of bits.
-
-A `bit_count` of 0 causes the function to create an expression for the minimum number of bits required to represent the value. This is useful for passing to encoding functions for arbitrarily large numbers such as [ULEB](https://en.wikipedia.org/wiki/LEB128).
-
-```kbnf
-sint(bit_count: unsigned, value: signed): expression
-```
-
-**Example**: The points field is a 16-bit signed integer value from -10000 to 10000.
-
-```kbnf
-points = sint(32, -10000~10000);
-```
-
-
-### `float` Function
-
-The `float` function creates an expression that matches the given [range](#ranges) of big endian [ieee754 binary floating point](https://en.wikipedia.org/wiki/IEEE_754) values with the given number of bits (which must be a valid number of bits for [ieee754 binary](https://en.wikipedia.org/wiki/IEEE_754)).
-
-```kbnf
-float(bit_count: unsigned, value: real): expression
-```
-
-**Example**: The temperature field is a 32-bit float value from -1000 to 1000.
-
-```kbnf
-rpm = float(32, -1000~1000);
 ```
 
 
@@ -1051,6 +840,217 @@ myrule # comment
  myexpression # comment
  ; # comment
 # comment
+```
+
+
+
+Builtin Functions
+-----------------
+
+KBNF comes with some fundamental functions built-in:
+
+### `sized` Function
+
+The `sized` function requires `expr` to produce exactly `bit_count` bits. Expressions containing [repetition](#repetition) that would have matched on their own are no longer sufficient until the production fills exactly `bit_count` bits.
+
+```kbnf
+sized(bit_count: unsigned, expr: expression): expression
+```
+
+**Example**: A name field must contain exactly 200 bytes worth of character data, padded with spaces as needed.
+
+```kbnf
+name_field = sized(200*8, unicode(L,M,N,P,Zs)* & ' '*);
+```
+
+Technically, the `& ' '*` part is superfluous since Unicode category `Zs` already includes space, but it helps readability to highlight how to pad the field. One could even be more explicit:
+
+```kbnf
+name_field = sized(200*8,
+                      unicode(L,M,N,P,Zs)*
+                      # padded with spaces
+                      & ' '*
+                  );
+```
+
+**Example**: The "records" section can contain any number of length-delimited records, but must be exactly 1024 bytes long. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload - essentially a zero byte).
+
+```kbnf
+record_section     = sized(1024*8, record* & zero_length_record*);
+record             = byte(bind(length,~)) & byte(~){length};
+zero_length_record = byte(0);
+byte(v)            = uint(8,v);
+```
+
+### `aligned` Function
+
+The `aligned` function requires a production that is a multiple of `bit_count`. If `expr` doesn't produce this, the `padding` expression is used in the same manner as the [`sized` function](#sized-function) to ensure a production of the appropriate size.
+
+```kbnf
+aligned(bit_count: unsigned, expr: expression, padding: expression): expression
+```
+
+**Example**: The "records" section can contain any number of length-delimited records, but must end on a 32-bit boundary. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload - essentially a zero byte).
+
+```kbnf
+record_section     = aligned(32, record*, zero_length_record*);
+record             = byte(bind(length,~)) & byte(~){length};
+zero_length_record = byte(0);
+byte(v)            = uint(8, v);
+```
+
+
+### `swapped` Function
+
+The `swapped` function swaps the order of `expr`'s bits with a granularity of `bit_granularity`. This is useful for matching little endian values, for example.
+
+`expr` must resolve to a multiple of `bit_granularity` bits, otherwise the grammar is malformed.
+
+```kbnf
+swapped(bit_granularity: unsigned, expr: expression): expression
+```
+
+**Example**: A document begins with a 32-bit little endian unsigned int version field, followed by the contents. Only version 5 documents are supported.
+
+```kbnf
+document  = version_5 & contents;
+version_5 = swapped(8, uint(32, 5));
+contents  = ...
+```
+
+**Example**: A header begins with a 16-bit unsigned int identifier that is actually bit-swapped, followed by contents based on the identifier.
+
+```kbnf
+header               = bitswapped_uint16(bind(identifier, ~)) & contents(identifier);
+bitswapped_uint16(v) = swapped(1, uint(16, v));
+contents(identifier) = when(identifier = 1, type_1)
+                     | when(identifier = 2, type_2)
+                     ;
+type_1               = ...
+type_2               = ...
+```
+
+
+### `when` Function
+
+The `when` function allows `expr` only when the given [condition](#conditions) is true.
+
+```kbnf
+when(cond: condition, expr: expression): expression
+```
+
+**Example**: The extensions section contains 32 extension slots. Each extension starts with a 1-byte type field, followed by a 24-bit big endian field containing the length of the payload. Valid payload types are 1, 2, or 3 (payload type 0 is a dummy type meaning "no extension", so the length field is ignored and there is no payload data). The same extension type can be used multiple times.
+
+```kbnf
+extensions          = extension{32};
+extension           = uint(8,bind(type,0~3)) & uint(24,bind(length,~))
+                    & ( when(type = 1, extension_1(length))
+                      | when(type = 2, extension_2(length))
+                      | when(type = 3, extension_3(length))
+                      # When type is 0, no extension and length is ignored
+                      )
+                    ;
+extension_1(length) = ...
+extension_2(length) = ...
+extension_3(length) = ...
+```
+
+### `bind` Function
+
+The `bind` function binds the resolved value (the actual value once this part of the expression has been matched) of whatever it surrounds to a local variable for subsequent re-use in the current rule. `bind` transparently passes through whatever it captures, meaning that the context around the `bind` call behaves as though only what the `bind` function surrounded is present. This allows a sequence to be produced as normal, while also allowing the resolved value to be used again later in the rule.
+
+`bind` can capture [expression](#expressions) and [number](#numbers) types.
+
+```kbnf
+bind(variable_name: identifier, value: expression | number): expression | number
+```
+
+**Example**: Match "abc/abc", "fred/fred" etc.
+
+```kbnf
+sequence = bind(repeating_value,('a'~'z')+) & '/' & repeating_value;
+```
+
+**Example**: BASH "here" document: Bind the variable "terminator" to whatever follows the "<<" until the next linefeed. The here-document contents continue until the terminator value is encountered again.
+
+```kbnf
+here_document             = "<<" & bind(terminator, NOT_LF+) & LF & here_contents(terminator) & terminator;
+here_contents(terminator) = ANY_CHAR* ! terminator;
+ANY_CHAR                  = ~;
+LF                        = '\{a}';
+NOT_LF                    = ANY_CHAR ! LF;
+```
+
+**Example**: Interpret the next 16 bits as a big endian unsigned int and bind the resolved number to "length". That many following bytes make up the record contents.
+
+```kbnf
+length_delimited_record = uint16(bind(length, ~)) & record_contents(length);
+record_contents(length) = byte(~){length};
+uint16(v)               = uint(16, v);
+byte(v)                 = uint(8, v);
+```
+
+### `unicode` Function
+
+The `unicode` function creates an expression containing the [alternatives](#alternative) set of all Unicode codepoints that have any of the given [Unicode categories](https://unicode.org/glossary/#general_category).
+
+```kbnf
+unicode(c: category (ARG_SEP c: category)*): expression
+category = """https://unicode.org/glossary/#general_category""";
+```
+
+**Example**: Allow letter, numeral, and space characters.
+
+```kbnf
+letter_digit_space = unicode(N,L,Zs);
+```
+
+### `uint` Function
+
+The `uint` function creates an expression that matches the given [range](#ranges) of big endian unsigned integers with the given number of bits.
+
+A `bit_count` of 0 causes the function to create an expression for the minimum number of bits required to represent the value. This is useful for passing to encoding functions for arbitrarily large numbers such as [ULEB](https://en.wikipedia.org/wiki/LEB128).
+
+```kbnf
+uint(bit_count: unsigned, value: unsigned): expression
+```
+
+**Example**: The length field is a 16-bit unsigned integer value.
+
+```kbnf
+length = uint(16, ~);
+```
+
+
+### `sint` Function
+
+The `sint` function creates an expression that matches the given [range](#ranges) of big endian two's complement signed integers with the given number of bits.
+
+A `bit_count` of 0 causes the function to create an expression for the minimum number of bits required to represent the value. This is useful for passing to encoding functions for arbitrarily large numbers such as [ULEB](https://en.wikipedia.org/wiki/LEB128).
+
+```kbnf
+sint(bit_count: unsigned, value: signed): expression
+```
+
+**Example**: The points field is a 16-bit signed integer value from -10000 to 10000.
+
+```kbnf
+points = sint(32, -10000~10000);
+```
+
+
+### `float` Function
+
+The `float` function creates an expression that matches the given [range](#ranges) of big endian [ieee754 binary floating point](https://en.wikipedia.org/wiki/IEEE_754) values with the given number of bits (which must be a valid number of bits for [ieee754 binary](https://en.wikipedia.org/wiki/IEEE_754)).
+
+```kbnf
+float(bit_count: unsigned, value: real): expression
+```
+
+**Example**: The temperature field is a 32-bit float value from -1000 to 1000.
+
+```kbnf
+rpm = float(32, -1000~1000);
 ```
 
 
