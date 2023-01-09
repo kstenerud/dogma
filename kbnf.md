@@ -102,12 +102,12 @@ Binary grammars have different needs from textual grammars, and require special 
 
 Not everything can be accurately described by a real-world grammar, but we can get pretty close. The following features bring KBNF to the point where it can describe most of what's out there unambiguously:
 
-* **Repetition**: Any expression can have repetition applied to it, for a specific number of occurrences, or a range of occurrences.
+* **Repetition**: Any expression can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
 * **Bindings**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. KBNF supports assigning decoded values to variables.
 * **Exclusion**: Sometimes it's easier to express something as "everything except for ...".
 * **Prose**: In many cases, the actual encoding of something is already well-known and specified elsewhere, or is too complex for KBNF to describe adequately. Prose offers a free-form way to describe part of a grammar.
 * **Grouping**: Grouping expressions together is an obvious convenince that most other BNF offshoots have already adopted.
-* **Explicit Terminator**: Having an explicit terminator character (not linefeed) makes it easier for a human to find the end of a rule, and makes it easier to format the document in an aesthetically pleasing manner.
+* **Whitespace not significant**: Many BNF notations (including the original BNF) assign meaning to whitespace (for example: whitespace as concatenation, or linefeeds to mark the end of a rule). This is bad from a UX perspective because it makes things harder for a human to parse in many circumstances, and reduces the ways in which a rule can be expressed over multiple lines.
 
 ### Character set support
 
@@ -117,7 +117,9 @@ KBNF can be used with any character set, and requires the character set to be sp
 
 ### Codepoints as first-class citizens
 
-Codepoints beyond the ASCII range must be directly inputtable into a grammar document. Difficult codepoints must be supported as well (via escape sequences). Unicode categories must be supported.
+* Codepoints beyond the ASCII range can be directly input into a grammar document.
+* Difficult codepoints are supported via [escape sequences](#escape-sequence).
+* [Unicode categories](https://unicode.org/glossary/#general_category) are supported.
 
 ### Future proof
 
@@ -139,7 +141,11 @@ Bit Ordering
 
 All sequences of bits (i.e. all [expressions](#expressions)) are assumed to be in big endian bit order (higher bits come first), and if necessary can be swapped at any granularity using the [`swapped` function](#swapped-function).
 
-For example, the expression `uint(3,6) & uint(13,0x1f)` matches the bit sequence 1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1 (or the big endian 16-bit unsigned integer 0xc01f).
+**For example**:
+
+* `uint(3,6) & uint(13,0x1f)` matches bit sequence 1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1 (big endian 16-bit unsigned integer 0xc01f).
+* `swapped(8, uint(3,6) & uint(13,0x1f))` matches bit sequence 0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0 (little endian 16-bit unsigned integer 0xc01f).
+* `swapped(1, uint(3,6) & uint(13,0x1f))` matches bit sequence 1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1 (bit-swapped 16-bit unsigned integer 0xc01f).
 
 
 
@@ -151,6 +157,7 @@ A KBNF grammar document begins with a [header section](#document-header), follow
 ```kbnf
 document = document_header (MAYBE_WSLC rule)+;
 ```
+
 
 ### Document Header
 
@@ -180,6 +187,7 @@ The following headers are officially recognized (all others are allowed, but are
 
 * `identifier`: A unique identifier for the grammar being described. It's customary to append a version number to the identifier.
 * `description`: A brief, one-line description of the grammar.
+* `kbnf_specification`: A pointer to the KBNF specification as a courtesy to anyone reading the document.
 
 **Example**: A UTF-8 KBNF grammar called "mygrammar_v1".
 
@@ -187,6 +195,7 @@ The following headers are officially recognized (all others are allowed, but are
 kbnf_v1 utf-8
 - identifier  = mygrammar_v1
 - description = My first grammar, version 1
+- kbnf_specification = https://github.com/kstenerud/kbnf/blob/v1/kbnf.md
 
 document = "a"; # Yeah, this grammar doesn't do much...
 ```
@@ -207,6 +216,8 @@ rule = (symbol | macro) & TOKEN_SEP & '=' & TOKEN_SEP & production & TOKEN_SEP &
 The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their names share the global namespace, and must be unique (they are case sensitive).
 
 The first rule listed in the document is assumed to be the start rule, and therefore must define a [symbol](#symbols).
+
+**Note**: Whitespace in a KBNF rule is only used to separate tokens and for visual layout purposes. It does not imply any semantic meaning.
 
 
 ### Symbols
@@ -248,7 +259,7 @@ macro = identifier_restricted
       ;
 ```
 
-When called, a macro substitutes the passed in parameters and proceeds like a normal rule would (the grammar is malformed if a macro is called with incompatible types).
+When called, a macro substitutes the passed-in parameters and proceeds like a normal rule would (the grammar is malformed if a macro is called with incompatible types).
 
 ```kbnf
 call       = identifier_any
@@ -299,7 +310,7 @@ payload_contents(protocol)   = when(protocol = 0, protocol_hopopt)
 
 ### Functions
 
-Functions behave similarly to macros, except that they are opaque: Whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions), or is user-defined in [prose](#prose) (either as a description, or as a URL pointing to a description).
+Functions behave similarly to macros, except that they are opaque: whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions), or is user-defined in [prose](#prose) (either as a description, or as a URL pointing to a description).
 
 Functions must specify the [types](#types) of all parameters and its return value (since the function is opaque, its types cannot be inferred like for macros, and therefore must be specified). If a function is called with the wrong types, the grammar is malformed.
 
