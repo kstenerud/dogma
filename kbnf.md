@@ -436,16 +436,16 @@ Certain functions take number parameters but restrict the allowed values (e.g. i
 Numbers can be expressed as number literals (in binary, octal, decimal, hexadecimal notation for integers, and in decimal or hexadecimal notation for reals), or derived from [functions](#functions), [macros](#macros), and [calculations](#calculations).
 
 ```kbnf
-number_literal   = int_literal_bin | int_literal_oct | real_literal_dec | real_literal_hex;
-real_literal_dec = neg? digit_dec+
-                 & ('.' & digit_dec+ & (('e' | 'E') ('+' | '-')? & digit_dec+)?)?
-                 ;
-real_literal_hex = neg? & '0' & ('x' | 'X') & digit_hex+
-                 & ('.' & digit_hex+ & (('p' | 'P') & ('+' | '-')? & digit_dec+)?)?
-                 ;
-int_literal_bin  = neg? & '0' & ('b' | 'B') & digit_bin+;
-int_literal_oct  = neg? & '0' & ('o' | 'O') & digit_oct+;
-neg              = '-';
+number_literal       = int_literal_bin | int_literal_oct | int_real_literal_dec | int_real_literal_hex;
+int_real_literal_dec = neg? digit_dec+
+                     & ('.' & digit_dec+ & (('e' | 'E') ('+' | '-')? & digit_dec+)?)?
+                     ;
+int_real_literal_hex = neg? & '0' & ('x' | 'X') & digit_hex+
+                     & ('.' & digit_hex+ & (('p' | 'P') & ('+' | '-')? & digit_dec+)?)?
+                     ;
+int_literal_bin      = neg? & '0' & ('b' | 'B') & digit_bin+;
+int_literal_oct      = neg? & '0' & ('o' | 'O') & digit_oct+;
+neg                  = '-';
 ```
 
 
@@ -1189,7 +1189,7 @@ function_aligned       = fname_aligned & PARENTHESIZED(bit_count & ARG_SEP & exp
 function_swapped       = fname_swapped & PARENTHESIZED(bit_granularity & ARG_SEP & expression);
 function_when          = fname_when    & PARENTHESIZED(condition & ARG_SEP & any_type);
 function_bind          = fname_bind    & PARENTHESIZED(local_id & ARG_SEP & any_type);
-function_unicode       = fname_unicode & PARENTHESIZED(category_name & (ARG_SEP & category_name)*);
+function_unicode       = fname_unicode & PARENTHESIZED(unicode_category & (ARG_SEP & unicode_category)*);
 function_uint          = fname_uint    & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
 function_sint          = fname_sint    & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
 function_float         = fname_float   & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
@@ -1200,11 +1200,11 @@ any_type               = condition | number | expression;
 variable               = local_id | variable & '.' & local_id;
 bit_count              = number;
 bit_granularity        = number;
-category_name          = ('A'~'Z') & ('a'~'z')?;
+unicode_category       = ('A'~'Z') & ('a'~'z')?;
 
-condition              = comparison | logical_op;
-logical_op             = logical_or | logical_op_and_not;
-logical_op_and_not     = logical_and | logical_op_not;
+condition              = comparison | logical_ops;
+logical_ops            = logical_or | logical_ops_and_not;
+logical_ops_and_not    = logical_and | logical_op_not;
 logical_op_not         = logical_not | maybe_grouped(condition);
 comparison             = number & TOKEN_SEP & comparator & TOKEN_SEP & number;
 comparator             = "<" | "<=" | "=" | ">= | ">";
@@ -1226,11 +1226,11 @@ ranged(item)           = (item & TOKEN_SEP)? & '~' & (TOKEN_SEP & item)?;
 maybe_grouped(item)    = item | grouped(item);
 maybe_ranged(item)     = item | ranged(item);
 
-number_literal         = int_literal_bin | int_literal_oct | real_literal_dec | real_literal_hex;
-real_literal_dec       = neg? digit_dec+
+number_literal         = int_literal_bin | int_literal_oct | int_real_literal_dec | int_real_literal_hex;
+int_real_literal_dec   = neg? digit_dec+
                        & ('.' & digit_dec+ & (('e' | 'E') ('+' | '-')? & digit_dec+)?)?
                        ;
-real_literal_hex       = neg? & '0' & ('x' | 'X') & digit_hex+
+int_real_literal_hex   = neg? & '0' & ('x' | 'X') & digit_hex+
                        & ('.' & digit_hex+ & (('p' | 'P') & ('+' | '-')? & digit_dec+)?)?
                        ;
 int_literal_bin        = neg? & '0' & ('b' | 'B') & digit_bin+;
@@ -1268,9 +1268,9 @@ digit_oct              = '0'~'7';
 digit_dec              = '0'~'9';
 digit_bin              = ('0'~'9') | ('a'~'f') | ('A'~'F');
 
-comment                = '#' & (printable_ws ! LINE_END)* & LINE_END;
+comment                = '#' & printable_ws* & LINE_END;
 
-PARENTHESIZED(expr)    = '(' & TOKEN_SEP expr TOKEN_SEP & ')';
+PARENTHESIZED(item)    = '(' & TOKEN_SEP item TOKEN_SEP & ')';
 ARG_SEP                = TOKEN_SEP & ',' & TOKEN_SEP;
 TOKEN_SEP              = MAYBE_WSLC;
 
