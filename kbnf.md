@@ -1195,12 +1195,13 @@ function_sint          = fname_sint    & PARENTHESIZED(bit_count & ARG_SEP & may
 function_float         = fname_float   & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
 
 padding                = expression;
-local_id               = identifier_restricted;
-any_type               = condition | number | expression;
-variable               = local_id | variable & '.' & local_id;
 bit_count              = number;
 bit_granularity        = number;
 unicode_category       = ('A'~'Z') & ('a'~'z')?;
+any_type               = condition | number | expression;
+
+variable               = local_id | variable & '.' & local_id;
+local_id               = identifier_restricted;
 
 condition              = comparison | logical_ops;
 logical_ops            = logical_or | logical_ops_and_not;
