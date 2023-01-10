@@ -30,7 +30,7 @@ Contents
   - [Contents](#contents)
   - [Design Objectives](#design-objectives)
     - [Human readability](#human-readability)
-    - [Support for binary grammars](#support-for-binary-grammars)
+    - [Binary grammar support](#binary-grammar-support)
     - [Better expressivity](#better-expressivity)
     - [Character set support](#character-set-support)
     - [Codepoints as first-class citizens](#codepoints-as-first-class-citizens)
@@ -90,7 +90,7 @@ Design Objectives
 
 The main purpose of KBNF is to describe text and binary grammars in a concise, unambiguous, human readable way. The use case is describing data formats in documentation.
 
-### Support for binary grammars
+### Binary grammar support
 
 Binary grammars have different needs from textual grammars, and require special support:
 
