@@ -35,8 +35,10 @@ Contents
     - [Character set support](#character-set-support)
     - [Codepoints as first-class citizens](#codepoints-as-first-class-citizens)
     - [Future proof](#future-proof)
-  - [About the Descriptions and Examples](#about-the-descriptions-and-examples)
-  - [Bit Ordering](#bit-ordering)
+  - [Forward Notes](#forward-notes)
+    - [About the Descriptions and Examples](#about-the-descriptions-and-examples)
+    - [Bit Ordering](#bit-ordering)
+    - [Greedy vs Non-Greedy](#greedy-vs-non-greedy)
   - [Grammar Document](#grammar-document)
     - [Document Header](#document-header)
   - [Production Rules](#production-rules)
@@ -129,15 +131,15 @@ KBNF documents are versioned to a particular KBNF specification so that changes 
 
 
 
-About the Descriptions and Examples
------------------------------------
+Forward Notes
+-------------
+
+### About the Descriptions and Examples
 
 Descriptions and examples will usually include some KBNF notation. When in doubt, please see the [full KBNF grammar at the end of this document](#the-kbnf-grammar-in-kbnf).
 
 
-
-Bit Ordering
-------------
+### Bit Ordering
 
 All sequences of bits (i.e. all [expressions](#expressions)) are assumed to be in big endian bit order (higher bits come first), and if necessary can be swapped at any granularity using the [`swapped` function](#swapped-function).
 
@@ -146,6 +148,22 @@ All sequences of bits (i.e. all [expressions](#expressions)) are assumed to be i
 * `uint(16,0xc01f)` matches big endian 0xc01f (bit sequence 1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1).
 * `swapped(8, uint(16,0xc01f))` matches little endian 0xc01f (bit sequence 0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0).
 * `swapped(1, uint(16,0xc01f))` matches bit-swapped 0xc01f (bit sequence 1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1).
+
+
+### Greedy vs Non-Greedy
+
+All expression matching is assumed to be non-greedy.
+
+For example, given the following grammar:
+
+```kbnf
+document  = record+;
+record    = letter+ & terminator;
+letter    = 'a'~'z';
+terminaor = "zzz";
+```
+
+The document `azzzbzzz3zzz` contains 3 records (`a`, `b`, and `c`), not one (`azzzbzzz3`).
 
 
 
