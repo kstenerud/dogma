@@ -705,21 +705,25 @@ The following operations can be used:
 * Multiply (`*`)
 * Divide (`/`)
 * Modulus (`%`)
+* Power (`^`, where `x^y` means x to the power of y)
 
 Operator precedence (low to high):
 
 * add, subtract
 * multiply, divide, modulus
+* power
 
 ```kbnf
 number       = calc_add | calc_sub | calc_mul_div;
-calc_mul_div = calc_mul | calc_div | calc_mod | calc_val;
+calc_mul_div = calc_mul | calc_div | calc_mod | calc_pow_val;
+calc_pow_val = calc_pow | calc_val;
 calc_val     = number_literal | variable | maybe_grouped(number);
 calc_add     = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
 calc_sub     = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
-calc_mul     = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_val;
-calc_div     = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_val;
-calc_mod     = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_val;
+calc_mul     = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_pow_val;
+calc_div     = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_pow_val;
+calc_mod     = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_pow_val;
+calc_pow     = calc_pow_val & TOKEN_SEP & '^' & TOKEN_SEP & calc_val;
 ```
 
 **Example**: A record begins with a 4-bit length field (length is in 32-bit increments) and 4-bit flags field containing (...), followed by the contents of the record.
@@ -1232,13 +1236,15 @@ logical_and            = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
 logical_not            = '!' & TOKEN_SEP & condition;
 
 number                 = calc_add | calc_sub | calc_mul_div;
-calc_mul_div           = calc_mul | calc_div | calc_mod | calc_val;
+calc_mul_div           = calc_mul | calc_div | calc_mod | calc_pow_val;
+calc_pow_val           = calc_pow | calc_val;
 calc_val               = number_literal | variable | maybe_grouped(number);
 calc_add               = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
 calc_sub               = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
-calc_mul               = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_val;
-calc_div               = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_val;
-calc_mod               = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_val;
+calc_mul               = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_pow_val;
+calc_div               = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_pow_val;
+calc_mod               = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_pow_val;
+calc_pow               = calc_pow_val & TOKEN_SEP & '^' & TOKEN_SEP & calc_val;
 
 grouped(item)          = PARENTHESIZED(item);
 ranged(item)           = (item & TOKEN_SEP)? & '~' & (TOKEN_SEP & item)?;
