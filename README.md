@@ -1,4 +1,4 @@
-Karl's Bachus-Naur Form
+Karl's Backus-Naur Form
 =======================
 
 Syntactic metalanguages have made mainly haphazard gains over the past 60 years, and still only describe text-based formats. KBNF is an attempt at a modernized metalanguage with better expressivity and binary support.
@@ -12,7 +12,7 @@ Design Objectives
 
 The main purpose of KBNF is to describe text and binary grammars in a concise, unambiguous, human readable way. The use case is describing data formats in documentation.
 
-### Support for binary grammars
+### Binary grammar support
 
 Binary grammars have different needs from textual grammars, and require special support:
 
@@ -26,12 +26,12 @@ Binary grammars have different needs from textual grammars, and require special 
 
 Not everything can be accurately described by a real-world grammar, but we can get pretty close. The following features bring KBNF to the point where it can describe most of what's out there unambiguously:
 
-* **Repetition**: Any expression can have repetition applied to it, for a specific number of occurrences, or a range of occurrences.
+* **Repetition**: Any expression can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
 * **Bindings**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. KBNF supports assigning decoded values to variables.
 * **Exclusion**: Sometimes it's easier to express something as "everything except for ...".
 * **Prose**: In many cases, the actual encoding of something is already well-known and specified elsewhere, or is too complex for KBNF to describe adequately. Prose offers a free-form way to describe part of a grammar.
 * **Grouping**: Grouping expressions together is an obvious convenince that most other BNF offshoots have already adopted.
-* **Explicit Terminator**: Having an explicit terminator character (not linefeed) makes it easier for a human to find the end of a rule, and makes it easier to format the document in an aesthetically pleasing manner.
+* **Whitespace not significant**: Many BNF notations (including the original BNF) assign meaning to whitespace (for example: whitespace as concatenation, or linefeeds to mark the end of a rule). This is bad from a UX perspective because it makes things harder for a human to parse in many circumstances, and reduces the ways in which a rule can be expressed over multiple lines.
 
 ### Character set support
 
@@ -41,7 +41,9 @@ KBNF can be used with any character set, and requires the character set to be sp
 
 ### Codepoints as first-class citizens
 
-Codepoints beyond the ASCII range must be directly inputtable into a grammar document. Difficult codepoints must be supported as well (via escape sequences). Unicode categories must be supported.
+* Codepoints beyond the ASCII range can be directly input into a grammar document.
+* Difficult codepoints are supported via [escape sequences](#escape-sequence).
+* [Unicode categories](https://unicode.org/glossary/#general_category) are supported.
 
 ### Future proof
 

@@ -1,4 +1,4 @@
-Karl's Bachus-Naur Form
+Karl's Backus-Naur Form
 =======================
 
 Version 1-prerelease
@@ -24,7 +24,7 @@ Syntactic metalanguages have made mainly haphazard gains over the past 60 years,
 Contents
 --------
 
-- [Karl's Bachus-Naur Form](#karls-bachus-naur-form)
+- [Karl's Backus-Naur Form](#karls-backus-naur-form)
   - [WORK IN PROGRESS](#work-in-progress)
   - [Introduction](#introduction)
   - [Contents](#contents)
@@ -142,6 +142,8 @@ Descriptions and examples will usually include some KBNF notation. When in doubt
 ### Bit Ordering
 
 All sequences of bits (i.e. all [expressions](#expressions)) are assumed to be in big endian bit order (higher bits come first), and if necessary can be swapped at any granularity using the [`swapped` function](#swapped-function).
+
+[Codepoints](#codepoints) follow the byte ordering of the character encoding scheme specified in the [document header](#document-header) (although per-byte bit ordering remains nominally big endian). Character sets with ambiguous byte ordering (such as `utf-16`) should generally be avoided in favor of those with explicit byte ordering (`utf-16be`, `utf-16le`).
 
 **For example**:
 
@@ -1117,7 +1119,7 @@ The KBNF Grammar in KBNF
 ```kbnf
 kbnf_v1 utf-8
 - identifier  = kbnf_v1
-- description = Karl's Bachus-Naur Form, version 1
+- description = Karl's Backus-Naur Form, version 1
 
 document               = document_header & (MAYBE_WSLC & rule)+;
 
