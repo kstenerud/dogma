@@ -38,7 +38,7 @@ Contents
   - [Forward Notes](#forward-notes)
     - [About the Descriptions and Examples](#about-the-descriptions-and-examples)
     - [Bit Ordering](#bit-ordering)
-    - [Greedy vs Non-Greedy](#greedy-vs-non-greedy)
+    - [Non-Greedy](#non-greedy)
   - [Grammar Document](#grammar-document)
     - [Document Header](#document-header)
   - [Production Rules](#production-rules)
@@ -150,7 +150,7 @@ All sequences of bits (i.e. all [expressions](#expressions)) are assumed to be i
 * `swapped(1, uint(16,0xc01f))` matches bit-swapped 0xc01f (bit sequence 1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1).
 
 
-### Greedy vs Non-Greedy
+### Non-Greedy
 
 All expression matching is assumed to be non-greedy.
 
@@ -163,7 +163,7 @@ letter    = 'a'~'z';
 terminaor = "zzz";
 ```
 
-The document `azzzbzzz3zzz` contains 3 records (`a`, `b`, and `c`), not one (`azzzbzzz3`).
+The document `azzzbzzzczzz` contains 3 records (`a`, `b`, and `c`), not one record (`azzzbzzzc`).
 
 
 
