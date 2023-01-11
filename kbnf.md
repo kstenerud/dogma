@@ -1185,8 +1185,8 @@ repeat_zero_or_one     = expression & '?';
 repeat_zero_or_more    = expression & '*';
 repeat_one_or_more     = expression & '+';
 
-prose                  = '"""' & (maybe_escaped(printable_wsl)+ ! '"""') & '"""'
-                       | "'''" & (maybe_escaped(printable_wsl)+ ! "'''") & "'''"
+prose                  = '"""' & maybe_escaped(printable_wsl)+ & '"""'
+                       | "'''" & maybe_escaped(printable_wsl)+ & "'''"
                        ;
 codepoint_literal      = '"' & maybe_escaped(printable_ws ! '"'){1} & '"'
                        | "'" & maybe_escaped(printable_ws ! "'"){1} & "'"
