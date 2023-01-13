@@ -266,7 +266,7 @@ reserved_identifiers  = "sized" | "aligned" | "swapped" | "when" | "bind" | "uin
 記録		= 会社名 & "：：" & 従業員数 & LF;
 会社名		= unicode(L,M) & unicode(L,M,N,P,S,Zs)* ! "：：";
 従業員数		= '１'~'９' & '０'~'９'* & '万'?;
-LF		= '\{a}';
+LF		= '\[a]';
 ```
 
 Or if you prefer, the same thing with English symbol names:
@@ -275,7 +275,7 @@ Or if you prefer, the same thing with English symbol names:
 record         = company_name & "：：" & employee_count & LF;
 company_name   = unicode(L,M) & unicode(L,M,N,P,S,Zs)* ! "：：";
 employee_count = '１'~'９' & '０'~'９'* & '万'?;
-LF             = '\{a}';
+LF             = '\[a]';
 ```
 
 ### Macros
@@ -521,7 +521,7 @@ alphanumeric = unicode(L,N);
 
 ### Strings
 
-A string is syntactic sugar for a series of specific codepoints [concatenated](#concatenation) together. String literals are placed between single or double quotes.
+A string is syntactic sugar for a series of specific [codepoints](#codepoints) [concatenated](#concatenation) together. String literals are placed between single or double quotes.
 
 ```kbnf
 string_literal = '"' & maybe_escaped(printable_ws ! '"'){2~} & '"'
@@ -543,10 +543,10 @@ str_abc_4 = 'a' & 'b' & 'c';
 
 [Codepoint literals](#codepoints), [string literals](#strings), and [prose](#prose) may contain codepoint escape sequences to represent troublesome codepoints.
 
-Escape sequences are initiated with the backslash (`\`) character. If the next character following is an open curly brace (`{`), it begins a [codepoint escape](#codepoint-escape). Otherwise the sequence represents that literal character.
+Escape sequences are initiated with the backslash (`\`) character. If the next character following is an open curly brace (`[`), it begins a [codepoint escape](#codepoint-escape). Otherwise the sequence represents that literal character.
 
 ```kbnf
-escape_sequence = '\\' & (printable ! '{') | codepoint_escape);
+escape_sequence = '\\' & (printable ! '[') | codepoint_escape);
 ```
 
 **Example**: A string containing double quotes.
@@ -557,16 +557,16 @@ mystr = "This is a \"string\""; # or you could use single quotes: 'This is a "st
 
 #### Codepoint Escape
 
-A codepoint escape interprets the hex digits between the sequence `\{` and `}` as the hexadecimal numeric value of the codepoint being referred to.
+A codepoint escape interprets the hex digits between the sequence `\[` and `]` as the hexadecimal numeric value of the codepoint being referred to.
 
 ```kbnf
-codepoint_escape = '{' & digit_hex+ & '}';
+codepoint_escape = '[' & digit_hex+ & ']';
 ```
 
 **Example**: Emoji
 
 ```kbnf
-mystr = "This is a \{1f415}"; # "This is a 🐕"
+mystr = "This is a \[1f415]"; # "This is a 🐕"
 ```
 
 ### Prose
@@ -630,7 +630,7 @@ assignment = "a"~"z"+
            & "="
            & " "+
            & "0"~"9"+
-           & "\{a}"
+           & "\[a]"
            ;
 ```
 
@@ -651,7 +651,7 @@ caculation = "a"~"z"+
            & ("+" | "-")
            & " "+
            & "a"~"z"+
-           & "\{a}"
+           & "\[a]"
            ;
 ```
 
@@ -1030,7 +1030,7 @@ sequence = bind(repeating_value,('a'~'z')+) & '/' & repeating_value;
 here_document             = "<<" & bind(terminator, NOT_LF+) & LF & here_contents(terminator) & terminator;
 here_contents(terminator) = ANY_CHAR* ! terminator;
 ANY_CHAR                  = ~;
-LF                        = '\{a}';
+LF                        = '\[a]';
 NOT_LF                    = ANY_CHAR ! LF;
 ```
 
@@ -1227,8 +1227,8 @@ string_literal         = '"' & maybe_escaped(printable_ws ! '"'){2~} & '"'
                        | "'" & maybe_escaped(printable_ws ! "'"){2~} & "'"
                        ;
 maybe_escaped(charset) = (charset ! '\\') | escape_sequence;
-escape_sequence        = '\\' & (printable ! '{') | codepoint_escape);
-codepoint_escape       = '{' & digit_hex+ & '}';
+escape_sequence        = '\\' & (printable ! '[') | codepoint_escape);
+codepoint_escape       = '[' & digit_hex+ & ']';
 
 builtin_functions      = function_sized
                        | function_aligned
@@ -1341,8 +1341,8 @@ SOME_WSLC              = WSL & MAYBE_WSLC;
 WSL                    = WS | LINE_END;
 WS                     = HT | SP;
 LINE_END               = CR? & LF;
-HT                     = '\{9}';
-LF                     = '\{a}';
-CR                     = '\{d}';
-SP                     = '\{20}';
+HT                     = '\[9]';
+LF                     = '\[a]';
+CR                     = '\[d]';
+SP                     = '\[20]';
 ```
