@@ -52,6 +52,7 @@ Contents
     - [Expressions](#expressions)
     - [Numbers](#numbers)
   - [Literals](#literals)
+    - [Numeric Literals](#numeric-literals)
     - [Codepoints](#codepoints)
     - [Strings](#strings)
     - [Escape Sequence](#escape-sequence)
@@ -243,7 +244,7 @@ The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or 
 
 ### Start Rule
 
-The first rule listed in a KBNF document is the start rule, which defines a [symbol](#symbols).
+The first rule listed in a KBNF document is the start rule. Only a [symbol](#symbols) can be a start rule.
 
 
 ### Symbols
@@ -365,7 +366,7 @@ uleb128(v: unsigned): expression = """https://en.wikipedia.org/wiki/LEB128#Unsig
 
 ```kbnf
 record              = iso8601 & ':' & temperature;
-iso8601: expression = """https://en.wikipedia.org/wiki/ISO_8601""";
+iso8601: expression = """https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations""";
 temperature         = digit+ & ('.' & digit+)?;
 digit               = '0'~'9';
 ```
@@ -379,7 +380,7 @@ In some contexts, resolved data (data that has already been matched) or literal 
 
 **Note**: Variables cannot be re-bound.
 
-When [binding](#bind-function) an [expression](#expressions) that itself binds a variable, that expression's bound variables can be accessed from the outer scope using dot notation (`this_exp_bound_value.sub_exp_bound_value`).
+When [binding](#bind-function) an [expression](#expressions) that itself binds a variable, that expression's bound variables are accessible from the outer scope using dot notation (`this_exp_bound_value.sub_exp_bound_value`).
 
 **Example**: A document consists of a type 1 record, followed by any number of type 5, 6, and 7 records, and is terminated with a type 0 record of length 0. A record begins with a header consisting of an 8-bit type and a 16-bit big endian unsigned integer indicating how many bytes of record data follow.
 
@@ -401,7 +402,7 @@ u16(v)              = uint(16, v);
 Types
 -----
 
-These are the main types in KBNF:
+TKBNF has four main types:
 
 * [`identifier`](#identifier)
 * [`expression`](#expressions)
@@ -413,18 +414,18 @@ These are the main types in KBNF:
 
 Types become relevant when calling [functions](#functions) and [macros](#macros), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to unsigned integers.
 
-**Note**: Number "subtypes" (signed, unsigned, real) aren't actual types per se, but rather restrictions on what values are allowed in a particular context. [calculations](#calculations), for example, are done as if all operands were reals (subtracting two unsigned numbers can give a signed result, dividing integers can result in a real, etc).
+**Note**: `number` "subtypes" (`signed`, `unsigned`, `real`) aren't actual types per se, but rather restrictions on what values are allowed in a particular context. [calculations](#calculations), for example, are done as if all operands were reals (subtracting two unsigned numbers can give a negative result, dividing integers can result in a fraction, etc).
 
 
 ### Identifier
 
 A unique identifier for [symbols](#symbols), [macros](#macros), and [functions](#functions) (which are all scoped globally), or [variables](#variables) (which are scoped locally).
 
-Identifiers are case sensitive.
+Identifiers are case sensitive, and must be unique to the local and global scope (name shadowing is not allowed).
 
-Identifiers start with a letter, and can contain letters, numbers and the underscore character. The [builtin function names](#builtin-functions) are reserved.
+Identifiers start with a letter, and can contain letters, numbers and the underscore character. The [builtin function names](#builtin-functions) are reserved at the global scope.
 
-The general convention is to use all uppercase identifiers for "background-y" things like whitespace and separators to make them easier to gloss over (see [the KBNF grammar document](#the-kbnf-grammar-in-kbnf) as an example).
+The general convention is to use all uppercase identifiers for "background-y" things like whitespace and separators and other structural components, which makes them easier for a human to gloss over (see [the KBNF grammar document](#the-kbnf-grammar-in-kbnf) as an example).
 
 ```kbnf
 identifier           = (identifier_firstchar & identifier_nextchar*) ! reserved_identifiers;
@@ -460,11 +461,20 @@ expression = symbol
 
 ### Numbers
 
-Numbers are used in [calculations](#calculations), numeric ranges, and as parameters to functions.
+Numbers are used in [calculations](#calculations), numeric [ranges](#ranges), and as parameters to [functions](#functions).
 
-Certain functions take number parameters but restrict the allowed values (e.g. integers only, min/max value, etc).
+Certain [functions](#functions) take numeric parameters but restrict the allowed values (e.g. integers only, min/max value, etc).
 
-Numbers can be expressed as number literals (in binary, octal, decimal, hexadecimal notation for integers, and in decimal or hexadecimal notation for reals), or derived from [functions](#functions), [macros](#macros), and [calculations](#calculations).
+Numbers can be expressed as [numeric literals](#numeric-literals), or derived from [functions](#functions), [macros](#macros), and [calculations](#calculations).
+
+
+
+Literals
+--------
+
+### Numeric Literals
+
+Numeric literals can be expressed in binary, octal, decimal, or hexadecimal notation for integers, and in decimal or hexadecimal notation for reals.
 
 ```kbnf
 number_literal       = int_literal_bin | int_literal_oct | int_real_literal_dec | int_real_literal_hex;
@@ -479,16 +489,20 @@ int_literal_oct      = neg? & '0' & ('o' | 'O') & digit_oct+;
 neg                  = '-';
 ```
 
+**Examples**:
 
+```kbnf
+header_signature = uint(5, 0b10111);
+ascii_char_8bit  = uint(8, 0x00~0x7f);
+tolerance        = float(32, -1.5~1.5);
+```
 
-Literals
---------
 
 ### Codepoints
 
 Codepoints can be represented as literals, [ranges](#ranges), and [category sets](#unicode-function). Codepoint literals are placed between single or double quotes.
 
-Codepoint literals can also be expressed as [ranges](#ranges), which causes every codepoint in the range to be added as an [alternative](#alternative).
+Expressing codepoint literals as a [range](#ranges) causes every codepoint in the range to be added as an [alternative](#alternative).
 
 ```kbnf
 codepoint_literal = '"' & maybe_escaped(printable_ws ! '"'){1} & '"'
@@ -504,6 +518,7 @@ a_to_z       = 'a'~'z'; # or "a"~"z"
 alphanumeric = unicode(L,N);
 ```
 
+
 ### Strings
 
 A string is syntactic sugar for a series of specific codepoints [concatenated](#concatenation) together. String literals are placed between single or double quotes.
@@ -514,10 +529,13 @@ string_literal = '"' & maybe_escaped(printable_ws ! '"'){2~} & '"'
                ;
 ```
 
-**Example**:
+**Example**: The following are all equivalent:
 
 ```kbnf
-str_abc = "abc"; # or 'abc', or "a" & "b" & "c", or 'a' & 'b' & 'c'
+str_abc_1 = "abc";
+str_abc_2 = 'abc';
+str_abc_3 = "a" & "b" & "c";
+str_abc_4 = 'a' & 'b' & 'c';
 ```
 
 
