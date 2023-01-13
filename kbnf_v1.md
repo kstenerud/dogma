@@ -616,7 +616,7 @@ Combination precedence (low to high):
 
 ### Concatenation
 
-The concatenation operation evaluates the left expression, and then the right. The operator symbol is `&` (think of it as meaning "x and then y").
+The concatenation operation matches the left expression, and then the right (both must match in their proper order for the full expression to match). The operator symbol is `&` (think of it as meaning "x and then y").
 
 ```kbnf
 concatenate = expression & TOKEN_SEP & '&' & TOKEN_SEP & expression;
@@ -637,7 +637,7 @@ assignment = "a"~"z"+
 
 ### Alternative
 
-Alternatives are separated by a pipe (`|`) character. Only one of the alternatives is taken in a production.
+Alternatives are separated by a pipe (`|`) character. Only one of the alternatives needs to match.
 
 ```kbnf
 alternate = expression & TOKEN_SEP & '|' & TOKEN_SEP & expression;
@@ -689,7 +689,7 @@ repeat_zero_or_more = expression & '*';
 repeat_one_or_more  = expression & '+';
 ```
 
-**Example**: An identifier is between 5 and 8 characters long, made of characters from 'a' to 'z'.
+**Example**: An identifier is 5, 6, 7, or 8 characters long, and is made up of characters from 'a' to 'z'.
 
 ```kbnf
 identifier = 'a'~'z'{5~8};
@@ -825,7 +825,7 @@ Ranges
 
 A range consists of one of the following:
 
-* A low value and a high value separated by a tilde (low ~ high), indicating a low and high bound.
+* A low value and a high value separated by a tilde (low ~ high), indicating a (closed interval) low and high bound.
 * A low value and a tilde (low ~), indicating a low bound only.
 * A tilde and a high value (~ high), indicating a high bound only.
 * A tilde (~), indicating no bound.
@@ -919,11 +919,8 @@ name_field = sized(200*8, unicode(L,M,N,P,Zs)* & ' '*);
 Technically, the `& ' '*` part is superfluous since Unicode category `Zs` already includes space, but it helps readability to highlight how to pad the field. One could even be more explicit:
 
 ```kbnf
-name_field = sized(200*8,
-                      unicode(L,M,N,P,Zs)*
-                      # padded with spaces
-                      & ' '*
-                  );
+name_field    = sized(200*8, unicode(L,M,N,P,Zs)* & space_padding);
+space_padding = ' '*;
 ```
 
 **Example**: The "records" section can contain any number of length-delimited records, but must be exactly 1024 bytes long. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload - essentially a zero byte).
