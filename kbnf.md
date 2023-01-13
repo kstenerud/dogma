@@ -42,6 +42,7 @@ Contents
   - [Grammar Document](#grammar-document)
     - [Document Header](#document-header)
   - [Production Rules](#production-rules)
+    - [Start Rule](#start-rule)
     - [Symbols](#symbols)
     - [Macros](#macros)
     - [Functions](#functions)
@@ -143,13 +144,13 @@ Descriptions and examples will usually include some KBNF notation. When in doubt
 
 All sequences of bits (i.e. all [expressions](#expressions)) are assumed to be in big endian bit order (higher bits come first), and if necessary can be swapped at any granularity using the [`swapped` function](#swapped-function).
 
-[Codepoints](#codepoints) follow the byte ordering of the character encoding scheme specified in the [document header](#document-header) (although per-byte bit ordering remains nominally big endian). Character sets with ambiguous byte ordering (such as `utf-16`) should generally be avoided in favor of those with explicit byte ordering (`utf-16be`, `utf-16le`).
-
 **For example**:
 
 * `uint(16,0xc01f)` matches big endian 0xc01f (bit sequence 1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1).
 * `swapped(8, uint(16,0xc01f))` matches little endian 0xc01f (bit sequence 0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0).
 * `swapped(1, uint(16,0xc01f))` matches bit-swapped 0xc01f (bit sequence 1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1).
+
+[Codepoints](#codepoints) follow the byte ordering of the character encoding scheme specified in the [document header](#document-header) (although per-byte bit ordering remains nominally big endian). Character sets with ambiguous byte ordering (such as `utf-16`) should generally be avoided in favor of those with explicit byte ordering (`utf-16be`, `utf-16le`).
 
 
 ### Non-Greedy
@@ -184,7 +185,7 @@ document = document_header (MAYBE_WSLC rule)+;
 The document header identifies the file format as KBNF, and contains the following mandatory information:
 
 * The version of the KBNF specification that the document adheres to.
-* The character encoding used for all codepoint related expressions (use the case-insensitive [IANA preferred MIME name](https://www.iana.org/assignments/character-sets/character-sets.xhtml) whenever possible).
+* The case-insensitive name of the character encoding used for all codepoint related expressions (use the [IANA preferred MIME name](https://www.iana.org/assignments/character-sets/character-sets.xhtml) whenever possible).
 
 Optionally, it may also include header lines. An empty line terminates the document header section.
 
@@ -215,7 +216,7 @@ The following headers are officially recognized (all others are allowed, but are
 kbnf_v1 utf-8
 - identifier  = mygrammar_v1
 - description = My first grammar, version 1
-- kbnf_specification = https://github.com/kstenerud/kbnf/blob/v1/kbnf.md
+- kbnf_specification = https://github.com/kstenerud/kbnf/blob/master/kbnf_v1.md
 
 document = "a"; # Yeah, this grammar doesn't do much...
 ```
@@ -228,16 +229,21 @@ Production Rules
 Production rules are written in the form `nonterminal = expression;`, with optional whitespace (including newlines) between rule elements. The terminating semicolon makes it more clear where a rule ends, and also allows more freedom for visually laying out the elements of a rule.
 
 ```kbnf
-rule = (symbol | macro) & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';'
-     | function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';'
-     ;
+start_rule = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';'
+rule       = start_rule
+           | macro & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';'
+           | function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';'
+           ;
 ```
 
-The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their names share the global namespace, and must be unique (they are case sensitive).
+The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their case-sensitive names share the same global namespace (i.e. they must be globally unique).
 
-The first rule listed in the document is assumed to be the start rule, and therefore must define a [symbol](#symbols).
+**Note**: Whitespace in a KBNF rule is only used to separate tokens and for visual layout purposes; it does not imply any semantic meaning.
 
-**Note**: Whitespace in a KBNF rule is only used to separate tokens and for visual layout purposes. It does not imply any semantic meaning.
+
+### Start Rule
+
+The first rule listed in a KBNF document is the start rule, which defines a [symbol](#symbols).
 
 
 ### Symbols
@@ -245,7 +251,12 @@ The first rule listed in the document is assumed to be the start rule, and there
 A symbol acts as a placeholder for something to be substituted in another rule. Symbol names are not limited to ASCII.
 
 ```kbnf
-symbol = identifier_restricted;
+symbol                = identifier_restricted;
+identifier_restricted = identifier_any ! reserved_identifiers;
+identifier_any        = identifier_firstchar & identifier_nextchar*;
+identifier_firstchar  = unicode(L,M);
+identifier_nextchar   = identifier_firstchar | unicode(N) | '_';
+reserved_identifiers  = "sized" | "aligned" | "swapped" | "when" | "bind" | "uint" | "sint" | "float";
 ```
 
 **Example**: A record consists of a company name (which must not contain two full-width colons in a row), followed by two full-width colons, followed by an employee count in full-width characters (possibly approximated to the nearest 10,000), and is terminated by a linefeed.
@@ -289,7 +300,7 @@ record(type) = byte(type) byte(bind(length, ~)) & byte(~){length};
 byte(v)      = uint(8,v);
 ```
 
-In this example, `record` must only be called with an unsigned integer, because the `type` field is passed to the `byte` macro, which calls the [`uint` function](#uint-function), which expects an unsigned parameter.
+In the above example, `record` must only be called with an unsigned integer, because the `type` field is passed to the `byte` macro, which calls the [`uint` function](#uint-function), which expects an unsigned parameter.
 
 **Example**: An [IPV4](ipv4.kbnf) packet contains "header length" and "total length" fields, which together determine how big the "options" and "payload" sections are. "protocol" determines the protocol of the payload.
 
@@ -322,7 +333,7 @@ payload_contents(protocol)   = when(protocol = 0, protocol_hopopt)
 
 Functions behave similarly to macros, except that they are opaque: whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions), or is user-defined in [prose](#prose) (either as a description, or as a URL pointing to a description).
 
-Functions must specify the [types](#types) of all parameters and its return value (since the function is opaque, its types cannot be inferred like for macros, and therefore must be specified). If a function is called with the wrong types, the grammar is malformed.
+Since functions are opaque, their parameter and return [types](#types) cannot be deduced like they can for [macros](#macros). Functions therefore declare all parameter and return [types](#types). If a function is called with the wrong types, the grammar is malformed.
 
 Functions that take no parameters are defined and called without the trailing parentheses (as if defining or calling a [symbol](#symbols)).
 
@@ -400,7 +411,7 @@ These are the main types in KBNF:
   * `signed`: limited to positive and negative integers, and 0
   * `real`: any value from the set of reals
 
-Types become relevant when calling [functions](#functions), which must specify what types they accept and return. Also, [repetition](#repetition) amounts are restricted to unsigned integers.
+Types become relevant when calling [functions](#functions) and [macros](#macros), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to unsigned integers.
 
 **Note**: Number "subtypes" (signed, unsigned, real) aren't actual types per se, but rather restrictions on what values are allowed in a particular context. [calculations](#calculations), for example, are done as if all operands were reals (subtracting two unsigned numbers can give a signed result, dividing integers can result in a real, etc).
 
@@ -928,11 +939,11 @@ byte(v)            = uint(8, v);
 
 The `swapped` function swaps the order of `expr`'s bits with a granularity of `bit_granularity`. This is useful for matching little endian values, for example.
 
-`expr` must resolve to a multiple of `bit_granularity` bits, otherwise the grammar is malformed.
-
 ```kbnf
 swapped(bit_granularity: unsigned, expr: expression): expression
 ```
+
+If the expression `expr` doesn't resolve to a multiple of `bit_granularity` bits, the expression doesn't match.
 
 **Example**: A document begins with a 32-bit little endian unsigned int version field, followed by the contents. Only version 5 documents are supported.
 
@@ -1065,7 +1076,7 @@ points = sint(32, -10000~10000);
 
 ### `float` Function
 
-The `float` function creates an expression that matches the given [range](#ranges) of big endian [ieee754 binary floating point](https://en.wikipedia.org/wiki/IEEE_754) values with the given number of bits (which must be a valid number of bits for [ieee754 binary](https://en.wikipedia.org/wiki/IEEE_754)).
+The `float` function creates an expression that matches the given [range](#ranges) of big endian [ieee754 binary floating point](https://en.wikipedia.org/wiki/IEEE_754) values, with a valid number of bits according to [ieee754 binary](https://en.wikipedia.org/wiki/IEEE_754).
 
 ```kbnf
 float(bit_count: unsigned, value: real): expression
@@ -1121,7 +1132,7 @@ kbnf_v1 utf-8
 - identifier  = kbnf_v1
 - description = Karl's Backus-Naur Form, version 1
 
-document               = document_header & (MAYBE_WSLC & rule)+;
+document               = document_header & MAYBE_WSLC & start_rule & (MAYBE_WSLC & rule)*;
 
 kbnf_version           = '1';
 
@@ -1138,7 +1149,10 @@ header_line            = '-' & SOME_WS
 header_name            = printable+;
 header_value           = printable_ws+;
 
-rule                   = (symbol | macro) & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';'
+start_rule             = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';'
+
+rule                   = start_rule
+                       | macro & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';'
                        | function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';'
                        ;
 expression             = symbol
