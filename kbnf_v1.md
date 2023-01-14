@@ -645,7 +645,7 @@ assignment = "a"~"z"+
 
 ### Alternative
 
-Alternatives are separated by a pipe (`|`) character. Only one of the alternatives needs to match.
+Alternatives are separated by a pipe (`|`) character. Only one of the alternative branches will be taken.
 
 ```kbnf
 alternate = expression & TOKEN_SEP & '|' & TOKEN_SEP & expression;
@@ -717,7 +717,8 @@ Grouping
 [Expressions](#expressions), [calculations](#calculations) and [conditions](#conditions) can be grouped in order to override the default precedence, or as a visual aid to make things more readable. To group, place the items between parentheses.
 
 ```kbnf
-grouped(item) = PARENTHESIZED(item);
+grouped(item)       = PARENTHESIZED(item);
+PARENTHESIZED(item) = '(' & TOKEN_SEP item TOKEN_SEP & ')';
 ```
 
 **Exmples**:
@@ -847,7 +848,7 @@ A [codepoint](#codepoints) range represents the set of each codepoint in the ran
 
 A [repetition](#repetition) range represents a range in the number of occurrences that will match the rule.
 
-A [number](#numbers) range will ultimately be passed to a numeric encoding function ([uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent each value in the range (as far as it is representable by the [type](#types)) as [alternatves](#alternative).
+A [number](#numbers) range will ultimately be passed to a context requiring a specific [subtype](#types) (such as [repetition](#repetition), [uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent each value in the range (for all discrete values that are representable by the [type](#types)) as [alternatves](#alternative).
 
 **Notes**:
 
