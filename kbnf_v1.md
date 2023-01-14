@@ -415,8 +415,8 @@ KBNF has four main types:
 * [`condition`](#conditions)
 * [`number`](#numbers), of which there are three subtypes:
   * `unsigned`: limited to positive integers and 0
-  * `signed`: limited to positive and negative integers, and 0
-  * `real`: any value from the set of reals
+  * `signed`: limited to positive and negative integers, and 0 (but excluding -0)
+  * `real`: any value from the set of reals, including [qnan](#qnan-function) and [snan](#snan-function) unless otherwise specified
 
 Types become relevant when calling [functions](#functions) (and indirectly when calling [macros](#macros)), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to unsigned integers.
 
@@ -551,7 +551,7 @@ str_abc_4 = 'a' & 'b' & 'c';
 
 [Codepoint literals](#codepoints), [string literals](#strings), and [prose](#prose) may contain codepoint escape sequences to represent troublesome codepoints.
 
-Escape sequences are initiated with the backslash (`\`) character. If the next character following is an open curly brace (`[`), it begins a [codepoint escape](#codepoint-escape). Otherwise the sequence represents that literal character.
+Escape sequences are initiated with the backslash (`\`) character. If the next character following is an open square brace (`[`), it begins a [codepoint escape](#codepoint-escape). Otherwise the sequence represents that literal character.
 
 ```kbnf
 escape_sequence = '\\' & (printable ! '[') | codepoint_escape);
@@ -849,7 +849,10 @@ A [repetition](#repetition) range represents a range in the number of occurrence
 
 A [number](#numbers) range will ultimately be passed to a numeric encoding function ([uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent each value in the range (as far as it is representable by the [type](#types)) as [alternatves](#alternative).
 
-**Note**: [Quiet NaN](#qnan-function) and [signaling NaN](#snan-function) are **not** part of the set of reals returned by a [range](#ranges) without bounds (i.e. `float(64,~)`, `float(64,0~)`, `float(64,~0)` etc do **not** include `float(64,qnan)` or `float(64,snan)`).
+**Notes**:
+
+* [Quiet NaN](#qnan-function) and [signaling NaN](#snan-function) are **not** part of the set of reals returned by a [range](#ranges) without bounds (i.e. `float(64,~)`, `float(64,0~)`, `float(64,~0)` etc do **not** include `float(64,qnan)` or `float(64,snan)`).
+* The concept of negative zero (`-0`) *is* included in the set returned by any range that crosses 0.
 
 
 ```kbnf
@@ -1122,6 +1125,10 @@ rpm = float(32, -1000~1000);
 
 The `inf` function returns a [number](#numbers) representing the mathematical concept of infinity. This representation is only for the concept itself; actual encodings in a document will depend on the encoding format used.
 
+```kbnf
+inf: real
+```
+
 The sign of the infinity can be reversed using [negation](#calculations).
 
 **Example**: Negative infinity used as a record terminator.
@@ -1137,6 +1144,10 @@ terminator = float(32, -inf);
 
 The `qnan` function returns a [number](#numbers) representing the concept of "not-a-number" in its [quiet](https://en.wikipedia.org/wiki/NaN#Quiet_NaN) form. This representation is only for the concept itself; actual encodings in a document will depend on the encoding format used.
 
+```kbnf
+qnan: real
+```
+
 **Example**: Quiet NaN used to mark invalid readings.
 
 ```kbnf
@@ -1149,6 +1160,10 @@ invalid = float(32, qnan);
 ### `snan` Function
 
 The `snan` function returns a [number](#numbers) representing the concept of "not-a-number" in its [signaling](https://en.wikipedia.org/wiki/NaN#Signaling_NaN) form. This representation is only for the concept itself; actual encodings in a document will depend on the encoding format used.
+
+```kbnf
+snan: real
+```
 
 **Example**: Signaling NaN used to mark invalid readings.
 
