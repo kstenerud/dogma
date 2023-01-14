@@ -78,6 +78,9 @@ Contents
     - [`uint` Function](#uint-function)
     - [`sint` Function](#sint-function)
     - [`float` Function](#float-function)
+    - [`inf` Function](#inf-function)
+    - [`qnan` Function](#qnan-function)
+    - [`snan` Function](#snan-function)
   - [Examples](#examples)
     - [A Complex Example](#a-complex-example)
     - [Example: Internet Protocol version 4](#example-internet-protocol-version-4)
@@ -288,7 +291,7 @@ macro_rule = macro & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
 macro      = identifier_restricted & PARENTHESIZED(param_name & (ARG_SEP & param_name)*);
 ```
 
-When called, a macro substitutes the passed-in parameters and proceeds like a normal rule would (the grammar is malformed if a macro is called with incompatible types).
+When called, a macro substitutes the passed-in parameters and proceeds like a normal rule would. The grammar is malformed if a macro is called with incompatible [types](#types).
 
 ```kbnf
 call       = identifier_any & PARENTHESIZED(call_param & (ARG_SEP & call_param)*);
@@ -334,11 +337,11 @@ payload_contents(protocol)   = when(protocol = 0, protocol_hopopt)
 
 ### Functions
 
-Functions behave similarly to macros, except that they are opaque: whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions), or is user-defined in [prose](#prose) (either as a description, or as a URL pointing to a description).
+Functions behave similarly to macros, except that they are opaque: whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions), or is user-defined in [prose](#prose) (as a description, or as a URL pointing to a description).
 
-Since functions are opaque, their parameter and return [types](#types) cannot be deduced like they can for [macros](#macros). Functions therefore declare all parameter and return [types](#types). If a function is called with the wrong types, the grammar is malformed.
+Since functions are opaque, their parameter and return [types](#types) cannot be automatically deduced like they can for [macros](#macros). Functions therefore declare all parameter and return [types](#types). If a function is called with the wrong types, the grammar is malformed.
 
-Functions that take no parameters are defined and called without the trailing parentheses (as if defining or calling a [symbol](#symbols)).
+Functions that take no parameters are defined and called without the trailing parentheses (similar to defining or calling a [symbol](#symbols)).
 
 ```kbnf
 function_rule      = function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';';
@@ -415,9 +418,9 @@ KBNF has four main types:
   * `signed`: limited to positive and negative integers, and 0
   * `real`: any value from the set of reals
 
-Types become relevant when calling [functions](#functions) and [macros](#macros), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to unsigned integers.
+Types become relevant when calling [functions](#functions) (and indirectly when calling [macros](#macros)), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to unsigned integers.
 
-**Note**: `number` "subtypes" (`signed`, `unsigned`, `real`) aren't actual types per se, but rather restrictions on what values are allowed in a particular context. [calculations](#calculations), for example, are done as if all operands were reals (subtracting two unsigned integers can give a negative result, dividing integers can result in a fraction, etc).
+**Note**: `number` "subtypes" (`signed`, `unsigned`, `real`) aren't actual types per se, but rather restrictions on what values are allowed in a particular context. [calculations](#calculations), for example, are done as if all operands were reals regardless of their actual "subtype" (subtracting two unsigned integers can give a negative result, dividing integers can result in a fraction, etc).
 
 
 ### Identifier
@@ -478,6 +481,8 @@ Literals
 ### Numeric Literals
 
 Numeric literals can be expressed in binary, octal, decimal, or hexadecimal notation for integers, and in decimal or hexadecimal notation for reals.
+
+**Note**: Decimal real notation translates more cleanly to decimal float encodings such as [ieee754 decimal](https://en.wikipedia.org/wiki/Decimal64_floating-point_format), and hexadecimal real notation translates more cleanly to binary float encodings such as [ieee754 binary](https://en.wikipedia.org/wiki/Double-precision_floating-point_format).
 
 ```kbnf
 number_literal       = int_literal_bin | int_literal_oct | int_real_literal_dec | int_real_literal_hex;
@@ -740,24 +745,28 @@ The following operations can be used:
 * Divide (`/`)
 * Modulus (`%`)
 * Power (`^`, where `x^y` means x to the power of y)
+* Negation ('-')
 
 Operator precedence (low to high):
 
 * add, subtract
 * multiply, divide, modulus
 * power
+* negation
 
 ```kbnf
 number       = calc_add | calc_sub | calc_mul_div;
-calc_mul_div = calc_mul | calc_div | calc_mod | calc_pow_val;
-calc_pow_val = calc_pow | calc_val;
+calc_mul_div = calc_mul | calc_div | calc_mod | calc_pow_neg;
+calc_pow_neg = calc_pow | calc_neg_val;
+calc_neg_val = calc_neg | calc_val;
 calc_val     = number_literal | variable | maybe_grouped(number);
 calc_add     = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
 calc_sub     = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
 calc_mul     = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_pow_val;
 calc_div     = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_pow_val;
 calc_mod     = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_pow_val;
-calc_pow     = calc_pow_val & TOKEN_SEP & '^' & TOKEN_SEP & calc_val;
+calc_pow     = calc_pow_val & TOKEN_SEP & '^' & TOKEN_SEP & calc_neg_val;
+calc_neg     = '-' & calc_val;
 ```
 
 **Example**: A record begins with a 4-bit length field (length is in 32-bit increments) and 4-bit flags field containing (...), followed by the contents of the record.
@@ -839,6 +848,8 @@ A [codepoint](#codepoints) range represents the set of each codepoint in the ran
 A [repetition](#repetition) range represents a range in the number of occurrences that will match the rule.
 
 A [number](#numbers) range will ultimately be passed to a numeric encoding function ([uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent each value in the range (as far as it is representable by the [type](#types)) as [alternatves](#alternative).
+
+**Note**: [Quiet NaN](#qnan-function) and [signaling NaN](#snan-function) are **not** part of the set of reals returned by a [range](#ranges) without bounds (i.e. `float(64,~)`, `float(64,0~)`, `float(64,~0)` etc do **not** include `float(64,qnan)` or `float(64,snan)`).
 
 
 ```kbnf
@@ -1107,6 +1118,47 @@ rpm = float(32, -1000~1000);
 ```
 
 
+### `inf` Function
+
+The `inf` function returns a [number](#numbers) representing the mathematical concept of infinity. This representation is only for the concept itself; actual encodings in a document will depend on the encoding format used.
+
+The sign of the infinity can be reversed using [negation](#calculations).
+
+**Example**: Negative infinity used as a record terminator.
+
+```kbnf
+record     = reading* terminator;
+reading    = float(32, ~) ! terminator;
+terminator = float(32, -inf);
+```
+
+
+### `qnan` Function
+
+The `qnan` function returns a [number](#numbers) representing the concept of "not-a-number" in its [quiet](https://en.wikipedia.org/wiki/NaN#Quiet_NaN) form. This representation is only for the concept itself; actual encodings in a document will depend on the encoding format used.
+
+**Example**: Quiet NaN used to mark invalid readings.
+
+```kbnf
+record  = reading{32};
+reading = float(32, ~) | invalid;
+invalid = float(32, qnan);
+```
+
+
+### `snan` Function
+
+The `snan` function returns a [number](#numbers) representing the concept of "not-a-number" in its [signaling](https://en.wikipedia.org/wiki/NaN#Signaling_NaN) form. This representation is only for the concept itself; actual encodings in a document will depend on the encoding format used.
+
+**Example**: Signaling NaN used to mark invalid readings.
+
+```kbnf
+record  = reading{32};
+reading = float(32, ~) | invalid;
+invalid = float(32, snan);
+```
+
+
 
 Examples
 --------
@@ -1239,6 +1291,9 @@ builtin_functions      = function_sized
                        | function_uint
                        | function_sint
                        | function_float
+                       | function_inf
+                       | function_qnan
+                       | function_snan
                        ;
 function_sized         = fname_sized   & PARENTHESIZED(bit_count & ARG_SEP & expression);
 function_aligned       = fname_aligned & PARENTHESIZED(bit_count & ARG_SEP & expression & ARG_SEP & padding);
@@ -1249,6 +1304,9 @@ function_unicode       = fname_unicode & PARENTHESIZED(unicode_category & (ARG_S
 function_uint          = fname_uint    & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
 function_sint          = fname_sint    & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
 function_float         = fname_float   & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
+function_inf           = fname_inf;
+function_qnan          = fname_qnan;
+function_snan          = fname_snan;
 
 padding                = expression;
 bit_count              = number;
@@ -1270,15 +1328,17 @@ logical_and            = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
 logical_not            = '!' & TOKEN_SEP & condition;
 
 number                 = calc_add | calc_sub | calc_mul_div;
-calc_mul_div           = calc_mul | calc_div | calc_mod | calc_pow_val;
-calc_pow_val           = calc_pow | calc_val;
+calc_mul_div           = calc_mul | calc_div | calc_mod | calc_pow_neg;
+calc_pow_neg           = calc_pow | calc_neg_val;
+calc_neg_val           = calc_neg | calc_val;
 calc_val               = number_literal | variable | maybe_grouped(number);
 calc_add               = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
 calc_sub               = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
 calc_mul               = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_pow_val;
 calc_div               = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_pow_val;
 calc_mod               = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_pow_val;
-calc_pow               = calc_pow_val & TOKEN_SEP & '^' & TOKEN_SEP & calc_val;
+calc_pow               = calc_pow_val & TOKEN_SEP & '^' & TOKEN_SEP & calc_neg_val;
+calc_neg               = '-' & calc_val;
 
 grouped(item)          = PARENTHESIZED(item);
 ranged(item)           = (item & TOKEN_SEP)? & '~' & (TOKEN_SEP & item)?;
@@ -1308,6 +1368,9 @@ reserved_identifiers   = fname_sized
                        | fname_uint
                        | fname_sint
                        | fname_float
+                       | fname_inf
+                       | fname_qnan
+                       | fname_snan
                        ;
 
 fname_sized            = "sized";
@@ -1318,6 +1381,9 @@ fname_bind             = "bind";
 fname_uint             = "uint";
 fname_sint             = "sint";
 fname_float            = "float";
+fname_inf              = "inf";
+fname_qnan             = "qnan";
+fname_snan             = "snan";
 
 printable              = unicode(L,M,N,P,S);
 printable_ws           = printable | WS;
