@@ -30,10 +30,10 @@ Contents
   - [Contents](#contents)
   - [Design Objectives](#design-objectives)
     - [Human readability](#human-readability)
-    - [Binary grammar support](#binary-grammar-support)
     - [Better expressivity](#better-expressivity)
     - [Character set support](#character-set-support)
     - [Codepoints as first-class citizens](#codepoints-as-first-class-citizens)
+    - [Binary grammar support](#binary-grammar-support)
     - [Future proof](#future-proof)
   - [Forward Notes](#forward-notes)
     - [About the Descriptions and Examples](#about-the-descriptions-and-examples)
@@ -92,16 +92,6 @@ Design Objectives
 
 The main purpose of KBNF is to describe text and binary grammars in a concise, unambiguous, human readable way. The use case is describing data formats in documentation.
 
-### Binary grammar support
-
-Binary grammars have different needs from textual grammars, and require special support:
-
-* **Bit arrays**: Binary formats tend to work at bit-level granularity, and thus require support for arbitrarily sized bit arrays.
-* **Variables & Functions**: Binary formats often represent data in complex ways that can't be parsed without passing some context around.
-* **Conditionals & Logic**: Binary formats often include or exclude portions based on encoded values elsewhere. Evaluating these requires the use of conditionals and logic operators.
-* **Calculations**: Many binary field sizes are determined by data stored elsewhere in the document, and often they require calculations of some sort to determine the final field size.
-* **Transformations**: Binary data often undergoes transformations that are too complex for normal BNF-style rules to express (for example [LEB128](https://en.wikipedia.org/wiki/LEB128)).
-
 ### Better expressivity
 
 Not everything can be accurately described by a real-world grammar, but we can get pretty close. The following features bring KBNF to the point where it can describe most of what's out there unambiguously:
@@ -117,13 +107,23 @@ Not everything can be accurately described by a real-world grammar, but we can g
 
 Metalanguages tend to support only ASCII, with Unicode (encoded as UTF-8) generally added as an afterthought. This restricts the usefulness of the metalanguage, as any other character sets (many of which are still in use) have no support at all.
 
-KBNF can be used with any character set, and requires the character set to be specified as part of the document header.
+KBNF can be used with any character set, and requires the character set to be specified as part of the grammar document header.
 
 ### Codepoints as first-class citizens
 
 * Codepoints beyond the ASCII range can be directly input into a grammar document.
-* Difficult codepoints are supported via [escape sequences](#escape-sequence).
+* Difficult codepoints are supported via escape sequences.
 * [Unicode categories](https://unicode.org/glossary/#general_category) are supported.
+
+### Binary grammar support
+
+Binary grammars have different needs from textual grammars, and require special support:
+
+* **Bit arrays**: Binary formats tend to work at bit-level granularity, and thus require support for arbitrarily sized bit arrays.
+* **Variables & Functions**: Binary formats often represent data in complex ways that can't be parsed without passing some context around.
+* **Conditionals & Logic**: Binary formats often include or exclude portions based on encoded values elsewhere. Evaluating these requires the use of conditionals and logic operators.
+* **Calculations**: Many binary field sizes are determined by data stored elsewhere in the document, and often they require calculations of some sort to determine the final field size.
+* **Transformations**: Binary data often undergoes transformations that are too complex for normal BNF-style rules to express (for example [LEB128](https://en.wikipedia.org/wiki/LEB128)).
 
 ### Future proof
 
@@ -177,7 +177,7 @@ Grammar Document
 A KBNF grammar document begins with a [header section](#document-header), followed by a series of [production rules](#production-rules).
 
 ```kbnf
-document = document_header (MAYBE_WSLC rule)+;
+document = document_header & MAYBE_WSLC & start_rule & (MAYBE_WSLC & rule)*;
 ```
 
 
@@ -230,11 +230,11 @@ Production Rules
 Production rules are written in the form `nonterminal = expression;`, with optional whitespace (including newlines) between rule elements. The terminating semicolon makes it more clear where a rule ends, and also allows more freedom for visually laying out the elements of a rule.
 
 ```kbnf
-start_rule = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';'
-rule       = start_rule
-           | macro & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';'
-           | function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';'
-           ;
+rule          = symbol_rule | macro_rule | function_rule;
+start_rule    = symbol_rule;
+symbol_rule   = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
+macro_rule    = macro & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
+function_rule = function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';';
 ```
 
 The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their case-sensitive names share the same global namespace (i.e. they must be globally unique).
@@ -252,6 +252,7 @@ The first rule listed in a KBNF document is the start rule. Only a [symbol](#sym
 A symbol acts as a placeholder for something to be substituted in another rule. Symbol names are not limited to ASCII.
 
 ```kbnf
+symbol_rule           = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
 symbol                = identifier_restricted;
 identifier_restricted = identifier_any ! reserved_identifiers;
 identifier_any        = identifier_firstchar & identifier_nextchar*;
@@ -283,7 +284,8 @@ LF             = '\[a]';
 A macro is essentially a symbol that accepts parameters, which are bound to local [variables](#variables) for use within the macro. The macro's contents are written like regular rules, but also have access to the injected local variables.
 
 ```kbnf
-macro = identifier_restricted & PARENTHESIZED(param_name & (ARG_SEP & param_name)*);
+macro_rule = macro & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
+macro      = identifier_restricted & PARENTHESIZED(param_name & (ARG_SEP & param_name)*);
 ```
 
 When called, a macro substitutes the passed-in parameters and proceeds like a normal rule would (the grammar is malformed if a macro is called with incompatible types).
@@ -339,21 +341,22 @@ Since functions are opaque, their parameter and return [types](#types) cannot be
 Functions that take no parameters are defined and called without the trailing parentheses (as if defining or calling a [symbol](#symbols)).
 
 ```kbnf
-function        = function_noargs | function_args;
-function_noargs = identifier_restricted & type_specifier;
-function_args   = identifier_restricted
-                & PARENTHESIZED(function_param & (ARG_SEP & function_param)*)
-                & type_specifier
-                ;
-function_param  = param_name & type_specifier;
-type_specifier  = TOKEN_SEP & ':' & TOKEN_SEP & type;
-type            = "expression"
-                | "condition"
-                | "unsigned"
-                | "signed"
-                | "real"
-                | "any"
-                ;
+function_rule      = function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';';
+function           = function_no_args | function_with_args;
+function_no_args   = identifier_restricted & type_specifier;
+function_with_args = identifier_restricted
+                   & PARENTHESIZED(function_param & (ARG_SEP & function_param)*)
+                   & type_specifier
+                   ;
+function_param     = param_name & type_specifier;
+type_specifier     = TOKEN_SEP & ':' & TOKEN_SEP & type;
+type               = "expression"
+                   | "condition"
+                   | "unsigned"
+                   | "signed"
+                   | "real"
+                   | "any"
+                   ;
 ```
 
 **Example**: A function to convert an unsigned int to its unsigned little endian base 128 representation.
@@ -402,7 +405,7 @@ u16(v)              = uint(16, v);
 Types
 -----
 
-TKBNF has four main types:
+KBNF has four main types:
 
 * [`identifier`](#identifier)
 * [`expression`](#expressions)
@@ -414,7 +417,7 @@ TKBNF has four main types:
 
 Types become relevant when calling [functions](#functions) and [macros](#macros), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to unsigned integers.
 
-**Note**: `number` "subtypes" (`signed`, `unsigned`, `real`) aren't actual types per se, but rather restrictions on what values are allowed in a particular context. [calculations](#calculations), for example, are done as if all operands were reals (subtracting two unsigned numbers can give a negative result, dividing integers can result in a fraction, etc).
+**Note**: `number` "subtypes" (`signed`, `unsigned`, `real`) aren't actual types per se, but rather restrictions on what values are allowed in a particular context. [calculations](#calculations), for example, are done as if all operands were reals (subtracting two unsigned integers can give a negative result, dividing integers can result in a fraction, etc).
 
 
 ### Identifier
@@ -1164,12 +1167,12 @@ header_line            = '-' & SOME_WS
 header_name            = printable+;
 header_value           = printable_ws+;
 
-start_rule             = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';'
+rule                   = symbol_rule | macro_rule | function_rule;
+start_rule             = symbol_rule;
+symbol_rule            = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
+macro_rule             = macro & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
+function_rule          = function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';';
 
-rule                   = start_rule
-                       | macro & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';'
-                       | function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';'
-                       ;
 expression             = symbol
                        | call
                        | string_literal
@@ -1183,9 +1186,9 @@ expression             = symbol
 symbol                 = identifier_restricted;
 macro                  = identifier_restricted & PARENTHESIZED(param_name & (ARG_SEP & param_name)*);
 param_name             = identifier_any;
-function               = function_noargs | function_args;
-function_noargs        = identifier_restricted & type_specifier;
-function_args          = identifier_restricted
+function               = function_no_args | function_with_args;
+function_no_args       = identifier_restricted & type_specifier;
+function_with_args     = identifier_restricted
                        & PARENTHESIZED(function_param & (ARG_SEP & function_param)*)
                        & type_specifier
                        ;

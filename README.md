@@ -12,16 +12,6 @@ Design Objectives
 
 The main purpose of KBNF is to describe text and binary grammars in a concise, unambiguous, human readable way. The use case is describing data formats in documentation.
 
-### Binary grammar support
-
-Binary grammars have different needs from textual grammars, and require special support:
-
-* **Bit arrays**: Binary formats tend to work at bit-level granularity, and thus require support for arbitrarily sized bit arrays.
-* **Variables & Functions**: Binary formats often represent data in complex ways that can't be parsed without passing some context around.
-* **Conditionals & Logic**: Binary formats often include or exclude portions based on encoded values elsewhere. Evaluating these requires the use of conditionals and logic operators.
-* **Calculations**: Many binary field sizes are determined by data stored elsewhere in the document, and often they require calculations of some sort to determine the final field size.
-* **Transformations**: Binary data often undergoes transformations that are too complex for normal BNF-style rules to express (for example [LEB128](https://en.wikipedia.org/wiki/LEB128)).
-
 ### Better expressivity
 
 Not everything can be accurately described by a real-world grammar, but we can get pretty close. The following features bring KBNF to the point where it can describe most of what's out there unambiguously:
@@ -37,13 +27,23 @@ Not everything can be accurately described by a real-world grammar, but we can g
 
 Metalanguages tend to support only ASCII, with Unicode (encoded as UTF-8) generally added as an afterthought. This restricts the usefulness of the metalanguage, as any other character sets (many of which are still in use) have no support at all.
 
-KBNF can be used with any character set, and requires the character set to be specified as part of the document header.
+KBNF can be used with any character set, and requires the character set to be specified as part of the grammar document header.
 
 ### Codepoints as first-class citizens
 
 * Codepoints beyond the ASCII range can be directly input into a grammar document.
-* Difficult codepoints are supported via [escape sequences](#escape-sequence).
+* Difficult codepoints are supported via escape sequences.
 * [Unicode categories](https://unicode.org/glossary/#general_category) are supported.
+
+### Binary grammar support
+
+Binary grammars have different needs from textual grammars, and require special support:
+
+* **Bit arrays**: Binary formats tend to work at bit-level granularity, and thus require support for arbitrarily sized bit arrays.
+* **Variables & Functions**: Binary formats often represent data in complex ways that can't be parsed without passing some context around.
+* **Conditionals & Logic**: Binary formats often include or exclude portions based on encoded values elsewhere. Evaluating these requires the use of conditionals and logic operators.
+* **Calculations**: Many binary field sizes are determined by data stored elsewhere in the document, and often they require calculations of some sort to determine the final field size.
+* **Transformations**: Binary data often undergoes transformations that are too complex for normal BNF-style rules to express (for example [LEB128](https://en.wikipedia.org/wiki/LEB128)).
 
 ### Future proof
 
@@ -56,7 +56,7 @@ KBNF documents are versioned to a particular KBNF specification so that changes 
 Specification
 -------------
 
-[The KBNF Specification](kbnf_v1.md)
+[The KBNF Specification v1](kbnf_v1.md)
 
 
 
