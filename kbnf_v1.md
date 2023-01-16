@@ -1115,10 +1115,19 @@ The `float` function creates an expression that matches the given [range](#range
 float(bit_count: unsigned, value: real): expression
 ```
 
+**Note**: [ranges](#ranges) passed to the `float` function will **never** include [qnan](#qnan-function) or [snan](#snan-function). These special values cannot be part of a range, and instead must be explicitly passed to the `float` function.
+
 **Example**: The temperature field is a 32-bit float value from -1000 to 1000.
 
 ```kbnf
 rpm = float(32, -1000~1000);
+```
+
+**Example**: Accept any real or any NaN, encoded as a float64.
+
+```kbnf
+value                 = float64_or_nan(~);
+float64_or_nan(range) = float(64,range) | float(64,qnan) | float(64,snan);
 ```
 
 
