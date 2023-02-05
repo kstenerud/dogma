@@ -6,9 +6,9 @@ Version 1-prerelease
 
 ## WORK IN PROGRESS
 
-Current status: Settling-in phase (Dec 29, 2022).
+Current status: Second reading (Feb 5, 2023).
 
-I'm letting the specification sit for two 2-week periods, after each of which I'll do a full document review to look for issues.
+The second reading uncovered a number of issues, so there will be a third reading in two weeks.
 
 If no major issues are found, I'll release version 1.
 
@@ -17,7 +17,7 @@ If no major issues are found, I'll release version 1.
 Introduction
 ------------
 
-Syntactic metalanguages have made mainly haphazard gains over the past 60 years, and still only describe text-based formats. KBNF is an attempt at a modernized metalanguage with better expressivity and binary support.
+Syntactic metalanguages have made mainly haphazard gains over the past 60 years, and still only describe text-based formats. KBNF aims to be a modernized metalanguage with better expressivity and binary support.
 
 
 
@@ -93,17 +93,17 @@ Design Objectives
 
 ### Human readability
 
-The main purpose of KBNF is to describe text and binary grammars in a concise, unambiguous, human readable way. The use case is describing data formats in documentation.
+The primary use case for KBNF is to describe text and binary grammars in a formalized way in documentation. Such a format must therefore be human-accessible, while also being concise and unambiguous.
 
 ### Better expressivity
 
-Not everything can be accurately described by a real-world grammar, but we can get pretty close. The following features bring KBNF to the point where it can describe most of what's out there unambiguously:
+Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, or ease-of-processing. A metalanguage for describing such data will require much more expressivity than current metalanguages allow. Better expressivity reduces boilerplate and improves readability even in text format descriptions.
 
 * **Repetition**: Any expression can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
 * **Bindings**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. KBNF supports assigning decoded values to variables.
 * **Exclusion**: Sometimes it's easier to express something as "everything except for ...".
-* **Prose**: In many cases, the actual encoding of something is already well-known and specified elsewhere, or is too complex for KBNF to describe adequately. Prose offers a free-form way to describe part of a grammar.
 * **Grouping**: Grouping expressions together is an obvious convenince that most other BNF offshoots have already adopted.
+* **Prose**: In many cases, the actual encoding of something is already well-known and specified elsewhere, or is too complex for KBNF to describe adequately. Prose offers a free-form way to describe part of a grammar.
 * **Whitespace not significant**: Many BNF notations (including the original BNF) assign meaning to whitespace (for example: whitespace as concatenation, or linefeeds to mark the end of a rule). This is bad from a UX perspective because it makes things harder for a human to parse in many circumstances, and reduces the ways in which a rule can be expressed over multiple lines.
 
 ### Character set support
@@ -114,9 +114,9 @@ KBNF can be used with any character set, and requires the character set to be sp
 
 ### Codepoints as first-class citizens
 
-* Codepoints beyond the ASCII range can be directly input into a grammar document.
-* Difficult codepoints are supported via escape sequences.
-* [Unicode categories](https://unicode.org/glossary/#general_category) are supported.
+* Codepoints beyond the ASCII range must be directly inputtable into a grammar document.
+* Difficult codepoints must also be supported (for example via escape sequences).
+* [Unicode categories](https://unicode.org/glossary/#general_category) must be supported.
 
 ### Binary grammar support
 
@@ -141,7 +141,7 @@ Forward Notes
 
 ### About the Descriptions and Examples
 
-Descriptions and examples will usually include some KBNF notation. When in doubt, please see the [full KBNF grammar at the end of this document](#the-kbnf-grammar-in-kbnf).
+Descriptions and examples will usually include some KBNF notation. When in doubt, please refer to the [full KBNF grammar at the end of this document](#the-kbnf-grammar-in-kbnf).
 
 
 ### Bit Ordering
@@ -258,10 +258,12 @@ A symbol acts as a placeholder for something to be substituted in another rule. 
 symbol_rule           = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
 symbol                = identifier_restricted;
 identifier_restricted = identifier_any ! reserved_identifiers;
-identifier_any        = identifier_firstchar & identifier_nextchar*;
-identifier_firstchar  = unicode(L,M);
-identifier_nextchar   = identifier_firstchar | unicode(N) | '_';
-reserved_identifiers  = "sized" | "aligned" | "swapped" | "when" | "bind" | "uint" | "sint" | "float";
+identifier_any        = name;
+name                  = name_firstchar & name_nextchar*;
+name_firstchar        = unicode(L,M);
+name_nextchar         = name_firstchar | unicode(N) | '_';
+reserved_identifiers  = "sized" | "aligned" | "swapped" | "when" | "bind"
+                      | "uint" | "sint" | "float" | "inf" | "qnan" | "snan";
 ```
 
 **Example**: A record consists of a company name (which must not contain two full-width colons in a row), followed by two full-width colons, followed by an employee count in full-width characters (possibly approximated to the nearest 10,000), and is terminated by a linefeed.
@@ -291,7 +293,7 @@ macro_rule = macro & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
 macro      = identifier_restricted & PARENTHESIZED(param_name & (ARG_SEP & param_name)*);
 ```
 
-When called, a macro substitutes the passed-in parameters and proceeds like a normal rule would. The grammar is malformed if a macro is called with incompatible [types](#types).
+When called, a macro substitutes the passed-in parameters and proceeds like a normal rule would. Parameter and return [types](#types) are inferred based on how the parameters are used within the macro, and the type resulting from the macro's expression. The grammar is malformed if a macro is called with incompatible types, or is used in a context that is incompatible with its return type.
 
 ```kbnf
 call       = identifier_any & PARENTHESIZED(call_param & (ARG_SEP & call_param)*);
@@ -339,27 +341,31 @@ payload_contents(protocol)   = when(protocol = 0, protocol_hopopt)
 
 Functions behave similarly to macros, except that they are opaque: whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions), or is user-defined in [prose](#prose) (as a description, or as a URL pointing to a description).
 
-Since functions are opaque, their parameter and return [types](#types) cannot be automatically deduced like they can for [macros](#macros). Functions therefore declare all parameter and return [types](#types). If a function is called with the wrong types, the grammar is malformed.
+Since functions are opaque, their parameter and return [types](#types) cannot be automatically deduced like they can for [macros](#macros). Functions therefore declare all parameter and return [types](#types). If a function is called with the wrong types or its return value is used in an incompatible context, the grammar is malformed.
 
 Functions that take no parameters are defined and called without the trailing parentheses (similar to defining or calling a [symbol](#symbols)).
 
 ```kbnf
 function_rule      = function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';';
 function           = function_no_args | function_with_args;
-function_no_args   = identifier_restricted & type_specifier;
+function_no_args   = identifier_restricted & TOKEN_SEP & type_specifier;
 function_with_args = identifier_restricted
                    & PARENTHESIZED(function_param & (ARG_SEP & function_param)*)
-                   & type_specifier
+                   & TOKEN_SEP & type_specifier
                    ;
-function_param     = param_name & type_specifier;
-type_specifier     = TOKEN_SEP & ':' & TOKEN_SEP & type;
-type               = "expression"
+function_param     = param_name & TOKEN_SEP & type_specifier;
+type_specifier     = ':' & TOKEN_SEP & type_alternatives & (TOKEN_SEP & vararg)?;
+type_alternatives  = type_name & (TOKEN_SEP & '|' & TOKEN_SEP & type_name)*;
+vararg             = "...";
+type_name          = basic_type_name | custom_type_name;
+basic_type_name    = "expression"
                    | "condition"
+                   | "number"
                    | "unsigned"
                    | "signed"
                    | "real"
-                   | "any"
                    ;
+custom_type_name   = name;
 ```
 
 **Example**: A function to convert an unsigned int to its unsigned little endian base 128 representation.
@@ -427,7 +433,7 @@ Types become relevant when calling [functions](#functions) (and indirectly when 
 
 A unique identifier for [symbols](#symbols), [macros](#macros), and [functions](#functions) (which are all scoped globally), or [variables](#variables) (which are scoped locally).
 
-Identifiers are case sensitive, and must be unique to the local and global scope (name shadowing is not allowed).
+Identifiers are case sensitive, and must be unique to their scope. Locally scoped identifiers (i.e. variable names) must be unique to _both_ the local and global scope (name shadowing is not allowed).
 
 Identifiers start with a letter, and can contain letters, numbers and the underscore character. The [builtin function names](#builtin-functions) are reserved at the global scope.
 
@@ -437,14 +443,8 @@ The general convention is to use all uppercase identifiers for "background-y" th
 identifier           = (identifier_firstchar & identifier_nextchar*) ! reserved_identifiers;
 identifier_firstchar = unicode(L,M);
 identifier_nextchar  = identifier_firstchar | unicode(N) | '_';
-reserved_identifiers = "sized"
-                     | "aligned"
-                     | "swapped"
-                     | "when"
-                     | "bind"
-                     | "uint"
-                     | "sint"
-                     | "float"
+reserved_identifiers = "sized" | "aligned" | "swapped" | "when" | "bind"
+                     | "uint" | "sint" | "float" | "inf" | "qnan" | "snan"
                      ;
 ```
 
@@ -522,6 +522,7 @@ codepoint_literal = '"' & maybe_escaped(printable_ws ! '"'){1} & '"'
 
 ```kbnf
 letter_a     = 'a';     # or "a"
+a_to_c       = 'a'~'c'; # or 'a' | 'b' | 'c'
 a_to_z       = 'a'~'z'; # or "a"~"z"
 alphanumeric = unicode(L,N);
 ```
@@ -612,7 +613,7 @@ Or sinking as the light wind lives or dies.
 Combinations
 ------------
 
-There are many ways to combine expressions into more powerful expressions.
+Combinations combine expressions together into more powerful expressions.
 
 Combination precedence (low to high):
 
@@ -624,7 +625,7 @@ Combination precedence (low to high):
 
 ### Concatenation
 
-The concatenation operation matches the left expression, and then the right (both must match in their proper order for the full expression to match). The operator symbol is `&` (think of it as meaning "x and then y").
+The concatenation combination produces an expression consisting of the expression on the left, followed by the expression on the right (both must match in their proper order for the full expression to match). The operator symbol is `&` (think of it as meaning "x and then y").
 
 ```kbnf
 concatenate = expression & TOKEN_SEP & '&' & TOKEN_SEP & expression;
@@ -644,6 +645,8 @@ assignment = "a"~"z"+
 
 
 ### Alternative
+
+The alternative combination produces an expression that can match either the expression on the left or the expression on the right.
 
 Alternatives are separated by a pipe (`|`) character. Only one of the alternative branches will be taken.
 
@@ -666,7 +669,7 @@ caculation = "a"~"z"+
 
 ### Exclusion
 
-Exclusion removes an expression from the set of matchable expression alternatives.
+Exclusion removes an expression from the set of expression alternatives.
 
 ```kbnf
 exclude = expression & TOKEN_SEP & '!' & TOKEN_SEP & expression;
@@ -748,6 +751,8 @@ The following operations can be used:
 * Power (`^`, where `x^y` means x to the power of y)
 * Negation ('-')
 
+**Note**: Calculations can produce a [quiet NaN](#qnan-function) value under [certain conditions in accordiance with the IEEE 754 specification](https://en.wikipedia.org/wiki/NaN#Operations_generating_NaN). If different processing is required (such as traps or exceptions), this must be documented in your specification.
+
 Operator precedence (low to high):
 
 * add, subtract
@@ -782,7 +787,7 @@ flags  = ...
 Conditions
 ----------
 
-Conditions are set by comparing realized [numbers](#numbers), and by performing logical operations on those comparisons, resulting in either true or false. Conditions are used in [`when`](#when-function) calls. Conditions can also be [grouped](#grouping).
+Conditions are produced by comparing [numbers](#numbers), and by performing logical operations on those comparisons, resulting in either true or false. Conditions are used in [`when`](#when-function) calls, and can be [grouped](#grouping).
 
 Comparisons:
 
@@ -839,22 +844,21 @@ Ranges
 A range consists of one of the following:
 
 * A low value and a high value separated by a tilde (low ~ high), indicating a (closed interval) low and high bound.
-* A low value and a tilde (low ~), indicating a low bound only.
-* A tilde and a high value (~ high), indicating a high bound only.
-* A tilde (~), indicating no bound.
-* A value, restricting the "range" to only that value.
+* A low value followed by a tilde (low ~), indicating a low bound only.
+* A tilde followed by a high value (~ high), indicating a high bound only.
+* A tilde by itself (~), indicating no bound.
+* A value with no tilde, restricting the "range" to only that value.
 
 A [codepoint](#codepoints) range represents the set of each codepoint in the range as [alternatves](#alternative).
 
 A [repetition](#repetition) range represents a range in the number of occurrences that will match the rule.
 
-A [number](#numbers) range will ultimately be passed to a context requiring a specific [subtype](#types) (such as [repetition](#repetition), [uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent each value in the range (for all discrete values that are representable by the [type](#types)) as [alternatves](#alternative).
+A [number](#numbers) range will ultimately be passed to a context requiring a specific [subtype](#types) (such as [repetition](#repetition), [uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent each value in the range (for all discrete values that are representable by the [subtype](#types)) as [alternatves](#alternative).
 
 **Notes**:
 
-* [Quiet NaN](#qnan-function) and [signaling NaN](#snan-function) are **not** part of the set of reals returned by a [range](#ranges) without bounds (i.e. `float(64,~)`, `float(64,0~)`, `float(64,~0)` etc do **not** include `float(64,qnan)` or `float(64,snan)`).
-* The concept of negative zero (`-0`) *is* included in the set returned by any range that crosses 0.
-
+* [Quiet NaN](#qnan-function) and [signaling NaN](#snan-function) values are **never** included in the set of reals returned by a [range](#ranges) (i.e. `float(64,~)`, `float(64,0~)`, `float(64,~0)` etc do **not** include `float(64,qnan)` or `float(64,snan)`).
+* The concept of negative zero (`-0`) _is_ included in the set returned by any range that crosses 0.
 
 ```kbnf
 expression         = ...
@@ -922,10 +926,13 @@ KBNF comes with some fundamental functions built-in:
 
 ### `sized` Function
 
-The `sized` function requires `expr` to produce exactly `bit_count` bits. Expressions containing [repetition](#repetition) that would have matched on their own are no longer sufficient until the production fills exactly `bit_count` bits.
-
 ```kbnf
-sized(bit_count: unsigned, expr: expression): expression
+sized(bit_count: unsigned, expr: expression): expression =
+    """
+    Requires that `expr` produce exactly `bit_count` bits.
+    Expressions containing repetition that would have matched on their own are
+    no longer sufficient until the production fills exactly `bit_count` bits.
+    """;
 ```
 
 **Example**: A name field must contain exactly 200 bytes worth of character data, padded with spaces as needed.
@@ -952,10 +959,13 @@ byte(v)            = uint(8,v);
 
 ### `aligned` Function
 
-The `aligned` function requires a production that is a multiple of `bit_count`. If `expr` doesn't produce this, the `padding` expression is used in the same manner as the [`sized` function](#sized-function) to ensure a production of the appropriate size.
-
 ```kbnf
-aligned(bit_count: unsigned, expr: expression, padding: expression): expression
+aligned(bit_count: unsigned, expr: expression, padding: expression): expression =
+    """
+    Requires that `expr` and `padding` together produce a multiple of `bit_count` bits.
+    If `expr` doesn't produce a multiple of `bit_count` bits, the `padding` expression
+    is used in the same manner as the `sized` function to produce the remaining bits.
+    """;
 ```
 
 **Example**: The "records" section can contain any number of length-delimited records, but must end on a 32-bit boundary. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload - essentially a zero byte).
@@ -970,13 +980,14 @@ byte(v)            = uint(8, v);
 
 ### `swapped` Function
 
-The `swapped` function swaps the order of `expr`'s bits with a granularity of `bit_granularity`. This is useful for matching little endian values, for example.
-
 ```kbnf
-swapped(bit_granularity: unsigned, expr: expression): expression
+swapped(bit_granularity: unsigned, expr: expression): expression =
+    """
+    Swaps the order of `expr`'s bits with a granularity of `bit_granularity`.
+    If `expr` doesn't resolve to a multiple of `bit_granularity` bits, the
+    expression doesn't match.
+    """;
 ```
-
-If the expression `expr` doesn't resolve to a multiple of `bit_granularity` bits, the expression doesn't match.
 
 **Example**: A document begins with a 32-bit little endian unsigned int version field, followed by the contents. Only version 5 documents are supported.
 
@@ -1001,10 +1012,11 @@ type_2               = ...
 
 ### `when` Function
 
-The `when` function allows `expr` only when the given [condition](#conditions) is true.
-
 ```kbnf
-when(cond: condition, expr: expression): expression
+when(cond: condition, expr: expression): expression =
+    """
+    Matches `expr` only when `cond` is true.
+    """;
 ```
 
 **Example**: The extensions section contains 32 extension slots. Each extension starts with a 1-byte type field, followed by a 24-bit big endian field containing the length of the payload. Valid payload types are 1, 2, or 3 (payload type 0 is a dummy type meaning "no extension", so the length field is ignored and there is no payload data). The same extension type can be used multiple times.
@@ -1025,12 +1037,15 @@ extension_3(length) = ...
 
 ### `bind` Function
 
-The `bind` function binds the resolved value (the actual value once this part of the expression has been matched) of whatever it surrounds to a local variable for subsequent re-use in the current rule. `bind` transparently passes through whatever it captures, meaning that the context around the `bind` call behaves as though only what the `bind` function surrounded is present. This allows a sequence to be produced as normal, while also allowing the resolved value to be used again later in the rule.
-
-`bind` can capture [expression](#expressions) and [number](#numbers) types.
-
 ```kbnf
-bind(variable_name: identifier, value: expression | number): expression | number
+bind(variable_name: identifier, value: expression | number): expression | number =
+    """
+    Binds `value` to a local variable for subsequent re-use in the current rule.
+    `bind` transparently passes through the type and value of `value`, meaning that
+    the context around the `bind` call behaves as though only what the `bind`
+    function surrounded is present. This allows a match as normal, while also
+    allowing the resolved value to be used again later in the rule.
+    """;
 ```
 
 **Example**: Match "abc/abc", "fred/fred" etc.
@@ -1060,11 +1075,17 @@ byte(v)                 = uint(8, v);
 
 ### `unicode` Function
 
-The `unicode` function creates an expression containing the [alternatives](#alternative) set of all Unicode codepoints that have any of the given [Unicode categories](https://unicode.org/glossary/#general_category).
+```
+unicode(categories: unicode_category ...): expression =
+    """
+    Creates an expression containing the alternatives set of all Unicode
+    codepoints that have any of the given Unicode categories.
 
-```kbnf
-unicode(c: category (ARG_SEP c: category)*): expression
-category = """https://unicode.org/glossary/#general_category""";
+    `categories` is a comma separated list of 1 letter major category or 2-letter minor
+    category names, as listed in https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153
+
+    Example: all letters and space separators: unicode(L,Zs)
+    """;
 ```
 
 **Example**: Allow letter, numeral, and space characters.
@@ -1075,12 +1096,12 @@ letter_digit_space = unicode(N,L,Zs);
 
 ### `uint` Function
 
-The `uint` function creates an expression that matches the given [range](#ranges) of big endian unsigned integers with the given number of bits.
-
-A `bit_count` of 0 causes the function to create an expression for the minimum number of bits required to represent the value. This is useful for passing to encoding functions for arbitrarily large numbers such as [ULEB](https://en.wikipedia.org/wiki/LEB128).
-
 ```kbnf
-uint(bit_count: unsigned, value: unsigned): expression
+uint(bit_count: unsigned, range: unsigned): expression =
+    """
+    Creates an expression that matches the given range of big endian unsigned
+    integers with the given number of bits.
+    """;
 ```
 
 **Example**: The length field is a 16-bit unsigned integer value.
@@ -1092,12 +1113,12 @@ length = uint(16, ~);
 
 ### `sint` Function
 
-The `sint` function creates an expression that matches the given [range](#ranges) of big endian two's complement signed integers with the given number of bits.
-
-A `bit_count` of 0 causes the function to create an expression for the minimum number of bits required to represent the value. This is useful for passing to encoding functions for arbitrarily large numbers such as [ULEB](https://en.wikipedia.org/wiki/LEB128).
-
 ```kbnf
-sint(bit_count: unsigned, value: signed): expression
+sint(bit_count: unsigned, range: signed): expression =
+    """
+    Creates an expression that matches the given range of big endian signed
+    integers with the given number of bits.
+    """;
 ```
 
 **Example**: The points field is a 16-bit signed integer value from -10000 to 10000.
@@ -1109,10 +1130,12 @@ points = sint(32, -10000~10000);
 
 ### `float` Function
 
-The `float` function creates an expression that matches the given [range](#ranges) of big endian [ieee754 binary floating point](https://en.wikipedia.org/wiki/IEEE_754) values, with a valid number of bits according to [ieee754 binary](https://en.wikipedia.org/wiki/IEEE_754).
-
 ```kbnf
-float(bit_count: unsigned, value: real): expression
+float(bit_count: unsigned, range: real): expression =
+    """
+    Creates an expression that matches the given range of big endian ieee754 binary
+    floating point values. `bit_count` must be a valid size according to ieee754 binary.
+    """;
 ```
 
 **Note**: [ranges](#ranges) passed to the `float` function will **never** include [qnan](#qnan-function) or [snan](#snan-function). These special values cannot be part of a range, and instead must be explicitly passed to the `float` function.
@@ -1133,13 +1156,15 @@ float64_or_nan(range) = float(64,range) | float(64,qnan) | float(64,snan);
 
 ### `inf` Function
 
-The `inf` function returns a [number](#numbers) representing the mathematical concept of infinity. This representation is only for the concept itself; actual encodings in a document will depend on the encoding format used.
-
 ```kbnf
-inf: real
+inf: real =
+    """
+    Returns a number representing the mathematical concept of infinity.
+    The sign of the infinity can be reversed using negation.
+    This representation is only for the concept itself; actual encodings in a
+    document will depend on the encoding format used.
+    """;
 ```
-
-The sign of the infinity can be reversed using [negation](#calculations).
 
 **Example**: Negative infinity used as a record terminator.
 
@@ -1152,10 +1177,13 @@ terminator = float(32, -inf);
 
 ### `qnan` Function
 
-The `qnan` function returns a [number](#numbers) representing the concept of "not-a-number" in its [quiet](https://en.wikipedia.org/wiki/NaN#Quiet_NaN) form. This representation is only for the concept itself; actual encodings in a document will depend on the encoding format used.
-
 ```kbnf
-qnan: real
+qnan: real =
+    """
+    returns a number representing the concept of "not-a-number" in its quiet form.
+    This representation is only for the concept itself; actual encodings in a
+    document will depend on the encoding format used.
+    """;
 ```
 
 **Example**: Quiet NaN used to mark invalid readings.
@@ -1169,10 +1197,13 @@ invalid = float(32, qnan);
 
 ### `snan` Function
 
-The `snan` function returns a [number](#numbers) representing the concept of "not-a-number" in its [signaling](https://en.wikipedia.org/wiki/NaN#Signaling_NaN) form. This representation is only for the concept itself; actual encodings in a document will depend on the encoding format used.
-
 ```kbnf
-snan: real
+snan: real =
+    """
+    returns a number representing the concept of "not-a-number" in its signaling form.
+    This representation is only for the concept itself; actual encodings in a
+    document will depend on the encoding format used.
+    """;
 ```
 
 **Example**: Signaling NaN used to mark invalid readings.
@@ -1262,22 +1293,27 @@ expression             = symbol
 
 symbol                 = identifier_restricted;
 macro                  = identifier_restricted & PARENTHESIZED(param_name & (ARG_SEP & param_name)*);
-param_name             = identifier_any;
+param_name             = identifier_restricted;
 function               = function_no_args | function_with_args;
-function_no_args       = identifier_restricted & type_specifier;
+function_no_args       = identifier_restricted & TOKEN_SEP & type_specifier;
 function_with_args     = identifier_restricted
                        & PARENTHESIZED(function_param & (ARG_SEP & function_param)*)
-                       & type_specifier
+                       & TOKEN_SEP & type_specifier
                        ;
-function_param         = param_name & type_specifier;
-type_specifier         = TOKEN_SEP & ':' & TOKEN_SEP & type;
-type                   = "expression"
+function_param         = param_name & TOKEN_SEP & type_specifier;
+type_specifier         = ':' & TOKEN_SEP & type_alternatives & (TOKEN_SEP & vararg)?;
+type_alternatives      = type_name & (TOKEN_SEP & '|' & TOKEN_SEP & type_name)*;
+vararg                 = "...";
+type_name              = basic_type_name | custom_type_name;
+basic_type_name        = "expression"
                        | "condition"
+                       | "number"
                        | "unsigned"
                        | "signed"
                        | "real"
-                       | "any"
                        ;
+custom_type_name       = name;
+
 call                   = identifier_any & PARENTHESIZED(call_param & (ARG_SEP & call_param)*);
 call_param             = any_type;
 
@@ -1307,31 +1343,105 @@ maybe_escaped(charset) = (charset ! '\\') | escape_sequence;
 escape_sequence        = '\\' & (printable ! '[') | codepoint_escape);
 codepoint_escape       = '[' & digit_hex+ & ']';
 
-builtin_functions      = function_sized
-                       | function_aligned
-                       | function_swapped
-                       | function_when
-                       | function_bind
-                       | function_unicode
-                       | function_uint
-                       | function_sint
-                       | function_float
-                       | function_inf
-                       | function_qnan
-                       | function_snan
+builtin_functions      = sized
+                       | aligned
+                       | swapped
+                       | when
+                       | bind
+                       | unicode
+                       | uint
+                       | sint
+                       | float
+                       | inf
+                       | qnan
+                       | snan
                        ;
-function_sized         = fname_sized   & PARENTHESIZED(bit_count & ARG_SEP & expression);
-function_aligned       = fname_aligned & PARENTHESIZED(bit_count & ARG_SEP & expression & ARG_SEP & padding);
-function_swapped       = fname_swapped & PARENTHESIZED(bit_granularity & ARG_SEP & expression);
-function_when          = fname_when    & PARENTHESIZED(condition & ARG_SEP & any_type);
-function_bind          = fname_bind    & PARENTHESIZED(local_id & ARG_SEP & any_type);
-function_unicode       = fname_unicode & PARENTHESIZED(unicode_category & (ARG_SEP & unicode_category)*);
-function_uint          = fname_uint    & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
-function_sint          = fname_sint    & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
-function_float         = fname_float   & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
-function_inf           = fname_inf;
-function_qnan          = fname_qnan;
-function_snan          = fname_snan;
+
+sized(bit_count: unsigned, expr: expression): expression =
+    """
+    Requires that `expr` produce exactly `bit_count` bits.
+    Expressions containing repetition that would have matched on their own are
+    no longer sufficient until the production fills exactly `bit_count` bits.
+    """;
+
+aligned(bit_count: unsigned, expr: expression, padding: expression): expression =
+    """
+    Requires that `expr` and `padding` together produce a multiple of `bit_count` bits.
+    If `expr` doesn't produce a multiple of `bit_count` bits, the `padding` expression
+    is used in the same manner as the `sized` function to produce the remaining bits.
+    """;
+
+swapped(bit_granularity: unsigned, expr: expression): expression =
+    """
+    Swaps the order of `expr`'s bits with a granularity of `bit_granularity`.
+    If `expr` doesn't resolve to a multiple of `bit_granularity` bits, the
+    expression doesn't match.
+    """;
+
+when(cond: condition, expr: expression): expression =
+    """
+    Matches `expr` only when `cond` is true.
+    """;
+
+bind(variable_name: identifier, value: expression | number): expression | number =
+    """
+    Binds `value` to a local variable for subsequent re-use in the current rule.
+    `bind` transparently passes through the type and value of `value`, meaning that
+    the context around the `bind` call behaves as though only what the `bind`
+    function surrounded is present. This allows a match as normal, while also
+    allowing the resolved value to be used again later in the rule.
+    """;
+
+unicode(categories: unicode_category ...): expression =
+    """
+    Creates an expression containing the alternatives set of all Unicode
+    codepoints that have any of the given Unicode categories.
+
+    `categories` is a comma separated list of 1 letter major category or 2-letter minor
+    category names, as listed in https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153
+
+    Example: all letters and space separators: unicode(L,Zs)
+    """;
+
+uint(bit_count: unsigned, range: unsigned): expression =
+    """
+    Creates an expression that matches the given range of big endian unsigned
+    integers with the given number of bits.
+    """;
+
+sint(bit_count: unsigned, range: signed): expression =
+    """
+    Creates an expression that matches the given range of big endian signed
+    integers with the given number of bits.
+    """;
+
+float(bit_count: unsigned, range: real): expression =
+    """
+    Creates an expression that matches the given range of big endian ieee754 binary
+    floating point values. `bit_count` must be a valid size according to ieee754 binary.
+    """;
+
+inf: real =
+    """
+    Returns a number representing the mathematical concept of infinity.
+    The sign of the infinity can be reversed using negation.
+    This representation is only for the concept itself; actual encodings in a
+    document will depend on the encoding format used.
+    """;
+
+qnan: real =
+    """
+    returns a number representing the concept of "not-a-number" in its quiet form.
+    This representation is only for the concept itself; actual encodings in a
+    document will depend on the encoding format used.
+    """;
+
+snan: real =
+    """
+    returns a number representing the concept of "not-a-number" in its signaling form.
+    This representation is only for the concept itself; actual encodings in a
+    document will depend on the encoding format used.
+    """;
 
 padding                = expression;
 bit_count              = number;
@@ -1381,34 +1491,24 @@ int_literal_bin        = neg? & '0' & ('b' | 'B') & digit_bin+;
 int_literal_oct        = neg? & '0' & ('o' | 'O') & digit_oct+;
 neg                    = '-';
 
-identifier_any         = identifier_firstchar & identifier_nextchar*;
+identifier_any         = name;
 identifier_restricted  = identifier_any ! reserved_identifiers;
-identifier_firstchar   = unicode(L,M);
-identifier_nextchar    = identifier_firstchar | unicode(N) | '_';
-reserved_identifiers   = fname_sized
-                       | fname_aligned
-                       | fname_swapped
-                       | fname_when
-                       | fname_bind
-                       | fname_uint
-                       | fname_sint
-                       | fname_float
-                       | fname_inf
-                       | fname_qnan
-                       | fname_snan
+reserved_identifiers   = "sized"
+                       | "aligned"
+                       | "swapped"
+                       | "when"
+                       | "bind"
+                       | "uint"
+                       | "sint"
+                       | "float"
+                       | "inf"
+                       | "qnan"
+                       | "snan"
                        ;
 
-fname_sized            = "sized";
-fname_aligned          = "aligned";
-fname_swapped          = "swapped";
-fname_when             = "when";
-fname_bind             = "bind";
-fname_uint             = "uint";
-fname_sint             = "sint";
-fname_float            = "float";
-fname_inf              = "inf";
-fname_qnan             = "qnan";
-fname_snan             = "snan";
+name                   = name_firstchar & name_nextchar*;
+name_firstchar         = unicode(L,M);
+name_nextchar          = name_firstchar | unicode(N) | '_';
 
 printable              = unicode(L,M,N,P,S);
 printable_ws           = printable | WS;
