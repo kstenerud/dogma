@@ -46,6 +46,9 @@ Contents
     - [Symbols](#symbols)
     - [Macros](#macros)
     - [Functions](#functions)
+      - [Function Parameter and Return Types](#function-parameter-and-return-types)
+      - [Ranged Types](#ranged-types)
+      - [Variadic Functions](#variadic-functions)
   - [Variables](#variables)
   - [Types](#types)
     - [Identifier](#identifier)
@@ -252,7 +255,7 @@ The first rule listed in a KBNF document is the start rule. Only a [symbol](#sym
 
 ### Symbols
 
-A symbol acts as a placeholder for something to be substituted in another rule. Symbol names are not limited to ASCII.
+A symbol acts as a placeholder for something to be substituted in another rule.
 
 ```kbnf
 symbol_rule           = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
@@ -265,6 +268,8 @@ name_nextchar         = name_firstchar | unicode(N) | '_';
 reserved_identifiers  = "sized" | "aligned" | "swapped" | "when" | "bind"
                       | "uint" | "sint" | "float" | "inf" | "qnan" | "snan";
 ```
+
+**Note**: Symbol names are not limited to ASCII.
 
 **Example**: A record consists of a company name (which must not contain two full-width colons in a row), followed by two full-width colons, followed by an employee count in full-width characters (possibly approximated to the nearest 10,000), and is terminated by a linefeed.
 
@@ -341,9 +346,31 @@ payload_contents(protocol)   = when(protocol = 0, protocol_hopopt)
 
 Functions behave similarly to macros, except that they are opaque: whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions), or is user-defined in [prose](#prose) (as a description, or as a URL pointing to a description).
 
+Functions that take no parameters are defined and called without the trailing parentheses (similar to defining or calling a [symbol](#symbols)).
+
+#### Function Parameter and Return Types
+
 Since functions are opaque, their parameter and return [types](#types) cannot be automatically deduced like they can for [macros](#macros). Functions therefore declare all parameter and return [types](#types). If a function is called with the wrong types or its return value is used in an incompatible context, the grammar is malformed.
 
-Functions that take no parameters are defined and called without the trailing parentheses (similar to defining or calling a [symbol](#symbols)).
+The following standard types are recognized:
+
+* `expression`
+* `condition`
+* `number`
+* `unsigned`
+* `signed`
+* `real`
+
+Custom types may be invented when the standard types are insufficient (such as in the [unicode function](#unicode-function)), provided their textual representation doesn't cause ambiguities with the KBNF document encoding.
+
+#### Ranged Types
+
+Numeric types used as parameters or return types from functions can be prepended with a tilde (`~`) to indicate that they accept [ranges](#ranges) (such as in the [uint](#uint-function), [sint](#sint-function), and [float](#float-function) functions).
+
+#### Variadic Functions
+
+The last parameter in a function can be made variadic by appending `...` (such as in the [unicode function](#unicode-function)).
+
 
 ```kbnf
 function_rule      = function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';';
@@ -355,9 +382,9 @@ function_with_args = identifier_restricted
                    ;
 function_param     = param_name & TOKEN_SEP & type_specifier;
 type_specifier     = ':' & TOKEN_SEP & type_alternatives & (TOKEN_SEP & vararg)?;
-type_alternatives  = type_name & (TOKEN_SEP & '|' & TOKEN_SEP & type_name)*;
+type_alternatives  = maybe_ranged_type & (TOKEN_SEP & '|' & TOKEN_SEP & maybe_ranged_type)*;
 vararg             = "...";
-type_name          = basic_type_name | custom_type_name;
+maybe_ranged_type  = '~'? & (basic_type_name | custom_type_name);
 basic_type_name    = "expression"
                    | "condition"
                    | "number"
@@ -484,6 +511,8 @@ Numeric literals can be expressed in binary, octal, decimal, or hexadecimal nota
 
 **Note**: Decimal real notation translates more cleanly to decimal float encodings such as [ieee754 decimal](https://en.wikipedia.org/wiki/Decimal64_floating-point_format), and hexadecimal real notation translates more cleanly to binary float encodings such as [ieee754 binary](https://en.wikipedia.org/wiki/Double-precision_floating-point_format).
 
+Conversions from literal reals to floating point encodings that differ in base are assumed to follow the generally accepted algorithms for such conversions (e.g. `Grisu`, `std::strtod`).
+
 ```kbnf
 number_literal       = int_literal_bin | int_literal_oct | int_real_literal_dec | int_real_literal_hex;
 int_real_literal_dec = neg? digit_dec+
@@ -522,8 +551,7 @@ codepoint_literal = '"' & maybe_escaped(printable_ws ! '"'){1} & '"'
 
 ```kbnf
 letter_a     = 'a';     # or "a"
-a_to_c       = 'a'~'c'; # or 'a' | 'b' | 'c'
-a_to_z       = 'a'~'z'; # or "a"~"z"
+a_to_c       = 'a'~'c'; # or "a"~"c", or 'a' | 'b' | 'c', or "a" | "b" | "c"
 alphanumeric = unicode(L,N);
 ```
 
@@ -594,7 +622,7 @@ prose = '"""' & (maybe_escaped(printable_wsl)+ ! '"""') & '"""'
 
 ```kbnf
 record              = date & ':' & temperature & LF & flowery_description & LF & '=====' & LF;
-date                = """https://en.wikipedia.org/wiki/ISO_8601""";
+date                = """YYYY-MM-DD, per https://en.wikipedia.org/wiki/ISO_8601#Calendar_dates""";
 temperature         = digit+ & ('.' & digit+)?;
 digit               = '0'~'9';
 flowery_description: expression = """
@@ -625,7 +653,7 @@ Combination precedence (low to high):
 
 ### Concatenation
 
-The concatenation combination produces an expression consisting of the expression on the left, followed by the expression on the right (both must match in their proper order for the full expression to match). The operator symbol is `&` (think of it as meaning "x and then y").
+The concatenation combination produces an expression consisting of the expression on the left, followed by the expression on the right (both must match in their proper order for the combined expression to match). The operator symbol is `&` (think of it as meaning "x and then y").
 
 ```kbnf
 concatenate = expression & TOKEN_SEP & '&' & TOKEN_SEP & expression;
@@ -857,8 +885,8 @@ A [number](#numbers) range will ultimately be passed to a context requiring a sp
 
 **Notes**:
 
-* [Quiet NaN](#qnan-function) and [signaling NaN](#snan-function) values are **never** included in the set of reals returned by a [range](#ranges) (i.e. `float(64,~)`, `float(64,0~)`, `float(64,~0)` etc do **not** include `float(64,qnan)` or `float(64,snan)`).
-* The concept of negative zero (`-0`) _is_ included in the set returned by any range that crosses 0.
+* [Quiet NaN](#qnan-function) and [signaling NaN](#snan-function) values are **never** included in the set of reals returned by a [range](#ranges) (e.g. `float(64,~)`, `float(64,0~)`, `float(64,~0)` etc do **not** include `float(64,qnan)` or `float(64,snan)`).
+* The concept of negative zero (`-0`) _is_ included in the set returned by any range that crosses out of negative values.
 
 ```kbnf
 expression         = ...
@@ -1038,7 +1066,7 @@ extension_3(length) = ...
 ### `bind` Function
 
 ```kbnf
-bind(variable_name: identifier, value: expression | number): expression | number =
+bind(variable_name: identifier, value: expression | ~number): expression | ~number =
     """
     Binds `value` to a local variable for subsequent re-use in the current rule.
     `bind` transparently passes through the type and value of `value`, meaning that
@@ -1075,7 +1103,7 @@ byte(v)                 = uint(8, v);
 
 ### `unicode` Function
 
-```
+```kbnf
 unicode(categories: unicode_category ...): expression =
     """
     Creates an expression containing the alternatives set of all Unicode
@@ -1097,7 +1125,7 @@ letter_digit_space = unicode(N,L,Zs);
 ### `uint` Function
 
 ```kbnf
-uint(bit_count: unsigned, range: unsigned): expression =
+uint(bit_count: unsigned, range: ~unsigned): expression =
     """
     Creates an expression that matches the given range of big endian unsigned
     integers with the given number of bits.
@@ -1114,7 +1142,7 @@ length = uint(16, ~);
 ### `sint` Function
 
 ```kbnf
-sint(bit_count: unsigned, range: signed): expression =
+sint(bit_count: unsigned, range: ~signed): expression =
     """
     Creates an expression that matches the given range of big endian signed
     integers with the given number of bits.
@@ -1131,7 +1159,7 @@ points = sint(32, -10000~10000);
 ### `float` Function
 
 ```kbnf
-float(bit_count: unsigned, range: real): expression =
+float(bit_count: unsigned, range: ~real): expression =
     """
     Creates an expression that matches the given range of big endian ieee754 binary
     floating point values. `bit_count` must be a valid size according to ieee754 binary.
@@ -1383,7 +1411,7 @@ when(cond: condition, expr: expression): expression =
     Matches `expr` only when `cond` is true.
     """;
 
-bind(variable_name: identifier, value: expression | number): expression | number =
+bind(variable_name: identifier, value: expression | ~number): expression | ~number =
     """
     Binds `value` to a local variable for subsequent re-use in the current rule.
     `bind` transparently passes through the type and value of `value`, meaning that
@@ -1403,19 +1431,19 @@ unicode(categories: unicode_category ...): expression =
     Example: all letters and space separators: unicode(L,Zs)
     """;
 
-uint(bit_count: unsigned, range: unsigned): expression =
+uint(bit_count: unsigned, range: ~unsigned): expression =
     """
     Creates an expression that matches the given range of big endian unsigned
     integers with the given number of bits.
     """;
 
-sint(bit_count: unsigned, range: signed): expression =
+sint(bit_count: unsigned, range: ~signed): expression =
     """
     Creates an expression that matches the given range of big endian signed
     integers with the given number of bits.
     """;
 
-float(bit_count: unsigned, range: real): expression =
+float(bit_count: unsigned, range: ~real): expression =
     """
     Creates an expression that matches the given range of big endian ieee754 binary
     floating point values. `bit_count` must be a valid size according to ieee754 binary.
@@ -1520,7 +1548,7 @@ digit_bin              = ('0'~'9') | ('a'~'f') | ('A'~'F');
 
 comment                = '#' & printable_ws* & LINE_END;
 
-PARENTHESIZED(item)    = '(' & TOKEN_SEP item TOKEN_SEP & ')';
+PARENTHESIZED(item)    = '(' & TOKEN_SEP & item & TOKEN_SEP & ')';
 ARG_SEP                = TOKEN_SEP & ',' & TOKEN_SEP;
 TOKEN_SEP              = MAYBE_WSLC;
 
