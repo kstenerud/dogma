@@ -126,7 +126,7 @@ KBNF can be used with any character set, and requires the character set to be sp
 Binary grammars have different needs from textual grammars, and require special support:
 
 * **Bit arrays**: Binary formats tend to work at bit-level granularity, and thus require support for arbitrarily sized bit arrays.
-* **Variables & Functions**: Binary formats often represent data in complex ways that can't be parsed without passing some context around.
+* **Variables, Macros & Functions**: Binary formats often represent data in complex ways that can't be parsed without passing some context around.
 * **Conditionals & Logic**: Binary formats often include or exclude portions based on encoded values elsewhere. Evaluating these requires the use of conditionals and logic operators.
 * **Calculations**: Many binary field sizes are determined by data stored elsewhere in the document, and often they require calculations of some sort to determine the final field size.
 * **Transformations**: Binary data often undergoes transformations that are too complex for normal BNF-style rules to express (for example [LEB128](https://en.wikipedia.org/wiki/LEB128)).
