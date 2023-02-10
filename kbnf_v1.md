@@ -1127,8 +1127,9 @@ letter_digit_space = unicode(N,L,Zs);
 ```kbnf
 uint(bit_count: unsigned, range: ~unsigned): expression =
     """
-    Creates an expression that matches the given range of big endian unsigned
-    integers with the given number of bits.
+    Creates an expression that matches every discrete bit pattern that can be
+    represented in the given range as big endian unsigned integers with the given
+    number of bits.
     """;
 ```
 
@@ -1144,8 +1145,9 @@ length = uint(16, ~);
 ```kbnf
 sint(bit_count: unsigned, range: ~signed): expression =
     """
-    Creates an expression that matches the given range of big endian signed
-    integers with the given number of bits.
+    Creates an expression that matches every discrete bit pattern that can be
+    represented in the given range as big endian 2's complement signed integers
+    with the given number of bits.
     """;
 ```
 
@@ -1161,8 +1163,11 @@ points = sint(32, -10000~10000);
 ```kbnf
 float(bit_count: unsigned, range: ~real): expression =
     """
-    Creates an expression that matches the given range of big endian ieee754 binary
-    floating point values. `bit_count` must be a valid size according to ieee754 binary.
+    Creates an expression that matches every discrete bit pattern that can be
+    represented in the given range as big endian ieee754 binary floating point
+    values with the given number of bits.
+    Note that this will never include the special infinity values.
+    `bit_count` must be a valid size according to ieee754 binary.
     """;
 ```
 
@@ -1206,8 +1211,8 @@ terminator = inf(32, -1);
 ```kbnf
 nan(bit_count: unsigned, payload: ~signed): expression =
     """
-    Creates an expression that matches a big endian ieee754 binary NaN value with
-    the given payload range. `payload` can be positive or negative, up to the min/max
+    Creates an expression that matches every big endian ieee754 binary NaN value with
+    the given payload range. NaN payloads can be positive or negative, up to the min/max
     value allowed for a NaN payload in a float of the given size (10 bits for float-16,
     23 bits for float32, etc). `bit_count` must be a valid size according to ieee754 binary.
 
@@ -1444,20 +1449,25 @@ unicode(categories: unicode_category ...): expression =
 
 uint(bit_count: unsigned, range: ~unsigned): expression =
     """
-    Creates an expression that matches the given range of big endian unsigned
-    integers with the given number of bits.
+    Creates an expression that matches every discrete bit pattern that can be
+    represented in the given range as big endian unsigned integers with the given
+    number of bits.
     """;
 
 sint(bit_count: unsigned, range: ~signed): expression =
     """
-    Creates an expression that matches the given range of big endian signed
-    integers with the given number of bits.
+    Creates an expression that matches every discrete bit pattern that can be
+    represented in the given range as big endian 2's complement signed integers
+    with the given number of bits.
     """;
 
 float(bit_count: unsigned, range: ~real): expression =
     """
-    Creates an expression that matches the given range of big endian ieee754 binary
-    floating point values. `bit_count` must be a valid size according to ieee754 binary.
+    Creates an expression that matches every discrete bit pattern that can be
+    represented in the given range as big endian ieee754 binary floating point
+    values with the given number of bits.
+    Note that this will never include the special infinity values.
+    `bit_count` must be a valid size according to ieee754 binary.
     """;
 
 inf(bit_count: unsigned, sign: ~real): expression =
@@ -1471,8 +1481,8 @@ inf(bit_count: unsigned, sign: ~real): expression =
 
 nan(bit_count: unsigned, payload: ~signed): expression =
     """
-    Creates an expression that matches a big endian ieee754 binary NaN value with
-    the given payload range. `payload` can be positive or negative, up to the min/max
+    Creates an expression that matches every big endian ieee754 binary NaN value with
+    the given payload range. NaN payloads can be positive or negative, up to the min/max
     value allowed for a NaN payload in a float of the given size (10 bits for float-16,
     23 bits for float32, etc). `bit_count` must be a valid size according to ieee754 binary.
 
