@@ -1166,7 +1166,8 @@ float(bit_count: unsigned, range: ~real): expression =
     Creates an expression that matches every discrete bit pattern that can be
     represented in the given range as big endian ieee754 binary floating point
     values with the given number of bits.
-    Note that this will never include the special infinity values.
+    Note that this will never include the special infinity values or negative 0,
+    for which there are specialized functions.
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 ```
@@ -1466,7 +1467,8 @@ float(bit_count: unsigned, range: ~real): expression =
     Creates an expression that matches every discrete bit pattern that can be
     represented in the given range as big endian ieee754 binary floating point
     values with the given number of bits.
-    Note that this will never include the special infinity values.
+    Note that this will never include the special infinity values or negative 0,
+    for which there are specialized functions.
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 
