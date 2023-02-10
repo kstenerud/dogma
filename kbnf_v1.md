@@ -82,8 +82,8 @@ Contents
     - [`sint` Function](#sint-function)
     - [`float` Function](#float-function)
     - [`inf` Function](#inf-function)
-    - [`qnan` Function](#qnan-function)
-    - [`snan` Function](#snan-function)
+    - [`nan` Function](#nan-function)
+    - [`nzero` Function](#nzero-function)
   - [Examples](#examples)
     - [A Complex Example](#a-complex-example)
     - [Example: Internet Protocol version 4](#example-internet-protocol-version-4)
@@ -167,13 +167,13 @@ All expression matching is assumed to be non-greedy.
 For example, given the following grammar:
 
 ```kbnf
-document  = record+;
+document  = record+ & '.';
 record    = letter+ & terminator;
 letter    = 'a'~'z';
 terminaor = "zzz";
 ```
 
-The document `azzzbzzzczzz` contains 3 records (`a`, `b`, and `c`), not one record (`azzzbzzzc`).
+The document `azzzbzzzczzz.` contains 3 records (`a`, `b`, and `c`), not one record (`azzzbzzzc`).
 
 
 
@@ -266,7 +266,7 @@ name                  = name_firstchar & name_nextchar*;
 name_firstchar        = unicode(L,M);
 name_nextchar         = name_firstchar | unicode(N) | '_';
 reserved_identifiers  = "sized" | "aligned" | "swapped" | "when" | "bind"
-                      | "uint" | "sint" | "float" | "inf" | "qnan" | "snan";
+                      | "uint" | "sint" | "float" | "inf" | "nan" | "nzero";
 ```
 
 **Note**: Symbol names are not limited to ASCII.
@@ -309,7 +309,7 @@ call_param = any_type;
 
 ```kbnf
 main_section = record(1) & record(2){2};
-record(type) = byte(type) byte(bind(length, ~)) & byte(~){length};
+record(type) = byte(type) & byte(bind(length, ~)) & byte(~){length};
 byte(v)      = uint(8,v);
 ```
 
@@ -448,8 +448,8 @@ KBNF has four main types:
 * [`condition`](#conditions)
 * [`number`](#numbers), of which there are three subtypes:
   * `unsigned`: limited to positive integers and 0
-  * `signed`: limited to positive and negative integers, and 0 (but excluding -0)
-  * `real`: any value from the set of reals, including [qnan](#qnan-function) and [snan](#snan-function) unless otherwise specified
+  * `signed`: limited to positive and negative integers, and 0
+  * `real`: any value from the set of reals
 
 Types become relevant when calling [functions](#functions) (and indirectly when calling [macros](#macros)), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to unsigned integers.
 
@@ -471,7 +471,7 @@ identifier           = (identifier_firstchar & identifier_nextchar*) ! reserved_
 identifier_firstchar = unicode(L,M);
 identifier_nextchar  = identifier_firstchar | unicode(N) | '_';
 reserved_identifiers = "sized" | "aligned" | "swapped" | "when" | "bind"
-                     | "uint" | "sint" | "float" | "inf" | "qnan" | "snan"
+                     | "uint" | "sint" | "float" | "inf" | "nan" | "nzero"
                      ;
 ```
 
@@ -494,7 +494,7 @@ expression = symbol
 
 ### Numbers
 
-Numbers are used in [calculations](#calculations), numeric [ranges](#ranges), and as parameters to [functions](#functions).
+Numbers are used in [calculations](#calculations), numeric [ranges](#ranges), and as parameters to [functions](#functions). Numbers are not [expressions](#expressions) (and therefore cannot be directly used in rules), but they can be converted to expressions via [functions](#functions) such as [float](#float-function), [sint](#sint-function), and [uint](#uint-function).
 
 Certain [functions](#functions) take numeric parameters but restrict the allowed values (e.g. integers only, min/max value, etc).
 
@@ -589,7 +589,7 @@ escape_sequence = '\\' & (printable ! '[') | codepoint_escape);
 **Example**: A string containing double quotes.
 
 ```kbnf
-mystr = "This is a \"string\""; # or you could use single quotes: 'This is a "string"'
+mystr = "This is a \"string\""; # or using single quotes: 'This is a "string"'
 ```
 
 #### Codepoint Escape
@@ -749,7 +749,7 @@ Grouping
 
 ```kbnf
 grouped(item)       = PARENTHESIZED(item);
-PARENTHESIZED(item) = '(' & TOKEN_SEP item TOKEN_SEP & ')';
+PARENTHESIZED(item) = '(' & TOKEN_SEP & item & TOKEN_SEP & ')';
 ```
 
 **Exmples**:
@@ -778,8 +778,6 @@ The following operations can be used:
 * Modulus (`%`)
 * Power (`^`, where `x^y` means x to the power of y)
 * Negation ('-')
-
-**Note**: Calculations can produce a [quiet NaN](#qnan-function) value under [certain conditions in accordiance with the IEEE 754 specification](https://en.wikipedia.org/wiki/NaN#Operations_generating_NaN). If different processing is required (such as traps or exceptions), this must be documented in your specification.
 
 Operator precedence (low to high):
 
@@ -882,11 +880,6 @@ A [codepoint](#codepoints) range represents the set of each codepoint in the ran
 A [repetition](#repetition) range represents a range in the number of occurrences that will match the rule.
 
 A [number](#numbers) range will ultimately be passed to a context requiring a specific [subtype](#types) (such as [repetition](#repetition), [uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent each value in the range (for all discrete values that are representable by the [subtype](#types)) as [alternatves](#alternative).
-
-**Notes**:
-
-* [Quiet NaN](#qnan-function) and [signaling NaN](#snan-function) values are **never** included in the set of reals returned by a [range](#ranges) (e.g. `float(64,~)`, `float(64,0~)`, `float(64,~0)` etc do **not** include `float(64,qnan)` or `float(64,snan)`).
-* The concept of negative zero (`-0`) _is_ included in the set returned by any range that crosses out of negative values.
 
 ```kbnf
 expression         = ...
@@ -1011,9 +1004,16 @@ byte(v)            = uint(8, v);
 ```kbnf
 swapped(bit_granularity: unsigned, expr: expression): expression =
     """
-    Swaps the order of `expr`'s bits with a granularity of `bit_granularity`.
+    Swaps all bits of `expr` in chunks of `bit_granularity` size.
+
+    For example, given some nominal bits = ABCDEFGHIJKLMNOP:
+        swapped(8, bits) -> IJKLMNOPABCDEFGH
+        swapped(4, bits) -> MNOPIJKLEFGHABCD
+        swapped(2, bits) -> OPMNKLIJGHEFCDAB
+        swapped(1, bits) -> PONMLKJIHGFEDCBA
+
     If `expr` doesn't resolve to a multiple of `bit_granularity` bits, the
-    expression doesn't match.
+    resulting expression matches nothing.
     """;
 ```
 
@@ -1166,31 +1166,29 @@ float(bit_count: unsigned, range: ~real): expression =
     """;
 ```
 
-**Note**: [ranges](#ranges) passed to the `float` function will **never** include [qnan](#qnan-function) or [snan](#snan-function). These special values cannot be part of a range, and instead must be explicitly passed to the `float` function.
-
 **Example**: The temperature field is a 32-bit float value from -1000 to 1000.
 
 ```kbnf
 rpm = float(32, -1000~1000);
 ```
 
-**Example**: Accept any real or any NaN, encoded as a float64.
+**Example**: Accept any 64-bit binary ieee754 float.
 
 ```kbnf
-value                 = float64_or_nan(~);
-float64_or_nan(range) = float(64,range) | float(64,qnan) | float(64,snan);
+any_float64 = float(64,~) | inf(64,~) | nan(64,~) | nzero(64);
 ```
 
 
 ### `inf` Function
 
 ```kbnf
-inf: real =
+inf(bit_count: unsigned, sign: ~real): expression =
     """
-    Returns a number representing the mathematical concept of infinity.
-    The sign of the infinity can be reversed using negation.
-    This representation is only for the concept itself; actual encodings in a
-    document will depend on the encoding format used.
+    Creates an expression that matches big endian ieee754 binary infinity values
+    whose sign matches the `sign` range. One or two matches will be made
+    (positive infinity, negative infinity) depending on whether the `sign`
+    range includes both positive and negative values or not.
+    `bit_count` must be a valid size according to ieee754 binary.
     """;
 ```
 
@@ -1199,18 +1197,25 @@ inf: real =
 ```kbnf
 record     = reading* terminator;
 reading    = float(32, ~) ! terminator;
-terminator = float(32, -inf);
+terminator = inf(32, -1);
 ```
 
 
-### `qnan` Function
+### `nan` Function
 
 ```kbnf
-qnan: real =
+nan(bit_count: unsigned, payload: ~signed): expression =
     """
-    returns a number representing the concept of "not-a-number" in its quiet form.
-    This representation is only for the concept itself; actual encodings in a
-    document will depend on the encoding format used.
+    Creates an expression that matches a big endian ieee754 binary NaN value with
+    the given payload range. `payload` can be positive or negative, up to the min/max
+    value allowed for a NaN payload in a float of the given size (10 bits for float-16,
+    23 bits for float32, etc). `bit_count` must be a valid size according to ieee754 binary.
+
+    Notes:
+    - The absolute value of `payload` is encoded, with the sign going into the sign bit
+      (i.e. the value is not encoded as 2's complement).
+    - The payload value 0 is automatically removed from the possible matches because
+      such an encoding would be interpreted as infinity.
     """;
 ```
 
@@ -1219,27 +1224,26 @@ qnan: real =
 ```kbnf
 record  = reading{32};
 reading = float(32, ~) | invalid;
-invalid = float(32, qnan);
+invalid = nan(32, 0x400001);
 ```
 
 
-### `snan` Function
+### `nzero` Function
 
 ```kbnf
-snan: real =
+nzero(bit_count: unsigned): expression =
     """
-    returns a number representing the concept of "not-a-number" in its signaling form.
-    This representation is only for the concept itself; actual encodings in a
-    document will depend on the encoding format used.
+    Creates an expression that matches a big endian ieee754 binary negative 0 value
+    of the given bit count. `bit_count` must be a valid size according to ieee754 binary.
     """;
 ```
 
-**Example**: Signaling NaN used to mark invalid readings.
+**Example**: Negative zero used to mark invalid readings.
 
 ```kbnf
 record  = reading{32};
 reading = float(32, ~) | invalid;
-invalid = float(32, snan);
+invalid = nzero(32);
 ```
 
 
@@ -1381,8 +1385,8 @@ builtin_functions      = sized
                        | sint
                        | float
                        | inf
-                       | qnan
-                       | snan
+                       | nan
+                       | nzero
                        ;
 
 sized(bit_count: unsigned, expr: expression): expression =
@@ -1401,9 +1405,16 @@ aligned(bit_count: unsigned, expr: expression, padding: expression): expression 
 
 swapped(bit_granularity: unsigned, expr: expression): expression =
     """
-    Swaps the order of `expr`'s bits with a granularity of `bit_granularity`.
+    Swaps all bits of `expr` in chunks of `bit_granularity` size.
+
+    For example, given some nominal bits = ABCDEFGHIJKLMNOP:
+        swapped(8, bits) -> IJKLMNOPABCDEFGH
+        swapped(4, bits) -> MNOPIJKLEFGHABCD
+        swapped(2, bits) -> OPMNKLIJGHEFCDAB
+        swapped(1, bits) -> PONMLKJIHGFEDCBA
+
     If `expr` doesn't resolve to a multiple of `bit_granularity` bits, the
-    expression doesn't match.
+    resulting expression matches nothing.
     """;
 
 when(cond: condition, expr: expression): expression =
@@ -1449,26 +1460,33 @@ float(bit_count: unsigned, range: ~real): expression =
     floating point values. `bit_count` must be a valid size according to ieee754 binary.
     """;
 
-inf: real =
+inf(bit_count: unsigned, sign: ~real): expression =
     """
-    Returns a number representing the mathematical concept of infinity.
-    The sign of the infinity can be reversed using negation.
-    This representation is only for the concept itself; actual encodings in a
-    document will depend on the encoding format used.
+    Creates an expression that matches big endian ieee754 binary infinity values
+    whose sign matches the `sign` range. One or two matches will be made
+    (positive infinity, negative infinity) depending on whether the `sign`
+    range includes both positive and negative values or not.
+    `bit_count` must be a valid size according to ieee754 binary.
     """;
 
-qnan: real =
+nan(bit_count: unsigned, payload: ~signed): expression =
     """
-    returns a number representing the concept of "not-a-number" in its quiet form.
-    This representation is only for the concept itself; actual encodings in a
-    document will depend on the encoding format used.
+    Creates an expression that matches a big endian ieee754 binary NaN value with
+    the given payload range. `payload` can be positive or negative, up to the min/max
+    value allowed for a NaN payload in a float of the given size (10 bits for float-16,
+    23 bits for float32, etc). `bit_count` must be a valid size according to ieee754 binary.
+
+    Notes:
+    - The absolute value of `payload` is encoded, with the sign going into the sign bit
+      (i.e. the value is not encoded as 2's complement).
+    - The payload value 0 is automatically removed from the possible matches because
+      such an encoding would be interpreted as infinity.
     """;
 
-snan: real =
+nzero(bit_count: unsigned): expression =
     """
-    returns a number representing the concept of "not-a-number" in its signaling form.
-    This representation is only for the concept itself; actual encodings in a
-    document will depend on the encoding format used.
+    Creates an expression that matches a big endian ieee754 binary negative 0 value
+    of the given bit count. `bit_count` must be a valid size according to ieee754 binary.
     """;
 
 padding                = expression;
@@ -1530,8 +1548,8 @@ reserved_identifiers   = "sized"
                        | "sint"
                        | "float"
                        | "inf"
-                       | "qnan"
-                       | "snan"
+                       | "nan"
+                       | "nzero"
                        ;
 
 name                   = name_firstchar & name_nextchar*;
@@ -1544,7 +1562,7 @@ printable_wsl          = printable | WSL;
 digit_bin              = '0'~'1';
 digit_oct              = '0'~'7';
 digit_dec              = '0'~'9';
-digit_bin              = ('0'~'9') | ('a'~'f') | ('A'~'F');
+digit_hex              = ('0'~'9') | ('a'~'f') | ('A'~'F');
 
 comment                = '#' & printable_ws* & LINE_END;
 
