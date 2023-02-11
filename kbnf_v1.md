@@ -21,12 +21,69 @@ Syntactic metalanguages have made mainly haphazard gains over the past 60 years,
 
 
 
+Introductory Example
+--------------------
+
+To show what KBNF can do, here is an Ethernet IEEE 802.3 frame, layer 2:
+
+```kbnf
+kbnf_v1 utf-8
+- identifier  = 802.3_layer2
+- description = IEEE 802.3 Ethernet frame, layer 2
+- note        = Words are sent big endian, but octets are sent LSB first.
+
+frame                    = preamble
+                         & frame_start
+                         & dst_address
+                         & src_address
+                         & bind(etype, ether_type)
+                         & ( when( etype.type = 0x8100, dot1q_frame )
+                           | when( etype.type = 0x88a8, double_tag_frame )
+                           | ethertype_specific(etype.type)
+                           )
+                         & frame_check
+                         ;
+preamble                 = uint(8, 0b01010101){7};
+frame_start              = uint(8, 0b11010101);
+dst_address              = uint(48, ~);
+src_address              = uint(48, ~);
+ether_type               = uint(16, bind(type, ~));
+frame_check              = uint(32, ~);
+dot1q_frame              = tag_control_info
+                         & bind(etype, ether_type)
+                         & ethertype_specific(etype.type)
+                         ;
+double_tag_frame         = tag_control_info
+                         & uint(16, 0x8100)
+                         & tag_control_info
+                         & bind(etype, ether_type)
+                         & ethertype_specific(etype.type)
+                         ;
+tag_control_info         = priority & drop_eligible & vlan_id;
+priority                 = uint(3, ~);
+drop_eligible            = uint(1, ~);
+vlan_id                  = uint(12, ~);
+ethertype_specific(type) = when( type <= 1500, payload(type) )
+                         | when( type = 0x800, ipv4 )
+                         | when( type = 0x86dd, ipv6 )
+                         | # Other types omitted for brevity
+                         ;
+payload(length)          = uint(8,~){length}
+ipv4                     = """https://somewhere/ipv4.kbnf"""
+ipv6                     = """https://somewhere/ipv6.kbnf"""
+```
+
+See also: [IPv4 described in KBNF](ipv4.kbnf)
+
+
+
 Contents
 --------
 
 - [Karl's Backus-Naur Form](#karls-backus-naur-form)
   - [WORK IN PROGRESS](#work-in-progress)
   - [Introduction](#introduction)
+  - [Introductory Example](#introductory-example)
   - [Contents](#contents)
   - [Design Objectives](#design-objectives)
     - [Human readability](#human-readability)
@@ -47,13 +104,15 @@ Contents
     - [Macros](#macros)
     - [Functions](#functions)
       - [Function Parameter and Return Types](#function-parameter-and-return-types)
-      - [Ranged Types](#ranged-types)
+      - [Parameter and Return Type Alternatives](#parameter-and-return-type-alternatives)
+      - [Number Alternatives Set Parameters](#number-alternatives-set-parameters)
       - [Variadic Functions](#variadic-functions)
   - [Variables](#variables)
   - [Types](#types)
     - [Identifier](#identifier)
     - [Expressions](#expressions)
     - [Numbers](#numbers)
+      - [Number Alternatives Sets](#number-alternatives-sets)
   - [Literals](#literals)
     - [Numeric Literals](#numeric-literals)
     - [Codepoints](#codepoints)
@@ -363,9 +422,13 @@ The following standard types are recognized:
 
 Custom types may be invented when the standard types are insufficient (such as in the [unicode function](#unicode-function)), provided their textual representation doesn't cause ambiguities with the KBNF document encoding.
 
-#### Ranged Types
+#### Parameter and Return Type Alternatives
 
-Numeric types used as parameters or return types from functions can be prepended with a tilde (`~`) to indicate that they accept [ranges](#ranges) (such as in the [uint](#uint-function), [sint](#sint-function), and [float](#float-function) functions).
+If a function can accept multiple types in a particular parameter, or can return multiple types, those types will be listed, separated by the pipe (`|`) character. See the [bind function](#bind-function) as an example.
+
+#### Number Alternatives Set Parameters
+
+Functions that accept or produce [number alternatives sets](#number-alternatives-sets) (such as in the [uint](#uint-function), [sint](#sint-function), and [float](#float-function) functions) indicate this by prepending a tilde (`~`) to that parameter or return type's declaration (e.g. `~integer` or `~real`).
 
 #### Variadic Functions
 
@@ -443,17 +506,17 @@ Types
 
 KBNF has four main types:
 
-* [`identifier`](#identifier)
-* [`expression`](#expressions)
-* [`condition`](#conditions)
-* [`number`](#numbers), of which there are three subtypes:
+* [`identifiers`](#identifier), which uniquely identifiy things.
+* [`expressions`](#expressions), which are bit patterns to be matched.
+* [`conditions`](#conditions), which resolve to true or false.
+* [`numbers`](#numbers), of which there are three common invariants:
   * `unsigned`: limited to positive integers and 0
   * `signed`: limited to positive and negative integers, and 0
   * `real`: any value from the set of reals
 
-Types become relevant when calling [functions](#functions) (and indirectly when calling [macros](#macros)), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to unsigned integers.
+Types and invariants become relevant when calling [functions](#functions) (and indirectly when calling [macros](#macros)), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to unsigned integers.
 
-**Note**: `number` "subtypes" (`signed`, `unsigned`, `real`) aren't actual types per se, but rather restrictions on what values are allowed in a particular context. [calculations](#calculations), for example, are done as if all operands were reals regardless of their actual "subtype" (subtracting two unsigned integers can give a negative result, dividing integers can result in a fraction, etc).
+**Note**: The `number` invariants (`signed`, `unsigned`, `real`) aren't actual types, but rather restrictions on what values are allowed in a particular context. [Calculations](#calculations) treat all operands as reals and produce reals (i.e. subtracting two unsigned integers can give a negative result, dividing integers can result in a fraction, etc). The result of such a calculation, however, must match the invariant of the destination where it is used or else any resulting expression will not match anything.
 
 
 ### Identifier
@@ -496,9 +559,15 @@ expression = symbol
 
 Numbers are used in [calculations](#calculations), numeric [ranges](#ranges), and as parameters to [functions](#functions). Numbers are not [expressions](#expressions) (and therefore cannot be directly used in rules), but they can be converted to expressions via [functions](#functions) such as [float](#float-function), [sint](#sint-function), and [uint](#uint-function).
 
-Certain [functions](#functions) take numeric parameters but restrict the allowed values (e.g. integers only, min/max value, etc).
+Some [functions](#functions) take numeric parameters but place invariant restrictions upon them (such as [`unsigned` and `signed`](#types), or even further restrictions described in their prose).
 
 Numbers can be expressed as [numeric literals](#numeric-literals), or derived from [functions](#functions), [macros](#macros), and [calculations](#calculations).
+
+#### Number Alternatives Sets
+
+Some functions (such as [uint](#uint-function) or [float](#float-function)) [accept parameters that are number alternatives sets](#number-alternatives-set-parameters), which are similar to but should not be confused with [expression alternatives sets](#alternative).
+
+Number alternatives sets can be expressed using pipe notation (e.g. `1 | 5 | 30`), or using [ranges](#ranges) (where `1~3` in an integer context would equivalent to `1 | 2 | 3`), or even a mix (`1~3 | 5~7`, which in an integer context would be equivalent to `1 | 2 | 3 | 5 | 6 | 7`).
 
 
 
@@ -1125,11 +1194,11 @@ letter_digit_space = unicode(N,L,Zs);
 ### `uint` Function
 
 ```kbnf
-uint(bit_count: unsigned, range: ~unsigned): expression =
+uint(bit_count: unsigned, values: ~unsigned): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
-    represented in the given range as big endian unsigned integers with the given
-    number of bits.
+    represented in the given values set as big endian unsigned integers of
+    size `bit_count`.
     """;
 ```
 
@@ -1143,11 +1212,11 @@ length = uint(16, ~);
 ### `sint` Function
 
 ```kbnf
-sint(bit_count: unsigned, range: ~signed): expression =
+sint(bit_count: unsigned, values: ~signed): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
-    represented in the given range as big endian 2's complement signed integers
-    with the given number of bits.
+    represented in the given values set as big endian 2's complement signed
+    integers of size `bit_count`.
     """;
 ```
 
@@ -1161,13 +1230,14 @@ points = sint(32, -10000~10000);
 ### `float` Function
 
 ```kbnf
-float(bit_count: unsigned, range: ~real): expression =
+float(bit_count: unsigned, values: ~real): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
-    represented in the given range as big endian ieee754 binary floating point
-    values with the given number of bits.
-    Note that this will never include the special infinity values or negative 0,
-    for which there are specialized functions.
+    represented in the given values set as big endian ieee754 binary floating
+    point values of size `bit_count`.
+    Note that expressions produced by this function will never include the
+    special infinity values, NaN values, or negative 0, for which there are
+    specialized functions.
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 ```
@@ -1191,9 +1261,9 @@ any_float64 = float(64,~) | inf(64,~) | nan(64,~) | nzero(64);
 inf(bit_count: unsigned, sign: ~real): expression =
     """
     Creates an expression that matches big endian ieee754 binary infinity values
-    whose sign matches the `sign` range. One or two matches will be made
-    (positive infinity, negative infinity) depending on whether the `sign`
-    range includes both positive and negative values or not.
+    of size `bit_count` whose sign matches the `sign` values set. One or two
+    matches will be made (positive infinity, negative infinity) depending on
+    whether the `sign` values include both positive and negative values or not.
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 ```
@@ -1212,16 +1282,17 @@ terminator = inf(32, -1);
 ```kbnf
 nan(bit_count: unsigned, payload: ~signed): expression =
     """
-    Creates an expression that matches every big endian ieee754 binary NaN value with
-    the given payload range. NaN payloads can be positive or negative, up to the min/max
-    value allowed for a NaN payload in a float of the given size (10 bits for float-16,
-    23 bits for float32, etc). `bit_count` must be a valid size according to ieee754 binary.
+    Creates an expression that matches every big endian ieee754 binary NaN value
+    size `bit_count` with the given payload values set. NaN payloads can be
+    positive or negative, up to the min/max value allowed for a NaN payload in a
+    float of the given size (10 bits for float-16, 23 bits for float32, etc).
+    `bit_count` must be a valid size according to ieee754 binary.
 
     Notes:
-    - The absolute value of `payload` is encoded, with the sign going into the sign bit
-      (i.e. the value is not encoded as 2's complement).
-    - The payload value 0 is automatically removed from the possible matches because
-      such an encoding would be interpreted as infinity.
+    - The absolute value of `payload` is encoded, with the sign going into the
+      sign bit (i.e. the value is not encoded as 2's complement).
+    - The payload value 0 is automatically removed from the possible matches
+      because such an encoding would be interpreted as infinity.
     """;
 ```
 
@@ -1240,7 +1311,8 @@ invalid = nan(32, 0x400001);
 nzero(bit_count: unsigned): expression =
     """
     Creates an expression that matches a big endian ieee754 binary negative 0 value
-    of the given bit count. `bit_count` must be a valid size according to ieee754 binary.
+    of size `bit_count`.
+    `bit_count` must be a valid size according to ieee754 binary.
     """;
 ```
 
@@ -1448,57 +1520,60 @@ unicode(categories: unicode_category ...): expression =
     Example: all letters and space separators: unicode(L,Zs)
     """;
 
-uint(bit_count: unsigned, range: ~unsigned): expression =
+uint(bit_count: unsigned, values: ~unsigned): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
-    represented in the given range as big endian unsigned integers with the given
-    number of bits.
+    represented in the given values set as big endian unsigned integers of
+    size `bit_count`.
     """;
 
-sint(bit_count: unsigned, range: ~signed): expression =
+sint(bit_count: unsigned, values: ~signed): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
-    represented in the given range as big endian 2's complement signed integers
-    with the given number of bits.
+    represented in the given values set as big endian 2's complement signed
+    integers of size `bit_count`.
     """;
 
-float(bit_count: unsigned, range: ~real): expression =
+float(bit_count: unsigned, values: ~real): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
-    represented in the given range as big endian ieee754 binary floating point
-    values with the given number of bits.
-    Note that this will never include the special infinity values or negative 0,
-    for which there are specialized functions.
+    represented in the given values set as big endian ieee754 binary floating
+    point values of size `bit_count`.
+    Note that expressions produced by this function will never include the
+    special infinity values, NaN values, or negative 0, for which there are
+    specialized functions.
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 
 inf(bit_count: unsigned, sign: ~real): expression =
     """
     Creates an expression that matches big endian ieee754 binary infinity values
-    whose sign matches the `sign` range. One or two matches will be made
-    (positive infinity, negative infinity) depending on whether the `sign`
-    range includes both positive and negative values or not.
+    of size `bit_count` whose sign matches the `sign` values set. One or two
+    matches will be made (positive infinity, negative infinity) depending on
+    whether the `sign` values include both positive and negative values or not.
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 
 nan(bit_count: unsigned, payload: ~signed): expression =
     """
-    Creates an expression that matches every big endian ieee754 binary NaN value with
-    the given payload range. NaN payloads can be positive or negative, up to the min/max
-    value allowed for a NaN payload in a float of the given size (10 bits for float-16,
-    23 bits for float32, etc). `bit_count` must be a valid size according to ieee754 binary.
+    Creates an expression that matches every big endian ieee754 binary NaN value
+    size `bit_count` with the given payload values set. NaN payloads can be
+    positive or negative, up to the min/max value allowed for a NaN payload in a
+    float of the given size (10 bits for float-16, 23 bits for float32, etc).
+    `bit_count` must be a valid size according to ieee754 binary.
 
     Notes:
-    - The absolute value of `payload` is encoded, with the sign going into the sign bit
-      (i.e. the value is not encoded as 2's complement).
-    - The payload value 0 is automatically removed from the possible matches because
-      such an encoding would be interpreted as infinity.
+    - The absolute value of `payload` is encoded, with the sign going into the
+      sign bit (i.e. the value is not encoded as 2's complement).
+    - The payload value 0 is automatically removed from the possible matches
+      because such an encoding would be interpreted as infinity.
     """;
 
 nzero(bit_count: unsigned): expression =
     """
     Creates an expression that matches a big endian ieee754 binary negative 0 value
-    of the given bit count. `bit_count` must be a valid size according to ieee754 binary.
+    of size `bit_count`.
+    `bit_count` must be a valid size according to ieee754 binary.
     """;
 
 padding                = expression;
