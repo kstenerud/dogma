@@ -64,7 +64,7 @@ vlan_id                  = uint(12, ~);
 ethertype_specific(type) = when( type <= 1500, payload(type) )
                          | when( type = 0x800, ipv4 )
                          | when( type = 0x86dd, ipv6 )
-                         | # Other types omitted for brevity
+                         # Other types omitted for brevity
                          ;
 payload(length)          = uint(8,~){length}
 ipv4                     = """https://somewhere/ipv4.kbnf"""
