@@ -20,9 +20,7 @@ Introduction
 Syntactic metalanguages have made mainly haphazard gains over the past 60 years, and still only describe text-based formats. KBNF aims to be a modernized metalanguage with better expressivity and binary support.
 
 
-
-Introductory Example
---------------------
+### Introductory Example
 
 To show what KBNF can do, here is an Ethernet IEEE 802.3 frame, layer 2:
 
@@ -83,7 +81,7 @@ Contents
 - [Karl's Backus-Naur Form](#karls-backus-naur-form)
   - [WORK IN PROGRESS](#work-in-progress)
   - [Introduction](#introduction)
-  - [Introductory Example](#introductory-example)
+    - [Introductory Example](#introductory-example)
   - [Contents](#contents)
   - [Design Objectives](#design-objectives)
     - [Human readability](#human-readability)
