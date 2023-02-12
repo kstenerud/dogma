@@ -32,39 +32,40 @@ kbnf_v1 utf-8
 - description = IEEE 802.3 Ethernet frame, layer 2
 - note        = Words are sent big endian, but octets are sent LSB first.
 
-frame                           = preamble
-                                & frame_start
-                                & dst_address
-                                & src_address
-                                & bind(etype, ether_type)
-                                & ( when( etype.type = 0x8100, dot1q_frame )
-                                  | when( etype.type = 0x88a8, double_tag_frame )
-                                  | payload_by_type(etype.type, 46)
-                                  )
-                                & frame_check
-                                ;
-preamble                        = uint(8, 0b01010101){7};
-frame_start                     = uint(8, 0b11010101);
-dst_address                     = uint(48, ~);
-src_address                     = uint(48, ~);
-ether_type                      = uint(16, bind(type, ~));
-frame_check                     = uint(32, ~);
-dot1q_frame                     = tag_control_info
-                                & bind(etype, ether_type)
-                                & payload_by_type(etype.type, 42)
-                                ;
-double_tag_frame                = service_tag
-                                & uint(16, 0x8100)
-                                & customer_tag
-                                & bind(etype, ether_type)
-                                & payload_by_type(etype.type, 38)
-                                ;
-tag_control_info                = priority & drop_eligible & vlan_id;
-service_tag                     = tag_control_info;
-customer_tag                    = tag_control_info;
-priority                        = uint(3, ~);
-drop_eligible                   = uint(1, ~);
-vlan_id                         = uint(12, ~);
+frame             = preamble
+                  & frame_start
+                  & dst_address
+                  & src_address
+                  & bind(etype, ether_type)
+                  & ( when( etype.type = 0x8100, dot1q_frame )
+                    | when( etype.type = 0x88a8, double_tag_frame )
+                    | payload_by_type(etype.type, 46)
+                    )
+                  & frame_check
+                  ;
+preamble          = uint(8, 0b01010101){7};
+frame_start       = uint(8, 0b11010101);
+dst_address       = uint(48, ~);
+src_address       = uint(48, ~);
+ether_type        = uint(16, bind(type, ~));
+frame_check       = uint(32, ~);
+dot1q_frame       = tag_control_info
+                  & bind(etype, ether_type)
+                  & payload_by_type(etype.type, 42)
+                  ;
+double_tag_frame  = service_tag
+                  & uint(16, 0x8100)
+                  & customer_tag
+                  & bind(etype, ether_type)
+                  & payload_by_type(etype.type, 38)
+                  ;
+tag_control_info  = priority & drop_eligible & vlan_id;
+service_tag       = tag_control_info;
+customer_tag      = tag_control_info;
+priority          = uint(3, ~);
+drop_eligible     = uint(1, ~);
+vlan_id           = uint(12, ~);
+
 payload_by_type(type, min_size) = when( type >= min_size & type <= 1500, payload(type) )
                                 | when( type = 0x0800, ipv4 )
                                 | when( type = 0x86dd, ipv6 )
