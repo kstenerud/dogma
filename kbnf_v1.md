@@ -22,7 +22,9 @@ Syntactic metalanguages have made mainly haphazard gains over the past 60 years,
 
 ### Introductory Example
 
-To show what KBNF can do, here is an Ethernet IEEE 802.3 frame, layer 2:
+To show what KBNF can do, here is an Ethernet IEEE 802.3 frame, layer 2 (image from [Wikipedia](https://en.wikipedia.org/wiki/IEEE_802.1Q)):
+
+![IEEE 802.3 frame](Wikipedia-TCPIP_802.1ad_DoubleTag.svg)
 
 ```kbnf
 kbnf_v1 utf-8
