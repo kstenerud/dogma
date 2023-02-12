@@ -51,13 +51,15 @@ dot1q_frame              = tag_control_info
                          & bind(etype, ether_type)
                          & ethertype_specific(etype.type)
                          ;
-double_tag_frame         = tag_control_info
+double_tag_frame         = s_tag
                          & uint(16, 0x8100)
-                         & tag_control_info
+                         & c_tag
                          & bind(etype, ether_type)
                          & ethertype_specific(etype.type)
                          ;
 tag_control_info         = priority & drop_eligible & vlan_id;
+s_tag                    = tag_control_info;
+c_tag                    = tag_control_info;
 priority                 = uint(3, ~);
 drop_eligible            = uint(1, ~);
 vlan_id                  = uint(12, ~);
