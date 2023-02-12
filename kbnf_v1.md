@@ -141,9 +141,6 @@ Contents
     - [`inf` Function](#inf-function)
     - [`nan` Function](#nan-function)
     - [`nzero` Function](#nzero-function)
-  - [Examples](#examples)
-    - [A Complex Example](#a-complex-example)
-    - [Example: Internet Protocol version 4](#example-internet-protocol-version-4)
   - [The KBNF Grammar in KBNF](#the-kbnf-grammar-in-kbnf)
 
 
@@ -1321,40 +1318,6 @@ record  = reading{32};
 reading = float(32, ~) | invalid;
 invalid = nzero(32);
 ```
-
-
-
-Examples
---------
-
-### A Complex Example
-
-* A `document` contains one or more `sections`, and terminates on EOF.
-* A `section` begins with a `sentinel` (a record with type between 0x80 and 0xfe, and a length of 0), followed by an arbitrary number of `records`, followed by the same `sentinel` value again to terminate the list of `records` in this `section`.
-* A `record` is comprised of an 8-bit `record_type`, a `payload`, and a possible `suffix` depending on the `record_type`.
-* The `payload` is comprised of a little endian 24-bit `length` field representing the number of bytes in the payload, followed by the payload bytes, followed by possible 0xff padding to bring it to a multiple of 32 bits.
-* Depending on the `record_type`, there may be a `suffix`.
-
-```kbnf
-document                = section+;
-section                 = bind(sentinel,uint(8,0x80~0xfe)) & length_field(0) & record* & sentinel;
-record                  = bind(record_type,type_field) & padded_payload & suffix(record_type.type);
-type_field              = uint(8,bind(type,0~2));
-padded_payload          = aligned(32, payload, uint(8,0xff)*);
-payload                 = length_field(bind(byte_count,~)) & uint(8,~){byte_count};
-length_field(contents)  = swapped(8, uint(24,contents));
-suffix(type)            = when(type = 2, type2)
-                        | when(type = 1, type1)
-                        # type 0 means no suffix
-                        ;
-type1                   = ...
-type2                   = ...
-```
-
-
-### Example: Internet Protocol version 4
-
-See accompanying document: [ipv4.kbnf](ipv4.kbnf)
 
 
 
