@@ -69,8 +69,8 @@ ethertype_specific(type) = when( type <= 1500, payload(type) )
                          # Other types omitted for brevity
                          ;
 payload(length)          = uint(8,~){length};
-ipv4                     = """https://somewhere/ipv4.kbnf""";
-ipv6                     = """https://somewhere/ipv6.kbnf""";
+ipv4: expression         = """https://somewhere/ipv4.kbnf""";
+ipv6: expression         = """https://somewhere/ipv6.kbnf""";
 ```
 
 See also: [IPv4 described in KBNF](ipv4.kbnf)
