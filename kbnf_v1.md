@@ -108,14 +108,14 @@ Contents
     - [Functions](#functions)
       - [Function Parameter and Return Types](#function-parameter-and-return-types)
       - [Parameter and Return Type Alternatives](#parameter-and-return-type-alternatives)
-      - [Number Alternatives Set Parameters](#number-alternatives-set-parameters)
+      - [Number Set Parameters](#number-set-parameters)
       - [Variadic Functions](#variadic-functions)
   - [Variables](#variables)
   - [Types](#types)
     - [Identifier](#identifier)
     - [Expressions](#expressions)
     - [Numbers](#numbers)
-      - [Number Alternatives Sets](#number-alternatives-sets)
+      - [Number Sets](#number-sets)
   - [Literals](#literals)
     - [Numeric Literals](#numeric-literals)
     - [Codepoints](#codepoints)
@@ -136,9 +136,11 @@ Contents
   - [Builtin Functions](#builtin-functions)
     - [`sized` Function](#sized-function)
     - [`aligned` Function](#aligned-function)
+    - [`limited` Function](#limited-function)
     - [`swapped` Function](#swapped-function)
     - [`when` Function](#when-function)
     - [`bind` Function](#bind-function)
+    - [`eod` Function](#eod-function)
     - [`unicode` Function](#unicode-function)
     - [`uint` Function](#uint-function)
     - [`sint` Function](#sint-function)
@@ -426,9 +428,9 @@ Custom types may be invented when the standard types are insufficient (such as i
 
 If a function can accept multiple types in a particular parameter, or can return multiple types, those types will be listed, separated by the pipe (`|`) character. See the [bind function](#bind-function) as an example.
 
-#### Number Alternatives Set Parameters
+#### Number Set Parameters
 
-Functions that accept or produce [number alternatives sets](#number-alternatives-sets) (such as in the [uint](#uint-function), [sint](#sint-function), and [float](#float-function) functions) indicate this by prepending a tilde (`~`) to that parameter or return type's declaration (e.g. `~integer` or `~real`).
+Functions that accept or produce [number sets](#number-sets) (such as in the [uint](#uint-function), [sint](#sint-function), and [float](#float-function) functions) indicate this by prepending a tilde (`~`) to that parameter or return type's declaration (e.g. `~integer` or `~real`).
 
 #### Variadic Functions
 
@@ -563,11 +565,23 @@ Some [functions](#functions) take numeric parameters but place invariant restric
 
 Numbers can be expressed as [numeric literals](#numeric-literals), or derived from [functions](#functions), [macros](#macros), and [calculations](#calculations).
 
-#### Number Alternatives Sets
+#### Number Sets
 
-Some functions (such as [uint](#uint-function) or [float](#float-function)) [accept parameters that are number alternatives sets](#number-alternatives-set-parameters), which are similar to but should not be confused with [expression alternatives sets](#alternative).
+TODO
 
-Number alternatives sets can be expressed using pipe notation (e.g. `1 | 5 | 30`), or using [ranges](#ranges) (where `1~3` in an integer context would equivalent to `1 | 2 | 3`), or even a mix (`1~3 | 5~7`, which in an integer context would be equivalent to `1 | 2 | 3 | 5 | 6 | 7`).
+Some functions (such as [uint](#uint-function) or [float](#float-function)) [accept parameters that are number sets](#number-set-parameters), which are expressed similarly to but should not be confused with [expression alternatives sets](#alternative).
+
+Number sets can be expressed using the following components:
+
+* pipe notation (e.g. `1 | 5 | 30`)
+* [ranges](#ranges) (where `1~3` in an integer context would equivalent to `1 | 2 | 3`), or even a mix (`1~3 | 5~7`, which in an integer context would be equivalent to `1 | 2 | 3 | 5 | 6 | 7`).
+* exclusion
+* grouping
+
+    1~300 ! 15
+    (1~low | high~900) ! 200~600
+
+Can be formed of ranges, alternatives (`|`), exclusion (`!`). Grouping?
 
 
 
@@ -747,6 +761,8 @@ The alternative combination produces an expression that can match either the exp
 
 Alternatives are separated by a pipe (`|`) character. Only one of the alternative branches will be taken.
 
+**Note**: 
+
 ```kbnf
 alternate = expression & TOKEN_SEP & '|' & TOKEN_SEP & expression;
 ```
@@ -844,9 +860,14 @@ The following operations can be used:
 * Subtract (`-`)
 * Multiply (`*`)
 * Divide (`/`)
-* Modulus (`%`)
+* Modulo (`%`)
 * Power (`^`, where `x^y` means x to the power of y)
 * Negation ('-')
+
+**Notes**:
+
+* Division by zero is undefined behavior. Any grammar that allows division by zero to occur is ambiguous.
+* Depending on the operands, the modulo operation can produce two different values depending on how the remainder is derived. Modulo in KBNF follows the approach of C, ADA, PL/1, and Common Lisp of choosing the remainder with the same sign as the divisor.
 
 Operator precedence (low to high):
 
@@ -889,6 +910,7 @@ Comparisons:
 * Less than (`<`)
 * Less than or equal to (`<=`)
 * Equal to (`=`)
+* Not equal to (`!=`)
 * Greater than or equal to (`>=`)
 * Greater than (`>`)
 
@@ -911,7 +933,13 @@ logical_op         = logical_or | logical_op_and_not;
 logical_op_and_not = logical_and | logical_op_not;
 logical_op_not     = logical_not | maybe_grouped(condition);
 comparison         = number & TOKEN_SEP & comparator & TOKEN_SEP & number;
-comparator         = "<" | "<=" | "=" | ">= | ">";
+comparator         = comp_lt | comp_le | comp_eq | comp_ne | comp_ge | comp_gt;
+comp_lt            = "<";
+comp_le            = "<=";
+comp_eq            = "=";
+comp_ne            = "!=";
+comp_ge            = ">=";
+comp_gt            = ">";
 logical_or         = condition & TOKEN_SEP & '|' & TOKEN_SEP & condition;
 logical_and        = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
 logical_not        = '!' & TOKEN_SEP & condition;
@@ -1022,6 +1050,8 @@ sized(bit_count: unsigned, expr: expression): expression =
     Requires that `expr` produce exactly `bit_count` bits.
     Expressions containing repetition that would have matched on their own are
     no longer sufficient until the production fills exactly `bit_count` bits.
+
+    if `bit_count` is 0, `expr` has no size requirements.
     """;
 ```
 
@@ -1055,6 +1085,8 @@ aligned(bit_count: unsigned, expr: expression, padding: expression): expression 
     Requires that `expr` and `padding` together produce a multiple of `bit_count` bits.
     If `expr` doesn't produce a multiple of `bit_count` bits, the `padding` expression
     is used in the same manner as the `sized` function to produce the remaining bits.
+
+    if `bit_count` is 0, `expr` has no alignment requirements and `padding` is ignored.
     """;
 ```
 
@@ -1067,6 +1099,21 @@ zero_length_record = byte(0);
 byte(v)            = uint(8, v);
 ```
 
+### `limited` Function
+
+```kbnf
+limited(bit_counts: ~unsigned, expr: expression): expression =
+    """
+    Limits `expr` to any of the bit counts contained in `bit_counts`.
+    """;
+```
+
+**Exammple**: A section contains at least 1 length delimited record (which can contain 1-100 bytes of payload each), and must be between 2 and 1024 bytes in total.
+
+```kbnf
+section = limited(2*8~1024*8, record+);
+record = uint(8,bind(length, 1~100)) uint(8,~){length};
+```
 
 ### `swapped` Function
 
@@ -1083,6 +1130,9 @@ swapped(bit_granularity: unsigned, expr: expression): expression =
 
     If `expr` doesn't resolve to a multiple of `bit_granularity` bits, the
     resulting expression matches nothing.
+
+
+    if `bit_granularity` is 0, `expr` is passed through unchanged.
     """;
 ```
 
@@ -1109,12 +1159,24 @@ type_2               = ...
 
 ### `when` Function
 
+The `when` function has unique behavior in that it affects the local environment.
+It allows you to build switch-like constructs.
+
 ```kbnf
 when(cond: condition, expr: expression): expression =
     """
-    Matches `expr` only when `cond` is true.
+    When `cond` is false, `expr` is removed from consideration (as if it doesn't
+    exist).
+
+    When `cond` is true, all other current alternatives are removed from
+    consideration, and only `expr` can match (as if the alternatives don't exist).
+
+    If multiple `when` calls in the current alternatives set can have `cond` that
+    are simultaneously true, the grammar is ambiguous.
     """;
 ```
+
+TODO: Switch-style example
 
 **Example**: The extensions section contains 32 extension slots. Each extension starts with a 1-byte type field, followed by a 24-bit big endian field containing the length of the payload. Valid payload types are 1, 2, or 3 (payload type 0 is a dummy type meaning "no extension", so the length field is ignored and there is no payload data). The same extension type can be used multiple times.
 
@@ -1168,6 +1230,22 @@ length_delimited_record = uint16(bind(length, ~)) & record_contents(length);
 record_contents(length) = byte(~){length};
 uint16(v)               = uint(16, v);
 byte(v)                 = uint(8, v);
+```
+
+### `eod` Function
+
+```kbnf
+eod: expression =
+   """
+   A special expression that matches the end of the data stream.
+   """
+```
+
+**Exammple**: A document contains any number of length delimited records (1-100 bytes), continuing until the end of the file.
+
+```kbnf
+document = record* eod;
+record = uint(8,bind(length, 1~100)) uint(8,~){length};
 ```
 
 ### `unicode` Function
@@ -1438,6 +1516,8 @@ sized(bit_count: unsigned, expr: expression): expression =
     Requires that `expr` produce exactly `bit_count` bits.
     Expressions containing repetition that would have matched on their own are
     no longer sufficient until the production fills exactly `bit_count` bits.
+
+    if `bit_count` is 0, `expr` has no size requirements.
     """;
 
 aligned(bit_count: unsigned, expr: expression, padding: expression): expression =
@@ -1445,6 +1525,13 @@ aligned(bit_count: unsigned, expr: expression, padding: expression): expression 
     Requires that `expr` and `padding` together produce a multiple of `bit_count` bits.
     If `expr` doesn't produce a multiple of `bit_count` bits, the `padding` expression
     is used in the same manner as the `sized` function to produce the remaining bits.
+
+    if `bit_count` is 0, `expr` has no alignment requirements and `padding` is ignored.
+    """;
+
+limited(bit_counts: ~unsigned, expr: expression): expression =
+    """
+    Limits `expr` to any of the bit counts contained in `bit_counts`.
     """;
 
 swapped(bit_granularity: unsigned, expr: expression): expression =
@@ -1459,11 +1546,20 @@ swapped(bit_granularity: unsigned, expr: expression): expression =
 
     If `expr` doesn't resolve to a multiple of `bit_granularity` bits, the
     resulting expression matches nothing.
+
+    if `bit_granularity` is 0, `expr` is passed through unchanged.
     """;
 
 when(cond: condition, expr: expression): expression =
     """
-    Matches `expr` only when `cond` is true.
+    When `cond` is false, `expr` is removed from consideration (as if it doesn't
+    exist).
+
+    When `cond` is true, all other current alternatives are removed from
+    consideration, and only `expr` can match (as if the alternatives don't exist).
+
+    If multiple `when` calls in the current alternatives set can have `cond` that
+    are simultaneously true, the grammar is ambiguous.
     """;
 
 bind(variable_name: identifier, value: expression | ~number): expression | ~number =
@@ -1474,6 +1570,11 @@ bind(variable_name: identifier, value: expression | ~number): expression | ~numb
     function surrounded is present. This allows a match as normal, while also
     allowing the resolved value to be used again later in the rule.
     """;
+
+eod: expression =
+   """
+   A special expression that matches the end of the data stream.
+   """
 
 unicode(categories: unicode_category ...): expression =
     """
@@ -1556,7 +1657,13 @@ logical_ops            = logical_or | logical_ops_and_not;
 logical_ops_and_not    = logical_and | logical_op_not;
 logical_op_not         = logical_not | maybe_grouped(condition);
 comparison             = number & TOKEN_SEP & comparator & TOKEN_SEP & number;
-comparator             = "<" | "<=" | "=" | ">= | ">";
+comparator             = comp_lt | comp_le | comp_eq | comp_ne | comp_ge | comp_gt;
+comp_lt                = "<";
+comp_le                = "<=";
+comp_eq                = "=";
+comp_ne                = "!=";
+comp_ge                = ">=";
+comp_gt                = ">";
 logical_or             = condition & TOKEN_SEP & '|' & TOKEN_SEP & condition;
 logical_and            = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
 logical_not            = '!' & TOKEN_SEP & condition;
