@@ -6,11 +6,9 @@ Version 1-prerelease
 
 ## WORK IN PROGRESS
 
-Current status: Second reading (Feb 5, 2023).
+Current status: 1.0-beta2 (Feb 18, 2023).
 
-The second reading uncovered a number of issues, so there will be a third reading in two weeks.
-
-If no major issues are found, I'll release version 1.
+Public comments uncovered a number of issues that have mostly been addressed. Beta3 will be released soon after some more cleanup.
 
 
 
@@ -37,10 +35,10 @@ frame             = preamble
                   & dst_address
                   & src_address
                   & bind(etype, ether_type)
-                  & ( when( etype.type = 0x8100, dot1q_frame )
-                    | when( etype.type = 0x88a8, double_tag_frame )
-                    | payload_by_type(etype.type, 46)
-                    )
+                  & [etype.type = 0x8100: dot1q_frame;
+                     etype.type = 0x88a8: double_tag_frame;
+                                        : payload_by_type(etype.type, 46);
+                    ]
                   & frame_check
                   ;
 preamble          = uint(8, 0b01010101){7};
@@ -66,11 +64,11 @@ priority          = uint(3, ~);
 drop_eligible     = uint(1, ~);
 vlan_id           = uint(12, ~);
 
-payload_by_type(type, min_size) = when( type >= min_size & type <= 1500, payload(type) )
-                                | when( type = 0x0800, ipv4 )
-                                | when( type = 0x86dd, ipv6 )
-                                # Other types omitted for brevity
-                                ;
+payload_by_type(type, min_size) = [type >= min_size & type <= 1500: payload(type);
+                                   type = 0x0800                  : ipv4;
+                                   type = 0x86dd                  : ipv6;
+                                   # Other types omitted for brevity
+                                  ];
 payload(length)                 = uint(8,~){length};
 ipv4: expression                = """https://somewhere/ipv4.kbnf""";
 ipv6: expression                = """https://somewhere/ipv6.kbnf""";
@@ -99,23 +97,25 @@ Contents
     - [About the Descriptions and Examples](#about-the-descriptions-and-examples)
     - [Bit Ordering](#bit-ordering)
     - [Non-Greedy](#non-greedy)
+    - [Unicode Equivalence and Normalization](#unicode-equivalence-and-normalization)
   - [Grammar Document](#grammar-document)
     - [Document Header](#document-header)
-  - [Production Rules](#production-rules)
+  - [Rules](#rules)
     - [Start Rule](#start-rule)
     - [Symbols](#symbols)
     - [Macros](#macros)
     - [Functions](#functions)
       - [Function Parameter and Return Types](#function-parameter-and-return-types)
       - [Parameter and Return Type Alternatives](#parameter-and-return-type-alternatives)
-      - [Number Set Parameters](#number-set-parameters)
       - [Variadic Functions](#variadic-functions)
-  - [Variables](#variables)
-  - [Types](#types)
-    - [Identifier](#identifier)
     - [Expressions](#expressions)
-    - [Numbers](#numbers)
-      - [Number Sets](#number-sets)
+    - [Identifier](#identifier)
+  - [Types](#types)
+    - [Bits](#bits)
+    - [Number](#number)
+      - [Numbers](#numbers)
+    - [Condition](#condition)
+  - [Variables](#variables)
   - [Literals](#literals)
     - [Numeric Literals](#numeric-literals)
     - [Codepoints](#codepoints)
@@ -123,6 +123,7 @@ Contents
     - [Escape Sequence](#escape-sequence)
       - [Codepoint Escape](#codepoint-escape)
     - [Prose](#prose)
+  - [Switch](#switch)
   - [Combinations](#combinations)
     - [Concatenation](#concatenation)
     - [Alternative](#alternative)
@@ -130,7 +131,6 @@ Contents
     - [Repetition](#repetition)
   - [Grouping](#grouping)
   - [Calculations](#calculations)
-  - [Conditions](#conditions)
   - [Ranges](#ranges)
   - [Comments](#comments)
   - [Builtin Functions](#builtin-functions)
@@ -138,7 +138,6 @@ Contents
     - [`aligned` Function](#aligned-function)
     - [`limited` Function](#limited-function)
     - [`swapped` Function](#swapped-function)
-    - [`when` Function](#when-function)
     - [`bind` Function](#bind-function)
     - [`eod` Function](#eod-function)
     - [`unicode` Function](#unicode-function)
@@ -237,11 +236,16 @@ terminaor = "zzz";
 The document `azzzbzzzczzz.` contains 3 records (`a`, `b`, and `c`), not one record (`azzzbzzzc`).
 
 
+### Unicode Equivalence and Normalization
+
+By default only the exact, non-processed (i.e. not normalized) codepoints present in a Unicode expression will be matched. For more advanced matching, define [functions](#functions) that apply normalization preprocessing or produce equivalence [alternatives](#alternative) to a string expression.
+
+
 
 Grammar Document
 ----------------
 
-A KBNF grammar document begins with a [header section](#document-header), followed by a series of [production rules](#production-rules).
+A KBNF grammar document begins with a [header section](#document-header), followed by a series of [rules](#rules).
 
 ```kbnf
 document = document_header & MAYBE_WSLC & start_rule & (MAYBE_WSLC & rule)*;
@@ -291,10 +295,12 @@ document = "a"; # Yeah, this grammar doesn't do much...
 
 
 
-Production Rules
-----------------
+Rules
+-----
 
-Production rules are written in the form `nonterminal = expression;`, with optional whitespace (including newlines) between rule elements. The terminating semicolon makes it more clear where a rule ends, and also allows more freedom for visually laying out the elements of a rule.
+Rules determine the restrictions on how terminals can be combined into a valid sequence. A rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions), and can work with or produce any of the standard [types](#types).
+
+Rules are written in the form `nonterminal = expression;`, with optional whitespace (including newlines) between rule elements.
 
 ```kbnf
 rule          = symbol_rule | macro_rule | function_rule;
@@ -311,7 +317,7 @@ The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or 
 
 ### Start Rule
 
-The first rule listed in a KBNF document is the start rule. Only a [symbol](#symbols) can be a start rule.
+The first rule listed in a KBNF document is the start rule. Only a [symbol](#symbols) that produces [bits](#bits) can be a start rule.
 
 
 ### Symbols
@@ -326,7 +332,7 @@ identifier_any        = name;
 name                  = name_firstchar & name_nextchar*;
 name_firstchar        = unicode(L,M);
 name_nextchar         = name_firstchar | unicode(N) | '_';
-reserved_identifiers  = "sized" | "aligned" | "swapped" | "when" | "bind"
+reserved_identifiers  = "sized" | "aligned" | "swapped" | "bind"
                       | "uint" | "sint" | "float" | "inf" | "nan" | "nzero";
 ```
 
@@ -397,10 +403,10 @@ option                       = option_eool
                              ;
 
 payload(protocol, bit_count) = sized(bit_count, payload_contents(protocol) & u1(0)*);
-payload_contents(protocol)   = when(protocol = 0, protocol_hopopt)
-                             | when(protocol = 1, protocol_icmp)
-                             | ...
-                             ;
+payload_contents(protocol)   = [protocol = 0: protocol_hopopt;
+                                protocol = 1: protocol_icmp;
+                                ...
+                               ];
 ```
 
 ### Functions
@@ -415,22 +421,20 @@ Since functions are opaque, their parameter and return [types](#types) cannot be
 
 The following standard types are recognized:
 
-* `expression`
+* `bits`
 * `condition`
 * `number`
-* `unsigned`
-* `signed`
-* `real`
+* `numbers`
+* `uinteger`
+* `uintegers`
+* `sinteger`
+* `sintegers`
 
-Custom types may be invented when the standard types are insufficient (such as in the [unicode function](#unicode-function)), provided their textual representation doesn't cause ambiguities with the KBNF document encoding.
+Custom types may be invented (or further invariants defined) when the standard types are insufficient (such as in the [unicode function](#unicode-function)), provided their textual representation doesn't cause ambiguities with the KBNF document encoding.
 
 #### Parameter and Return Type Alternatives
 
 If a function can accept multiple types in a particular parameter, or can return multiple types, those types will be listed, separated by the pipe (`|`) character. See the [bind function](#bind-function) as an example.
-
-#### Number Set Parameters
-
-Functions that accept or produce [number sets](#number-sets) (such as in the [uint](#uint-function), [sint](#sint-function), and [float](#float-function) functions) indicate this by prepending a tilde (`~`) to that parameter or return type's declaration (e.g. `~integer` or `~real`).
 
 #### Variadic Functions
 
@@ -450,12 +454,14 @@ type_specifier     = ':' & TOKEN_SEP & type_alternatives & (TOKEN_SEP & vararg)?
 type_alternatives  = maybe_ranged_type & (TOKEN_SEP & '|' & TOKEN_SEP & maybe_ranged_type)*;
 vararg             = "...";
 maybe_ranged_type  = '~'? & (basic_type_name | custom_type_name);
-basic_type_name    = "expression"
+basic_type_name    = "bits"
                    | "condition"
                    | "number"
-                   | "unsigned"
-                   | "signed"
-                   | "real"
+                   | "numbers"
+                   | "uinteger"
+                   | "uintegers"
+                   | "sinteger"
+                   | "sintegers"
                    ;
 custom_type_name   = name;
 ```
@@ -463,7 +469,7 @@ custom_type_name   = name;
 **Example**: A function to convert an unsigned int to its unsigned little endian base 128 representation.
 
 ```kbnf
-uleb128(v: unsigned): expression = """https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128""";
+uleb128(v: uinteger): expression = """https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128""";
 ```
 
 **Example**: A record contains a date followed by a colon, followed by a temperature reading.
@@ -474,6 +480,184 @@ iso8601: expression = """https://en.wikipedia.org/wiki/ISO_8601#Combined_date_an
 temperature         = digit+ & ('.' & digit+)?;
 digit               = '0'~'9';
 ```
+
+
+
+### Expressions
+
+Expressions form the body of a rule.
+
+- can produce bits, numbers, or a conditon.
+
+
+### Identifier
+
+A unique identifier for [symbols](#symbols), [macros](#macros), and [functions](#functions) (which are all scoped globally), or [variables](#variables) (which are scoped locally).
+
+Identifiers are case sensitive, and must be unique to their scope. Locally scoped identifiers (i.e. variable names) must be unique to _both_ the local and global scope (name shadowing is not allowed).
+
+Identifiers start with a letter, and can contain letters, numbers and the underscore character. The [builtin function names](#builtin-functions) are reserved at the global scope.
+
+The general convention is to use all uppercase identifiers for "background-y" things like whitespace and separators and other structural components, which makes them easier for a human to gloss over (see [the KBNF grammar document](#the-kbnf-grammar-in-kbnf) as an example).
+
+```kbnf
+identifier           = (identifier_firstchar & identifier_nextchar*) ! reserved_identifiers;
+identifier_firstchar = unicode(L,M);
+identifier_nextchar  = identifier_firstchar | unicode(N) | '_';
+reserved_identifiers = "sized" | "aligned" | "swapped" | "bind"
+                     | "uint" | "sint" | "float" | "inf" | "nan" | "nzero"
+                     ;
+```
+
+
+
+Types
+-----
+
+KBNF has three main types:
+
+* [`bits`](#bits): A set of possible bit sequences of arbitrary length.
+* [`numbers`](#number): Numeric values that may be used in calculations or even converted to a representations in bits. Number types are split into two primary forms:
+  - [singular number](#number): A single numeric value.
+  - [number set](#numbers): A set of values.
+* [`conditions`](#condition): True or false assertions about the current state.
+
+Types become relevant when calling [functions](#functions), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to unsigned integers.
+
+
+### Bits
+
+The bits type represents the set of possible bit sequences that can be matched at a particular point.
+
+Bits are produced by [codepoints](#codepoints), [strings](#strings), and [some functions](#builtin-functions), and can be of arbitrary length (i.e. not just a multiple of 8 bits).
+
+The bits type is a set of bit patterns, and can therefore be composed using [alternatives](#alternative), [concatenation](#concatenation), and [repetition](#repetition).
+
+```kbnf
+expression = symbol
+           | call
+           | string_literal
+           | maybe_ranged(codepoint_literal)
+           | combination
+           | builtin_functions
+           | variable
+           | grouped(expression)
+           ;
+```
+
+**Example**: Each UTC timestamp field is stored in its own bitfield, with the final constructed 64 bit value stored in little endian byte order:
+
+Bit fields (high to low):
+
+| Field       | Min | Max    | Bits |
+| ----------- | --- | ------ | ---- |
+| Year        | 0   | 262143 | 18   |
+| Month       | 1   | 12     | 4    |
+| Day         | 1   | 31     | 5    |
+| Hour        | 0   | 23     | 5    |
+| Minute      | 0   | 59     | 6    |
+| Second      | 0   | 60     | 6    |
+| Microsecond | 0   | 999999 | 20   |
+
+```kbnf
+timestamp   = swapped(8, year & month & day & hour & minute & second & microsecond);
+year        = uint(18, ~);
+month       = uint(4, 1~12);
+day         = uint(5, 1~31);
+hour        = uint(5, 0~23);
+minute      = uint(6, 0~59);
+second      = uint(6, 0~60); # Mustn't forget leap seconds!
+microsecond = uint(20, 0~999999);
+```
+
+### Number
+
+The `number` type represents mathematical reals (not computer floating point values, which are an implementation detail). Numbers can be used in [calculations](#calculations), numeric [ranges](#ranges), [repetition](#repetition), and as parameters to or return types from [functions](#functions). They can also be converted to [bits](#bits) using [functions](#functions) such as [float](#float-function), [sint](#sint-function), and [uint](#uint-function).
+
+Numbers can be expressed as [numeric literals](#numeric-literals), or derived from [functions](#functions), [variables](#variables), and [calculations](#calculations).
+
+The two most common numeric invariants are supported natively as pseudo-types:
+
+* The `sinteger` (signed integer) pseudo-type restricts values to positive and negative integers, and 0.
+* The `uinteger` (unsigned integer) pseudo-type restricts values to positive integers and 0.
+
+These pseudo-types only place restrictions on the final realized value; they are still `number` types and behave like mathematical reals for all operations, with the destination invariant type (such as a [function](#functions) parameter's type) restricting what resulting values are allowed.
+
+**Note**: Unlike in the [`numbers`](#numbers) type, values that break a `number` invariant represent an erroneous condition. A value that breaks its invariant (e.g. 0.5 passed to a `sinteger` or `uinteger` parameter) results in no match for anything that depends on it, and ideally should cause a diagnostic in a codec implementation.
+
+#### Numbers
+
+The `numbers` type (and associated pseudo-type invariants `sintegers` and `uintegers`) represents sets of [numbers](#number). Number sets are commonly used in [repetition](#repetition), or passed as arguments to certain [functions](#builtin-functions) (such as [sint](#sint-function), [uint](#uint-function), [float](#float-function)) to produce sets of [bits](#bits).
+
+Number sets are produced using [ranges](#ranges), [alternatives](#alternative), and [exclusion](#exclusion).
+
+**Note**: Any value in a number set that breaks its invariant is silently removed from the set. For example `0~1.5` passed to a `sintegers` invariant will be reduced to the set of integer values 0 and 1. `0.5~0.6` passed to a `sintegers` invariant will be reduced to the empty set. `-5` passed to a `uintegers` invariant will be reduced to the empty set.
+
+**Examples**:
+
+* `1 | 5 | 30`: The set of numbers 1, 5, and 30.
+* `1~3`: All numbers from 1 to 3. If passed to an integer context, this would be equivalent to `1 | 2 | 3`.
+* `1~300 ! 15`: All numbers from 1 to 300, except for 15.
+* `(1~low | high~900) ! 200~600`: All numbers from 1 to the `low` variable or from the `high` variable to 900, except for anything from 200 to 600.
+
+### Condition
+
+Conditions are produced by comparing [numbers](#number), and by performing logical operations on those comparisons, resulting in either true or false. Conditions are used in [switches](#switch), and can be [grouped](#grouping).
+
+Comparisons:
+
+* Less than (`<`)
+* Less than or equal to (`<=`)
+* Equal to (`=`)
+* Not equal to (`!=`)
+* Greater than or equal to (`>=`)
+* Greater than (`>`)
+
+Logical operations:
+
+* And (`&`)
+* Or (`|`)
+* Not (`!`), which is a unary operator
+
+Condition precedence (low to high):
+
+* comparisons
+* logical or
+* logical and
+* logical not
+
+```kbnf
+condition          = comparison | logical_op;
+logical_op         = logical_or | logical_op_and_not;
+logical_op_and_not = logical_and | logical_op_not;
+logical_op_not     = logical_not | maybe_grouped(condition);
+comparison         = number & TOKEN_SEP & comparator & TOKEN_SEP & number;
+comparator         = comp_lt | comp_le | comp_eq | comp_ne | comp_ge | comp_gt;
+comp_lt            = "<";
+comp_le            = "<=";
+comp_eq            = "=";
+comp_ne            = "!=";
+comp_ge            = ">=";
+comp_gt            = ">";
+logical_or         = condition & TOKEN_SEP & '|' & TOKEN_SEP & condition;
+logical_and        = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
+logical_not        = '!' & TOKEN_SEP & condition;
+```
+
+**Example**:
+
+```kbnf
+record       = uint(8, bind(type, 1~))
+             & [type = 1: type_1;
+                type = 2: type_2;
+                        : type_default;
+               ];
+type_1       = ...
+type_2       = ...
+type_default = ...
+```
+
+
 
 
 
@@ -501,88 +685,6 @@ u16(v)              = uint(16, v);
 * The `record` rule (a [macro](#macros) because it takes parameters) binds the result of the `record_header` rule to a variable called `header`. This gives it access to the `record_header` `length` variable as `header.length`.
 * The `record_header` rule specifies an 8-bit type value (a variable passed in to the macro as a parameter), and binds a 16-bit integer value to a variable called `length`.
 * The `record_data` rule takes a length parameter and matches that many bytes using [repetition](#repetition).
-
-
-Types
------
-
-KBNF has four main types:
-
-* [`identifiers`](#identifier), which uniquely identifiy things.
-* [`expressions`](#expressions), which are bit patterns to be matched.
-* [`conditions`](#conditions), which resolve to true or false.
-* [`numbers`](#numbers), of which there are three common invariants:
-  * `unsigned`: limited to positive integers and 0
-  * `signed`: limited to positive and negative integers, and 0
-  * `real`: any value from the set of reals
-
-Types and invariants become relevant when calling [functions](#functions) (and indirectly when calling [macros](#macros)), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to unsigned integers.
-
-**Note**: The `number` invariants (`signed`, `unsigned`, `real`) aren't actual types, but rather restrictions on what values are allowed in a particular context. [Calculations](#calculations) treat all operands as reals and produce reals (i.e. subtracting two unsigned integers can give a negative result, dividing integers can result in a fraction, etc). The result of such a calculation, however, must match the invariant of the destination where it is used or else any resulting expression will not match anything.
-
-
-### Identifier
-
-A unique identifier for [symbols](#symbols), [macros](#macros), and [functions](#functions) (which are all scoped globally), or [variables](#variables) (which are scoped locally).
-
-Identifiers are case sensitive, and must be unique to their scope. Locally scoped identifiers (i.e. variable names) must be unique to _both_ the local and global scope (name shadowing is not allowed).
-
-Identifiers start with a letter, and can contain letters, numbers and the underscore character. The [builtin function names](#builtin-functions) are reserved at the global scope.
-
-The general convention is to use all uppercase identifiers for "background-y" things like whitespace and separators and other structural components, which makes them easier for a human to gloss over (see [the KBNF grammar document](#the-kbnf-grammar-in-kbnf) as an example).
-
-```kbnf
-identifier           = (identifier_firstchar & identifier_nextchar*) ! reserved_identifiers;
-identifier_firstchar = unicode(L,M);
-identifier_nextchar  = identifier_firstchar | unicode(N) | '_';
-reserved_identifiers = "sized" | "aligned" | "swapped" | "when" | "bind"
-                     | "uint" | "sint" | "float" | "inf" | "nan" | "nzero"
-                     ;
-```
-
-
-### Expressions
-
-An expression represents the set of possible bit sequences that can be produced. Expressions are non-greedy (the shortest possible interpretation of an expression will be matched first).
-
-```kbnf
-expression = symbol
-           | call
-           | string_literal
-           | maybe_ranged(codepoint_literal)
-           | combination
-           | builtin_functions
-           | variable
-           | grouped(expression)
-           ;
-```
-
-### Numbers
-
-Numbers are used in [calculations](#calculations), numeric [ranges](#ranges), and as parameters to [functions](#functions). Numbers are not [expressions](#expressions) (and therefore cannot be directly used in rules), but they can be converted to expressions via [functions](#functions) such as [float](#float-function), [sint](#sint-function), and [uint](#uint-function).
-
-Some [functions](#functions) take numeric parameters but place invariant restrictions upon them (such as [`unsigned` and `signed`](#types), or even further restrictions described in their prose).
-
-Numbers can be expressed as [numeric literals](#numeric-literals), or derived from [functions](#functions), [macros](#macros), and [calculations](#calculations).
-
-#### Number Sets
-
-TODO
-
-Some functions (such as [uint](#uint-function) or [float](#float-function)) [accept parameters that are number sets](#number-set-parameters), which are expressed similarly to but should not be confused with [expression alternatives sets](#alternative).
-
-Number sets can be expressed using the following components:
-
-* pipe notation (e.g. `1 | 5 | 30`)
-* [ranges](#ranges) (where `1~3` in an integer context would equivalent to `1 | 2 | 3`), or even a mix (`1~3 | 5~7`, which in an integer context would be equivalent to `1 | 2 | 3 | 5 | 6 | 7`).
-* exclusion
-* grouping
-
-    1~300 ! 15
-    (1~low | high~900) ! 200~600
-
-Can be formed of ranges, alternatives (`|`), exclusion (`!`). Grouping?
-
 
 
 Literals
@@ -637,7 +739,6 @@ letter_a     = 'a';     # or "a"
 a_to_c       = 'a'~'c'; # or "a"~"c", or 'a' | 'b' | 'c', or "a" | "b" | "c"
 alphanumeric = unicode(L,N);
 ```
-
 
 ### Strings
 
@@ -721,6 +822,53 @@ Or sinking as the light wind lives or dies.
 
 
 
+Switch
+------
+
+A switch chooses one expression from a series of possibilities based on condition matching. When no conditions match, the default expression (if any) is produced.
+
+**Note**: If more than one condition can match at the same time, the grammar is ambiguous.
+
+```kbnf
+switch         = '[' & TOKEN_SEP & switch_entry+ & (TOKEN_SEP & switch_default)? & TOKEN_SEP & ']';
+switch_entry   = condition & TOKEN_SEP & ':' & TOKEN_SEP & expression & TOKEN_SEP & ';';
+switch_default = ':' & TOKEN_SEP & expression & TOKEN_SEP & ';';
+```
+
+**Example**: TR-DOS file descriptors contain differnt payload formats based on the extension.
+
+```kbnf
+file_descriptor  = filename
+                 & bind(ext, extension)
+                 & [ ext.type = 'B': format_basic;
+                     ext.type = 'C': format_code;
+                     ext.type = 'D': format_data;
+                                   : format_generic;
+                   ]
+                 & file_length
+                 & start_sector
+                 & start_track
+                 ;
+
+filename         = sized(8*8, uint(8,~)+ & uint(8,' ')*);
+extension        = uint(8, bind(type, ~));
+file_length      = uint(8, ~);
+start_sector     = uint(8, ~);
+start_track      = uint(8, ~);
+
+format_basic     = program_length & variables_offset;
+program_length   = uint(16,~);
+variables_offset = uint(16,~);
+
+format_code      = load_addres & file_length;
+load_address     = uint(16,~);
+file_length      = uint(16,~);
+
+format_data      = data_type & file_length;
+data_type        = uint(16,~);
+```
+
+
 Combinations
 ------------
 
@@ -737,6 +885,8 @@ Combination precedence (low to high):
 ### Concatenation
 
 The concatenation combination produces an expression consisting of the expression on the left, followed by the expression on the right (both must match in their proper order for the combined expression to match). The operator symbol is `&` (think of it as meaning "x and then y").
+
+Only [bits](#bits) can be concatenated.
 
 ```kbnf
 concatenate = expression & TOKEN_SEP & '&' & TOKEN_SEP & expression;
@@ -761,7 +911,7 @@ The alternative combination produces an expression that can match either the exp
 
 Alternatives are separated by a pipe (`|`) character. Only one of the alternative branches will be taken.
 
-**Note**: 
+[Bits](#bits) and [numbers](#numbers) sets can be built using alternatives.
 
 ```kbnf
 alternate = expression & TOKEN_SEP & '|' & TOKEN_SEP & expression;
@@ -784,6 +934,8 @@ caculation = "a"~"z"+
 
 Exclusion removes an expression from the set of expression alternatives.
 
+[Bits](#bits) and [numbers](#numbers) sets can be modified using exclusion.
+
 ```kbnf
 exclude = expression & TOKEN_SEP & '!' & TOKEN_SEP & expression;
 ```
@@ -804,6 +956,8 @@ The repetition amount is an unsigned integer, appended to an expression as a dis
 * `?`: Zero or one (equivalent to `{0~1}`)
 * `*`: Zero or more (equivalent to `{0~}`)
 * `+`: One or more (equivalent to `{1~}`)
+
+Only [bits](#bits) can have repetition applied.
 
 ```kbnf
 repetition          = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
@@ -830,7 +984,7 @@ identifier = 'A'~'Z'+ & 'a'~'z'* & '_'?;
 Grouping
 --------
 
-[Expressions](#expressions), [calculations](#calculations) and [conditions](#conditions) can be grouped in order to override the default precedence, or as a visual aid to make things more readable. To group, place the items between parentheses.
+[Bits](#bits), [calculations](#calculations) and [conditions](#condition) can be grouped in order to override the default precedence, or as a visual aid to make things more readable. To group, place the items between parentheses.
 
 ```kbnf
 grouped(item)       = PARENTHESIZED(item);
@@ -842,9 +996,9 @@ PARENTHESIZED(item) = '(' & TOKEN_SEP & item & TOKEN_SEP & ')';
 ```kbnf
 my_rule         = ('a' | 'b') & ('x' | 'y');
 my_macro1(a)    = uint(8, (a + 5) * 2);
-my_macro2(a, b) = when( (a < 10 | a > 20) & (b < 10 | b > 20), "abc" )
-                | "def"
-                ;
+my_macro2(a, b) = [(a < 10 | a > 20) & (b < 10 | b > 20): "abc";
+                                                        : "def";
+                  ];
 ```
 
 
@@ -852,7 +1006,7 @@ my_macro2(a, b) = when( (a < 10 | a > 20) & (b < 10 | b > 20), "abc" )
 Calculations
 ------------
 
-Calculations perform arithmetic operations on [numbers](#numbers), producing a new number. All operands are treated as [reals](#types) for the purpose of the calculation.
+Calculations perform arithmetic operations on [numbers](#numbers), producing a new number. All operands are treated as mathematical reals for the purpose of the calculation.
 
 The following operations can be used:
 
@@ -896,67 +1050,6 @@ calc_neg     = '-' & calc_val;
 ```kbnf
 record = uint(4, bind(length, ~)) & flags & uint(8, ~){length*4};
 flags  = ...
-```
-
-
-
-Conditions
-----------
-
-Conditions are produced by comparing [numbers](#numbers), and by performing logical operations on those comparisons, resulting in either true or false. Conditions are used in [`when`](#when-function) calls, and can be [grouped](#grouping).
-
-Comparisons:
-
-* Less than (`<`)
-* Less than or equal to (`<=`)
-* Equal to (`=`)
-* Not equal to (`!=`)
-* Greater than or equal to (`>=`)
-* Greater than (`>`)
-
-Logical operations:
-
-* And (`&`)
-* Or (`|`)
-* Not (`!`), which is a unary operator
-
-Condition precedence (low to high):
-
-* comparisons
-* logical or
-* logical and
-* logical not
-
-```kbnf
-condition          = comparison | logical_op;
-logical_op         = logical_or | logical_op_and_not;
-logical_op_and_not = logical_and | logical_op_not;
-logical_op_not     = logical_not | maybe_grouped(condition);
-comparison         = number & TOKEN_SEP & comparator & TOKEN_SEP & number;
-comparator         = comp_lt | comp_le | comp_eq | comp_ne | comp_ge | comp_gt;
-comp_lt            = "<";
-comp_le            = "<=";
-comp_eq            = "=";
-comp_ne            = "!=";
-comp_ge            = ">=";
-comp_gt            = ">";
-logical_or         = condition & TOKEN_SEP & '|' & TOKEN_SEP & condition;
-logical_and        = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
-logical_not        = '!' & TOKEN_SEP & condition;
-```
-
-**Example**:
-
-```kbnf
-record       = uint(8, bind(type, 1~))
-             & ( when(type = 1, type_1)
-               | when(type = 2, type_2)
-               | when(type > 2, type_default)
-               )
-             ;
-type_1       = ...
-type_2       = ...
-type_default = ...
 ```
 
 
@@ -1045,7 +1138,7 @@ KBNF comes with some fundamental functions built-in:
 ### `sized` Function
 
 ```kbnf
-sized(bit_count: unsigned, expr: expression): expression =
+sized(bit_count: uinteger, expr: expression): expression =
     """
     Requires that `expr` produce exactly `bit_count` bits.
     Expressions containing repetition that would have matched on their own are
@@ -1080,7 +1173,7 @@ byte(v)            = uint(8,v);
 ### `aligned` Function
 
 ```kbnf
-aligned(bit_count: unsigned, expr: expression, padding: expression): expression =
+aligned(bit_count: uinteger, expr: expression, padding: expression): expression =
     """
     Requires that `expr` and `padding` together produce a multiple of `bit_count` bits.
     If `expr` doesn't produce a multiple of `bit_count` bits, the `padding` expression
@@ -1102,7 +1195,7 @@ byte(v)            = uint(8, v);
 ### `limited` Function
 
 ```kbnf
-limited(bit_counts: ~unsigned, expr: expression): expression =
+limited(bit_counts: uintegers, expr: expression): expression =
     """
     Limits `expr` to any of the bit counts contained in `bit_counts`.
     """;
@@ -1118,7 +1211,7 @@ record = uint(8,bind(length, 1~100)) uint(8,~){length};
 ### `swapped` Function
 
 ```kbnf
-swapped(bit_granularity: unsigned, expr: expression): expression =
+swapped(bit_granularity: uinteger, expr: expression): expression =
     """
     Swaps all bits of `expr` in chunks of `bit_granularity` size.
 
@@ -1149,49 +1242,11 @@ contents  = ...
 ```kbnf
 header               = bitswapped_uint16(bind(identifier, ~)) & contents(identifier);
 bitswapped_uint16(v) = swapped(1, uint(16, v));
-contents(identifier) = when(identifier = 1, type_1)
-                     | when(identifier = 2, type_2)
-                     ;
+contents(identifier) = [identifier = 1: type_1;
+                        identifier = 2: type_2;
+                       ];
 type_1               = ...
 type_2               = ...
-```
-
-
-### `when` Function
-
-The `when` function has unique behavior in that it affects the local environment.
-It allows you to build switch-like constructs.
-
-```kbnf
-when(cond: condition, expr: expression): expression =
-    """
-    When `cond` is false, `expr` is removed from consideration (as if it doesn't
-    exist).
-
-    When `cond` is true, all other current alternatives are removed from
-    consideration, and only `expr` can match (as if the alternatives don't exist).
-
-    If multiple `when` calls in the current alternatives set can have `cond` that
-    are simultaneously true, the grammar is ambiguous.
-    """;
-```
-
-TODO: Switch-style example
-
-**Example**: The extensions section contains 32 extension slots. Each extension starts with a 1-byte type field, followed by a 24-bit big endian field containing the length of the payload. Valid payload types are 1, 2, or 3 (payload type 0 is a dummy type meaning "no extension", so the length field is ignored and there is no payload data). The same extension type can be used multiple times.
-
-```kbnf
-extensions          = extension{32};
-extension           = uint(8,bind(type,0~3)) & uint(24,bind(length,~))
-                    & ( when(type = 1, extension_1(length))
-                      | when(type = 2, extension_2(length))
-                      | when(type = 3, extension_3(length))
-                      # When type is 0, no extension and length is ignored
-                      )
-                    ;
-extension_1(length) = ...
-extension_2(length) = ...
-extension_3(length) = ...
 ```
 
 ### `bind` Function
@@ -1272,7 +1327,7 @@ letter_digit_space = unicode(N,L,Zs);
 ### `uint` Function
 
 ```kbnf
-uint(bit_count: unsigned, values: ~unsigned): expression =
+uint(bit_count: uinteger, values: uintegers): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
     represented in the given values set as big endian unsigned integers of
@@ -1290,7 +1345,7 @@ length = uint(16, ~);
 ### `sint` Function
 
 ```kbnf
-sint(bit_count: unsigned, values: ~signed): expression =
+sint(bit_count: uinteger, values: sintegers): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
     represented in the given values set as big endian 2's complement signed
@@ -1308,7 +1363,7 @@ points = sint(32, -10000~10000);
 ### `float` Function
 
 ```kbnf
-float(bit_count: unsigned, values: ~real): expression =
+float(bit_count: uinteger, values: numbers): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
     represented in the given values set as big endian ieee754 binary floating
@@ -1336,7 +1391,7 @@ any_float64 = float(64,~) | inf(64,~) | nan(64,~) | nzero(64);
 ### `inf` Function
 
 ```kbnf
-inf(bit_count: unsigned, sign: ~real): expression =
+inf(bit_count: uinteger, sign: numbers): expression =
     """
     Creates an expression that matches big endian ieee754 binary infinity values
     of size `bit_count` whose sign matches the `sign` values set. One or two
@@ -1358,7 +1413,7 @@ terminator = inf(32, -1);
 ### `nan` Function
 
 ```kbnf
-nan(bit_count: unsigned, payload: ~signed): expression =
+nan(bit_count: uinteger, payload: sintegers): expression =
     """
     Creates an expression that matches every big endian ieee754 binary NaN value
     size `bit_count` with the given payload values set. NaN payloads can be
@@ -1386,7 +1441,7 @@ invalid = nan(32, 0x400001);
 ### `nzero` Function
 
 ```kbnf
-nzero(bit_count: unsigned): expression =
+nzero(bit_count: uinteger): expression =
     """
     Creates an expression that matches a big endian ieee754 binary negative 0 value
     of size `bit_count`.
@@ -1437,6 +1492,7 @@ function_rule          = function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_
 
 expression             = symbol
                        | call
+                       | switch
                        | string_literal
                        | maybe_ranged(codepoint_literal)
                        | combination
@@ -1462,14 +1518,20 @@ type_name              = basic_type_name | custom_type_name;
 basic_type_name        = "expression"
                        | "condition"
                        | "number"
-                       | "unsigned"
-                       | "signed"
-                       | "real"
+                       | "numbers"
+                       | "uinteger"
+                       | "uintegers"
+                       | "sinteger"
+                       | "sintegers"
                        ;
 custom_type_name       = name;
 
 call                   = identifier_any & PARENTHESIZED(call_param & (ARG_SEP & call_param)*);
 call_param             = any_type;
+
+switch                 = '[' & TOKEN_SEP & switch_entry+ & (TOKEN_SEP & switch_default)? & TOKEN_SEP & ']';
+switch_entry           = condition & TOKEN_SEP & ':' & TOKEN_SEP & expression & TOKEN_SEP & ';';
+switch_default         = ':' & TOKEN_SEP & expression & TOKEN_SEP & ';';
 
 combination            = alternate | combination_w_exclude;
 combination_w_exclude  = exclude | combination_w_concat;
@@ -1500,7 +1562,6 @@ codepoint_escape       = '[' & digit_hex+ & ']';
 builtin_functions      = sized
                        | aligned
                        | swapped
-                       | when
                        | bind
                        | unicode
                        | uint
@@ -1511,7 +1572,7 @@ builtin_functions      = sized
                        | nzero
                        ;
 
-sized(bit_count: unsigned, expr: expression): expression =
+sized(bit_count: uinteger, expr: expression): expression =
     """
     Requires that `expr` produce exactly `bit_count` bits.
     Expressions containing repetition that would have matched on their own are
@@ -1520,7 +1581,7 @@ sized(bit_count: unsigned, expr: expression): expression =
     if `bit_count` is 0, `expr` has no size requirements.
     """;
 
-aligned(bit_count: unsigned, expr: expression, padding: expression): expression =
+aligned(bit_count: uinteger, expr: expression, padding: expression): expression =
     """
     Requires that `expr` and `padding` together produce a multiple of `bit_count` bits.
     If `expr` doesn't produce a multiple of `bit_count` bits, the `padding` expression
@@ -1529,12 +1590,12 @@ aligned(bit_count: unsigned, expr: expression, padding: expression): expression 
     if `bit_count` is 0, `expr` has no alignment requirements and `padding` is ignored.
     """;
 
-limited(bit_counts: ~unsigned, expr: expression): expression =
+limited(bit_counts: uintegers, expr: expression): expression =
     """
     Limits `expr` to any of the bit counts contained in `bit_counts`.
     """;
 
-swapped(bit_granularity: unsigned, expr: expression): expression =
+swapped(bit_granularity: uinteger, expr: expression): expression =
     """
     Swaps all bits of `expr` in chunks of `bit_granularity` size.
 
@@ -1548,18 +1609,6 @@ swapped(bit_granularity: unsigned, expr: expression): expression =
     resulting expression matches nothing.
 
     if `bit_granularity` is 0, `expr` is passed through unchanged.
-    """;
-
-when(cond: condition, expr: expression): expression =
-    """
-    When `cond` is false, `expr` is removed from consideration (as if it doesn't
-    exist).
-
-    When `cond` is true, all other current alternatives are removed from
-    consideration, and only `expr` can match (as if the alternatives don't exist).
-
-    If multiple `when` calls in the current alternatives set can have `cond` that
-    are simultaneously true, the grammar is ambiguous.
     """;
 
 bind(variable_name: identifier, value: expression | ~number): expression | ~number =
@@ -1587,21 +1636,21 @@ unicode(categories: unicode_category ...): expression =
     Example: all letters and space separators: unicode(L,Zs)
     """;
 
-uint(bit_count: unsigned, values: ~unsigned): expression =
+uint(bit_count: uinteger, values: uintegers): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
     represented in the given values set as big endian unsigned integers of
     size `bit_count`.
     """;
 
-sint(bit_count: unsigned, values: ~signed): expression =
+sint(bit_count: uinteger, values: sintegers): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
     represented in the given values set as big endian 2's complement signed
     integers of size `bit_count`.
     """;
 
-float(bit_count: unsigned, values: ~real): expression =
+float(bit_count: uinteger, values: numbers): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
     represented in the given values set as big endian ieee754 binary floating
@@ -1612,7 +1661,7 @@ float(bit_count: unsigned, values: ~real): expression =
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 
-inf(bit_count: unsigned, sign: ~real): expression =
+inf(bit_count: uinteger, sign: numbers): expression =
     """
     Creates an expression that matches big endian ieee754 binary infinity values
     of size `bit_count` whose sign matches the `sign` values set. One or two
@@ -1621,7 +1670,7 @@ inf(bit_count: unsigned, sign: ~real): expression =
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 
-nan(bit_count: unsigned, payload: ~signed): expression =
+nan(bit_count: uinteger, payload: sintegers): expression =
     """
     Creates an expression that matches every big endian ieee754 binary NaN value
     size `bit_count` with the given payload values set. NaN payloads can be
@@ -1636,7 +1685,7 @@ nan(bit_count: unsigned, payload: ~signed): expression =
       because such an encoding would be interpreted as infinity.
     """;
 
-nzero(bit_count: unsigned): expression =
+nzero(bit_count: uinteger): expression =
     """
     Creates an expression that matches a big endian ieee754 binary negative 0 value
     of size `bit_count`.
@@ -1702,7 +1751,6 @@ identifier_restricted  = identifier_any ! reserved_identifiers;
 reserved_identifiers   = "sized"
                        | "aligned"
                        | "swapped"
-                       | "when"
                        | "bind"
                        | "uint"
                        | "sint"
