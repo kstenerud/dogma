@@ -23,7 +23,7 @@ To demonstrate how powerful Dogma can be, here is an Ethernet IEEE 802.3 frame, 
 dogma_v1 utf-8
 - identifier  = 802.3_layer2
 - description = IEEE 802.3 Ethernet frame, layer 2
-- note        = Words are sent big endian, but octets are sent LSB first.
+- note        = Words are byte-ordered big endian, but every octet is sent LSB first.
 
 frame             = preamble
                   & frame_start
@@ -42,6 +42,7 @@ dst_address       = uint(48, ~);
 src_address       = uint(48, ~);
 ether_type        = uint(16, bind(type, ~));
 frame_check       = uint(32, ~);
+
 dot1q_frame       = tag_control_info
                   & bind(etype, ether_type)
                   & payload_by_type(etype.type, 42)
@@ -52,21 +53,22 @@ double_tag_frame  = service_tag
                   & bind(etype, ether_type)
                   & payload_by_type(etype.type, 38)
                   ;
+
 tag_control_info  = priority & drop_eligible & vlan_id;
-service_tag       = tag_control_info;
-customer_tag      = tag_control_info;
 priority          = uint(3, ~);
 drop_eligible     = uint(1, ~);
 vlan_id           = uint(12, ~);
+service_tag       = tag_control_info;
+customer_tag      = tag_control_info;
 
-payload_by_type(type, min_size) = [type >= min_size & type <= 1500: payload(type);
+payload_by_type(type, min_size) = [type >= min_size & type <= 1500: generic_payload(type);
                                    type = 0x0800                  : ipv4;
                                    type = 0x86dd                  : ipv6;
                                    # Other types omitted for brevity
                                   ];
-payload(length)                 = uint(8,~){length};
-ipv4: expression                = """https://somewhere/ipv4.dogma""";
-ipv6: expression                = """https://somewhere/ipv6.dogma""";
+generic_payload(length)         = uint(8,~){length};
+ipv4: bits                      = """https://somewhere/ipv4.dogma""";
+ipv6: bits                      = """https://somewhere/ipv6.dogma""";
 ```
 
 ### Other Examples
