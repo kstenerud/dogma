@@ -18,6 +18,8 @@ Introduction
 
 Syntactic metalanguages have made mainly haphazard gains over the past 60 years, and still only describe text-based formats. Dogma aims to be a modernized metalanguage with better expressiveness and binary support.
 
+Dogma follows the familiar patterns of [Backus-Naur Form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form), and includes a number of innovations that make it also suitable for describing binary data.
+
 
 ### Introductory Example
 
@@ -89,7 +91,7 @@ Contents
   - [Contents](#contents)
   - [Design Objectives](#design-objectives)
     - [Human readability](#human-readability)
-    - [Better expressivity](#better-expressivity)
+    - [Better expressiveness](#better-expressiveness)
     - [Character set support](#character-set-support)
     - [Codepoints as first-class citizens](#codepoints-as-first-class-citizens)
     - [Binary grammar support](#binary-grammar-support)
