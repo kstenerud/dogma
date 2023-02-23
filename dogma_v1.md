@@ -100,7 +100,7 @@ Contents
     - [Future proof](#future-proof)
   - [Forward Notes](#forward-notes)
     - [Versioning](#versioning)
-    - [About the Descriptions and Examples](#about-the-descriptions-and-examples)
+    - [Informal Dogma in Descriptions](#informal-dogma-in-descriptions)
     - [Bit Ordering](#bit-ordering)
     - [Non-Greedy](#non-greedy)
     - [Unicode Equivalence and Normalization](#unicode-equivalence-and-normalization)
@@ -228,9 +228,9 @@ Versioning is done in the form of `major`.`minor`:
 * Each `dogma_vX.Y.md` file is the immutable document for this particular major.minor release.
 
 
-### About the Descriptions and Examples
+### Informal Dogma in Descriptions
 
-Descriptions and examples will usually include some Dogma notation. When in doubt, please refer to the [full Dogma grammar at the end of this document](#dogma-described-as-dogma).
+Section descriptions will usually include some informal Dogma notation with structural parts such as whitespace omitted for clarity. When in doubt, please refer to the [formal Dogma grammar at the end of this document](#dogma-described-as-dogma).
 
 
 ### Bit Ordering
@@ -274,7 +274,7 @@ Grammar Document
 A Dogma grammar document begins with a [header section](#document-header), followed by a series of [rules](#rules).
 
 ```dogma
-document = document_header & MAYBE_WSLC & start_rule & (MAYBE_WSLC & rule)*;
+document = document_header & start_rule & rule*;
 ```
 
 
@@ -293,11 +293,7 @@ document_header    = "dogma_v" & dogma_major_version & SOME_WS
                    & header_line* & LINE_END
                    ;
 character_encoding = ('a'~'z' | 'A'~'Z' | '0'~'9' | '_' | '-' | '.' | ':' | '+' | '(' | ')'){1~40};
-header_line        = '-' & SOME_WS
-                   & header_name & MAYBE_WS
-                   & '=' & MAYBE_WS
-                   & header_value & LINE_END
-                   ;
+header_line        = '-' & SOME_WS & header_name & '=' & header_value & LINE_END;
 header_name        = printable+;
 header_value       = printable_ws+;
 ```
@@ -331,9 +327,9 @@ Rules are written in the form `nonterminal = expression;`, with optional whitesp
 ```dogma
 rule          = symbol_rule | macro_rule | function_rule;
 start_rule    = symbol_rule;
-symbol_rule   = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
-macro_rule    = macro & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
-function_rule = function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';';
+symbol_rule   = symbol & '=' & expression & ';';
+macro_rule    = macro & '=' & expression & ';';
+function_rule = function & '=' & prose & ';';
 ```
 
 The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their case-sensitive names share the same global namespace (i.e. they must be globally unique).
@@ -351,7 +347,7 @@ The first rule listed in a Dogma document is the start rule. Only a [symbol](#sy
 A symbol acts as a placeholder for something to be substituted in another rule.
 
 ```dogma
-symbol_rule           = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
+symbol_rule           = symbol & '=' & expression & ';';
 symbol                = identifier_restricted;
 identifier_restricted = identifier_any ! reserved_identifiers;
 identifier_any        = name;
@@ -385,7 +381,7 @@ LF             = '\[a]';
 A macro is essentially a symbol that accepts parameters, which are bound to local [variables](#variables) for use within the macro. The macro's contents are written like regular rules, but also have access to the injected local variables.
 
 ```dogma
-macro_rule = macro & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
+macro_rule = macro & '=' & expression & ';';
 macro      = identifier_restricted & PARENTHESIZED(param_name & (ARG_SEP & param_name)*);
 ```
 
@@ -466,16 +462,16 @@ The last parameter in a function can be made variadic by appending `...` (such a
 
 
 ```dogma
-function_rule      = function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';';
+function_rule      = function & '=' & prose & ';';
 function           = function_no_args | function_with_args;
-function_no_args   = identifier_restricted & TOKEN_SEP & type_specifier;
+function_no_args   = identifier_restricted & type_specifier;
 function_with_args = identifier_restricted
                    & PARENTHESIZED(function_param & (ARG_SEP & function_param)*)
-                   & TOKEN_SEP & type_specifier
+                   & type_specifier
                    ;
-function_param     = param_name & TOKEN_SEP & type_specifier;
-type_specifier     = ':' & TOKEN_SEP & type_alternatives & (TOKEN_SEP & vararg)?;
-type_alternatives  = type_name & (TOKEN_SEP & '|' & TOKEN_SEP & type_name)*;
+function_param     = param_name & type_specifier;
+type_specifier     = ':' & type_alternatives & vararg?;
+type_alternatives  = type_name & ('|' & type_name)*;
 vararg             = "...";
 type_name          = basic_type_name | custom_type_name;
 basic_type_name    = "expression"
@@ -657,7 +653,7 @@ condition          = comparison | logical_op;
 logical_op         = logical_or | logical_op_and_not;
 logical_op_and_not = logical_and | logical_op_not;
 logical_op_not     = logical_not | maybe_grouped(condition);
-comparison         = number & TOKEN_SEP & comparator & TOKEN_SEP & number;
+comparison         = number & comparator & number;
 comparator         = comp_lt | comp_le | comp_eq | comp_ne | comp_ge | comp_gt;
 comp_lt            = "<";
 comp_le            = "<=";
@@ -665,9 +661,9 @@ comp_eq            = "=";
 comp_ne            = "!=";
 comp_ge            = ">=";
 comp_gt            = ">";
-logical_or         = condition & TOKEN_SEP & '|' & TOKEN_SEP & condition;
-logical_and        = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
-logical_not        = '!' & TOKEN_SEP & condition;
+logical_or         = condition & '|' & condition;
+logical_and        = condition & '&' & condition;
+logical_not        = '!' & condition;
 ```
 
 **Example**:
@@ -856,9 +852,9 @@ A switch chooses one expression from a series of possibilities based on conditio
 **Note**: If more than one condition can match at the same time, the grammar is ambiguous.
 
 ```dogma
-switch         = '[' & TOKEN_SEP & switch_entry+ & (TOKEN_SEP & switch_default)? & TOKEN_SEP & ']';
-switch_entry   = condition & TOKEN_SEP & ':' & TOKEN_SEP & expression & TOKEN_SEP & ';';
-switch_default = ':' & TOKEN_SEP & expression & TOKEN_SEP & ';';
+switch         = '[' & switch_entry+ & switch_default? & ']';
+switch_entry   = condition & ':' & expression & ';';
+switch_default = ':' & expression & ';';
 ```
 
 **Example**: [TR-DOS](https://en.wikipedia.org/wiki/TR-DOS) file descriptors contain different payload formats based on the extension.
@@ -924,7 +920,7 @@ The concatenation combination produces an expression consisting of the expressio
 Only [bits](#bits) can be concatenated.
 
 ```dogma
-concatenate = expression & TOKEN_SEP & '&' & TOKEN_SEP & expression;
+concatenate = expression & '&' & expression;
 ```
 
 **Example**: Assignment consists of an identifier, at least one space, an equals sign, at least one space, and then an integer value, followed by a linefeed.
@@ -949,7 +945,7 @@ Alternatives are separated by a pipe (`|`) character. Only one of the alternativ
 [Bits](#bits) and [numbers](#numbers) sets can be built using alternatives.
 
 ```dogma
-alternate = expression & TOKEN_SEP & '|' & TOKEN_SEP & expression;
+alternate = expression & '|' & expression;
 ```
 
 **Example**: Addition or subtraction consists of an identifier, at least one space, a plus or minus sign, at least one space, and then another identifier, followed by a linefeed.
@@ -972,7 +968,7 @@ Exclusion removes an expression from the set of expression alternatives.
 [Bits](#bits) and [numbers](#numbers) sets can be modified using exclusion.
 
 ```dogma
-exclude = expression & TOKEN_SEP & '!' & TOKEN_SEP & expression;
+exclude = expression & '!' & expression;
 ```
 
 **Example**: An identifier can be any lowercase ASCII string except "fred".
@@ -996,7 +992,7 @@ Only [bits](#bits) can have repetition applied.
 
 ```dogma
 repetition          = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
-repeat_range        = expression & '{' & TOKEN_SEP & maybe_ranged(number) & TOKEN_SEP & '}';
+repeat_range        = expression & '{' & maybe_ranged(number) & '}';
 repeat_zero_or_one  = expression & '?';
 repeat_zero_or_more = expression & '*';
 repeat_one_or_more  = expression & '+';
@@ -1023,7 +1019,7 @@ Grouping
 
 ```dogma
 grouped(item)       = PARENTHESIZED(item);
-PARENTHESIZED(item) = '(' & TOKEN_SEP & item & TOKEN_SEP & ')';
+PARENTHESIZED(item) = '(' & item & ')';
 ```
 
 **Exmples**:
@@ -1071,12 +1067,12 @@ calc_mul_div = calc_mul | calc_div | calc_mod | calc_pow_neg;
 calc_pow_neg = calc_pow | calc_neg_val;
 calc_neg_val = calc_neg | calc_val;
 calc_val     = number_literal | variable | maybe_grouped(number);
-calc_add     = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
-calc_sub     = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
-calc_mul     = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_pow_val;
-calc_div     = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_pow_val;
-calc_mod     = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_pow_val;
-calc_pow     = calc_pow_val & TOKEN_SEP & '^' & TOKEN_SEP & calc_neg_val;
+calc_add     = number & '+' & calc_mul_div;
+calc_sub     = number & '-' & calc_mul_div;
+calc_mul     = calc_mul_div & '*' & calc_pow_val;
+calc_div     = calc_mul_div & '/' & calc_pow_val;
+calc_mod     = calc_mul_div & '%' & calc_pow_val;
+calc_pow     = calc_pow_val & '^' & calc_neg_val;
 calc_neg     = '-' & calc_val;
 ```
 
@@ -1111,11 +1107,11 @@ expression         = ...
                    | maybe_ranged(codepoint_literal)
                    | ...
                    ;
-repeat_range       = expression & '{' & TOKEN_SEP & maybe_ranged(number) & TOKEN_SEP & '}';
+repeat_range       = expression & '{' & maybe_ranged(number) & '}';
 function_uint      = fname_uint & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
 function_sint      = fname_sint & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
 function_float     = fname_float & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
-ranged(item)       = (item & TOKEN_SEP)? & '~' & (TOKEN_SEP & item)?;
+ranged(item)       = item? & '~' & item?;
 maybe_ranged(item) = item | ranged(item);
 ```
 
