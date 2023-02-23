@@ -16,7 +16,7 @@ Public comments uncovered a number of issues that have mostly been addressed. Be
 Introduction
 ------------
 
-Syntactic metalanguages have made mainly haphazard gains over the past 60 years, and still only describe text-based formats. Dogma aims to be a modernized metalanguage with better expressivity and binary support.
+Syntactic metalanguages have made mainly haphazard gains over the past 60 years, and still only describe text-based formats. Dogma aims to be a modernized metalanguage with better expressiveness and binary support.
 
 
 ### Introductory Example
@@ -160,14 +160,14 @@ Design Objectives
 
 The primary use case for Dogma is to describe text and binary grammars in a formalized way in documentation. Such a format must therefore be human-accessible, while also being concise and unambiguous.
 
-### Better expressivity
+### Better expressiveness
 
-Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, or ease-of-processing. A metalanguage for describing such data will require much more expressivity than current metalanguages allow. Better expressivity reduces boilerplate and improves readability even in text format descriptions.
+Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, or ease-of-processing. A metalanguage for describing such data will require much more expressiveness than current metalanguages allow. Better expressiveness reduces boilerplate and improves readability even in text format descriptions.
 
 * **Repetition**: Any [bits](#bits) can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
 * **Bindings**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. Dogma supports assigning decoded values to variables.
 * **Exclusion**: Sometimes it's easier to express something as "everything except for ...".
-* **Grouping**: Grouping expressions together is an obvious convenince that most other BNF offshoots have already adopted.
+* **Grouping**: Grouping expressions together is an obvious convenience that most other BNF offshoots have already adopted.
 * **Prose**: In many cases, the actual encoding of something is already well-known and specified elsewhere, or is too complex for Dogma to describe adequately. Prose offers a free-form way to describe part of a grammar.
 * **Whitespace not significant**: Many BNF notations (including the original BNF) assign meaning to whitespace (for example: whitespace as concatenation, or linefeeds to mark the end of a rule). This is bad from a UX perspective because it makes things harder for a human to parse in many circumstances, and reduces the ways in which a rule can be expressed over multiple lines.
 
@@ -471,10 +471,11 @@ function_with_args = identifier_restricted
                    ;
 function_param     = param_name & TOKEN_SEP & type_specifier;
 type_specifier     = ':' & TOKEN_SEP & type_alternatives & (TOKEN_SEP & vararg)?;
-type_alternatives  = maybe_ranged_type & (TOKEN_SEP & '|' & TOKEN_SEP & maybe_ranged_type)*;
+type_alternatives  = type_name & (TOKEN_SEP & '|' & TOKEN_SEP & type_name)*;
 vararg             = "...";
-maybe_ranged_type  = '~'? & (basic_type_name | custom_type_name);
-basic_type_name    = "bits"
+type_name          = basic_type_name | custom_type_name;
+basic_type_name    = "expression"
+                   | "bits"
                    | "condition"
                    | "number"
                    | "numbers"
@@ -544,7 +545,7 @@ Types
 Dogma has three main types:
 
 * [`bits`](#bits): A set of possible bit sequences of arbitrary length.
-* [`numbers`](#number): Numeric values that may be used in calculations or even converted to a representations in bits. Number types are split into two primary forms:
+* [`numbers`](#number): Numeric values that may be used in calculations or converted to a representations in bits. Split into two primary forms:
   - [singular number](#number): A single numeric value.
   - [number set](#numbers): A set of values.
 * [`conditions`](#condition): True or false assertions about the current state.
@@ -850,7 +851,7 @@ switch_entry   = condition & TOKEN_SEP & ':' & TOKEN_SEP & expression & TOKEN_SE
 switch_default = ':' & TOKEN_SEP & expression & TOKEN_SEP & ';';
 ```
 
-**Example**: TR-DOS file descriptors contain differnt payload formats based on the extension.
+**Example**: [TR-DOS](https://en.wikipedia.org/wiki/TR-DOS) file descriptors contain different payload formats based on the extension.
 
 ```dogma
 file_descriptor  = filename
@@ -1080,11 +1081,11 @@ A range consists of one of the following:
 * A tilde by itself (~), indicating no bound.
 * A value with no tilde, restricting the "range" to only that value.
 
-A [codepoint](#codepoints) range represents the set of each codepoint in the range as [alternatves](#alternative).
+A [codepoint](#codepoints) range represents the set of each codepoint in the range as [alternatives](#alternative).
 
 A [repetition](#repetition) range represents a range in the number of occurrences that will match the rule.
 
-A [number](#numbers) range will ultimately be passed to a context requiring a specific [subtype](#types) (such as [repetition](#repetition), [uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent each value in the range (for all discrete values that are representable by the [subtype](#types)) as [alternatves](#alternative).
+A [number](#numbers) range will ultimately be passed to a context requiring a specific [subtype](#types) (such as [repetition](#repetition), [uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent each value in the range (for all discrete values that are representable by the [subtype](#types)) as [alternatives](#alternative).
 
 ```dogma
 expression         = ...
@@ -1267,7 +1268,7 @@ type_2               = ...
 ### `bind` Function
 
 ```dogma
-bind(variable_name: identifier, value: bits | ~number): bits | ~number =
+bind(variable_name: identifier, value: bits | numbers): bits | numbers =
     """
     Binds `value` to a local variable for subsequent re-use in the current rule.
     `bind` transparently passes through the type and value of `value`, meaning that
@@ -1480,7 +1481,7 @@ Dogma described as Dogma
 ```dogma
 dogma_v1 utf-8
 - identifier  = dogma_v1
-- description = Karl's Backus-Naur Form, version 1
+- description = Dogma metalanguage, version 1
 
 document               = document_header & MAYBE_WSLC & start_rule & (MAYBE_WSLC & rule)*;
 
@@ -1629,7 +1630,7 @@ swapped(bit_granularity: uinteger, expr: bits): bits =
     if `bit_granularity` is 0, `expr` is passed through unchanged.
     """;
 
-bind(variable_name: identifier, value: bits | ~number): bits | ~number =
+bind(variable_name: identifier, value: bits | numbers): bits | numbers =
     """
     Binds `value` to a local variable for subsequent re-use in the current rule.
     `bind` transparently passes through the type and value of `value`, meaning that

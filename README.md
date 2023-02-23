@@ -1,7 +1,7 @@
 The Dogma Metalanguage
 ======================
 
-Syntactic metalanguages have made mainly haphazard gains over the past 60 years, and still only describe text-based formats. Dogma aims to be a modernized metalanguage with better expressivity and binary support.
+Syntactic metalanguages have made mainly haphazard gains over the past 60 years, and still only describe text-based formats. Dogma aims to be a modernized metalanguage with better expressiveness and binary support.
 
 
 
@@ -71,7 +71,7 @@ ipv6: expression                = """https://somewhere/ipv6.dogma""";
 
 ### Other Examples
 
-* Internet Prodocol, version 4: [ipv4.dogma](ipv4.dogma)
+* Internet Protocol, version 4: [ipv4.dogma](ipv4.dogma)
 * Concise Text Encoding: [cte.dogma](https://github.com/kstenerud/concise-encoding/blob/master/cte.dogma)
 * Concise Binary Encoding: [cbe.dogma](https://github.com/kstenerud/concise-encoding/blob/master/cbe.dogma)
 
@@ -84,14 +84,14 @@ Design Objectives
 
 The primary use case for Dogma is to describe text and binary grammars in a formalized way in documentation. Such a format must therefore be human-accessible, while also being concise and unambiguous.
 
-### Better expressivity
+### Better expressiveness
 
-Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, or ease-of-processing. A metalanguage for describing such data will require much more expressivity than current metalanguages allow. Better expressivity reduces boilerplate and improves readability even in text format descriptions.
+Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, or ease-of-processing. A metalanguage for describing such data will require much more expressiveness than current metalanguages allow. Better expressiveness reduces boilerplate and improves readability even in text format descriptions.
 
 * **Repetition**: Any expression can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
 * **Bindings**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. Dogma supports assigning decoded values to variables.
 * **Exclusion**: Sometimes it's easier to express something as "everything except for ...".
-* **Grouping**: Grouping expressions together is an obvious convenince that most other BNF offshoots have already adopted.
+* **Grouping**: Grouping expressions together is an obvious convenience that most other BNF offshoots have already adopted.
 * **Prose**: In many cases, the actual encoding of something is already well-known and specified elsewhere, or is too complex for Dogma to describe adequately. Prose offers a free-form way to describe part of a grammar.
 * **Whitespace not significant**: Many BNF notations (including the original BNF) assign meaning to whitespace (for example: whitespace as concatenation, or linefeeds to mark the end of a rule). This is bad from a UX perspective because it makes things harder for a human to parse in many circumstances, and reduces the ways in which a rule can be expressed over multiple lines.
 
