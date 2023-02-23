@@ -71,8 +71,8 @@ payload_by_type(type, min_size) = [type >= min_size & type <= 1500: payload(type
                                    # Other types omitted for brevity
                                   ];
 payload(length)                 = uint(8,~){length};
-ipv4: expression                = """https://somewhere/ipv4.dogma""";
-ipv6: expression                = """https://somewhere/ipv6.dogma""";
+ipv4: bits                      = """https://somewhere/ipv4.dogma""";
+ipv6: bits                      = """https://somewhere/ipv6.dogma""";
 ```
 
 See also: [IPv4 described in Dogma](ipv4.dogma)
@@ -491,16 +491,16 @@ custom_type_name   = name;
 **Example**: A function to convert an unsigned int to its unsigned little endian base 128 representation.
 
 ```dogma
-uleb128(v: uinteger): expression = """https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128""";
+uleb128(v: uinteger): bits = """https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128""";
 ```
 
 **Example**: A record contains a date followed by a colon, followed by a temperature reading.
 
 ```dogma
-record              = iso8601 & ':' & temperature;
-iso8601: expression = """https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations""";
-temperature         = digit+ & ('.' & digit+)?;
-digit               = '0'~'9';
+record         = iso8601 & ':' & temperature;
+iso8601: bits  = """https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations""";
+temperature    = digit+ & ('.' & digit+)?;
+digit          = '0'~'9';
 ```
 
 
@@ -831,7 +831,7 @@ record              = date & ':' & temperature & LF & flowery_description & LF &
 date                = """YYYY-MM-DD, per https://en.wikipedia.org/wiki/ISO_8601#Calendar_dates""";
 temperature         = digit+ & ('.' & digit+)?;
 digit               = '0'~'9';
-flowery_description: expression = """
+flowery_description: bits = """
 A poetic description of the weather, written in iambic pentameter. For example:
 
 While barred clouds bloom the soft-dying day,
@@ -1160,7 +1160,7 @@ Dogma comes with some fundamental functions built-in:
 ### `sized` Function
 
 ```dogma
-sized(bit_count: uinteger, expr: expression): expression =
+sized(bit_count: uinteger, expr: bits): bits =
     """
     Requires that `expr` produce exactly `bit_count` bits.
     Expressions containing repetition that would have matched on their own are
@@ -1195,7 +1195,7 @@ byte(v)            = uint(8,v);
 ### `aligned` Function
 
 ```dogma
-aligned(bit_count: uinteger, expr: expression, padding: expression): expression =
+aligned(bit_count: uinteger, expr: bits, padding: bits): bits =
     """
     Requires that `expr` and `padding` together produce a multiple of `bit_count` bits.
     If `expr` doesn't produce a multiple of `bit_count` bits, the `padding` expression
@@ -1217,7 +1217,7 @@ byte(v)            = uint(8, v);
 ### `limited` Function
 
 ```dogma
-limited(bit_counts: uintegers, expr: expression): expression =
+limited(bit_counts: uintegers, expr: bits): bits =
     """
     Limits `expr` to any of the bit counts contained in `bit_counts`.
     """;
@@ -1233,7 +1233,7 @@ record = uint(8,bind(length, 1~100)) uint(8,~){length};
 ### `swapped` Function
 
 ```dogma
-swapped(bit_granularity: uinteger, expr: expression): expression =
+swapped(bit_granularity: uinteger, expr: bits): bits =
     """
     Swaps all bits of `expr` in chunks of `bit_granularity` size.
 
@@ -1274,7 +1274,7 @@ type_2               = ...
 ### `bind` Function
 
 ```dogma
-bind(variable_name: identifier, value: expression | ~number): expression | ~number =
+bind(variable_name: identifier, value: bits | ~number): bits | ~number =
     """
     Binds `value` to a local variable for subsequent re-use in the current rule.
     `bind` transparently passes through the type and value of `value`, meaning that
@@ -1328,7 +1328,7 @@ record = uint(8,bind(length, 1~100)) uint(8,~){length};
 ### `unicode` Function
 
 ```dogma
-unicode(categories: unicode_category ...): expression =
+unicode(categories: unicode_category ...): bits =
     """
     Creates an expression containing the alternatives set of all Unicode
     codepoints that have any of the given Unicode categories.
@@ -1349,7 +1349,7 @@ letter_digit_space = unicode(N,L,Zs);
 ### `uint` Function
 
 ```dogma
-uint(bit_count: uinteger, values: uintegers): expression =
+uint(bit_count: uinteger, values: uintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be
     represented in the given values set as big endian unsigned integers of
@@ -1367,7 +1367,7 @@ length = uint(16, ~);
 ### `sint` Function
 
 ```dogma
-sint(bit_count: uinteger, values: sintegers): expression =
+sint(bit_count: uinteger, values: sintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be
     represented in the given values set as big endian 2's complement signed
@@ -1385,7 +1385,7 @@ points = sint(32, -10000~10000);
 ### `float` Function
 
 ```dogma
-float(bit_count: uinteger, values: numbers): expression =
+float(bit_count: uinteger, values: numbers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be
     represented in the given values set as big endian ieee754 binary floating
@@ -1413,7 +1413,7 @@ any_float64 = float(64,~) | inf(64,~) | nan(64,~) | nzero(64);
 ### `inf` Function
 
 ```dogma
-inf(bit_count: uinteger, sign: numbers): expression =
+inf(bit_count: uinteger, sign: numbers): bits =
     """
     Creates an expression that matches big endian ieee754 binary infinity values
     of size `bit_count` whose sign matches the `sign` values set. One or two
@@ -1435,7 +1435,7 @@ terminator = inf(32, -1);
 ### `nan` Function
 
 ```dogma
-nan(bit_count: uinteger, payload: sintegers): expression =
+nan(bit_count: uinteger, payload: sintegers): bits =
     """
     Creates an expression that matches every big endian ieee754 binary NaN value
     size `bit_count` with the given payload values set. NaN payloads can be
@@ -1463,7 +1463,7 @@ invalid = nan(32, 0x400001);
 ### `nzero` Function
 
 ```dogma
-nzero(bit_count: uinteger): expression =
+nzero(bit_count: uinteger): bits =
     """
     Creates an expression that matches a big endian ieee754 binary negative 0 value
     of size `bit_count`.
@@ -1594,7 +1594,7 @@ builtin_functions      = sized
                        | nzero
                        ;
 
-sized(bit_count: uinteger, expr: expression): expression =
+sized(bit_count: uinteger, expr: bits): bits =
     """
     Requires that `expr` produce exactly `bit_count` bits.
     Expressions containing repetition that would have matched on their own are
@@ -1603,7 +1603,7 @@ sized(bit_count: uinteger, expr: expression): expression =
     if `bit_count` is 0, `expr` has no size requirements.
     """;
 
-aligned(bit_count: uinteger, expr: expression, padding: expression): expression =
+aligned(bit_count: uinteger, expr: bits, padding: bits): bits =
     """
     Requires that `expr` and `padding` together produce a multiple of `bit_count` bits.
     If `expr` doesn't produce a multiple of `bit_count` bits, the `padding` expression
@@ -1612,12 +1612,12 @@ aligned(bit_count: uinteger, expr: expression, padding: expression): expression 
     if `bit_count` is 0, `expr` has no alignment requirements and `padding` is ignored.
     """;
 
-limited(bit_counts: uintegers, expr: expression): expression =
+limited(bit_counts: uintegers, expr: bits): bits =
     """
     Limits `expr` to any of the bit counts contained in `bit_counts`.
     """;
 
-swapped(bit_granularity: uinteger, expr: expression): expression =
+swapped(bit_granularity: uinteger, expr: bits): bits =
     """
     Swaps all bits of `expr` in chunks of `bit_granularity` size.
 
@@ -1633,7 +1633,7 @@ swapped(bit_granularity: uinteger, expr: expression): expression =
     if `bit_granularity` is 0, `expr` is passed through unchanged.
     """;
 
-bind(variable_name: identifier, value: expression | ~number): expression | ~number =
+bind(variable_name: identifier, value: bits | ~number): bits | ~number =
     """
     Binds `value` to a local variable for subsequent re-use in the current rule.
     `bind` transparently passes through the type and value of `value`, meaning that
@@ -1647,7 +1647,7 @@ eod: expression =
    A special expression that matches the end of the data stream.
    """
 
-unicode(categories: unicode_category ...): expression =
+unicode(categories: unicode_category ...): bits =
     """
     Creates an expression containing the alternatives set of all Unicode
     codepoints that have any of the given Unicode categories.
@@ -1658,21 +1658,21 @@ unicode(categories: unicode_category ...): expression =
     Example: all letters and space separators: unicode(L,Zs)
     """;
 
-uint(bit_count: uinteger, values: uintegers): expression =
+uint(bit_count: uinteger, values: uintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be
     represented in the given values set as big endian unsigned integers of
     size `bit_count`.
     """;
 
-sint(bit_count: uinteger, values: sintegers): expression =
+sint(bit_count: uinteger, values: sintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be
     represented in the given values set as big endian 2's complement signed
     integers of size `bit_count`.
     """;
 
-float(bit_count: uinteger, values: numbers): expression =
+float(bit_count: uinteger, values: numbers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be
     represented in the given values set as big endian ieee754 binary floating
@@ -1683,7 +1683,7 @@ float(bit_count: uinteger, values: numbers): expression =
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 
-inf(bit_count: uinteger, sign: numbers): expression =
+inf(bit_count: uinteger, sign: numbers): bits =
     """
     Creates an expression that matches big endian ieee754 binary infinity values
     of size `bit_count` whose sign matches the `sign` values set. One or two
@@ -1692,7 +1692,7 @@ inf(bit_count: uinteger, sign: numbers): expression =
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 
-nan(bit_count: uinteger, payload: sintegers): expression =
+nan(bit_count: uinteger, payload: sintegers): bits =
     """
     Creates an expression that matches every big endian ieee754 binary NaN value
     size `bit_count` with the given payload values set. NaN payloads can be
@@ -1707,7 +1707,7 @@ nan(bit_count: uinteger, payload: sintegers): expression =
       because such an encoding would be interpreted as infinity.
     """;
 
-nzero(bit_count: uinteger): expression =
+nzero(bit_count: uinteger): bits =
     """
     Creates an expression that matches a big endian ieee754 binary negative 0 value
     of size `bit_count`.
