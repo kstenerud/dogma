@@ -1,6 +1,7 @@
-kbnf_v1 utf-8
+dogma_v1 utf-8
 - identifier  = ip_v4
 - description = Internet Protocol, version 4
+- dogma_specification = https://github.com/kstenerud/dogma/blob/master/dogma_v1.md
 
 ip_packet                          = version
                                    & u4(bind(header_length, 5~)) # length is in 32-bit words

@@ -1,7 +1,8 @@
-Karl's Backus-Naur Form
-=======================
+The Dogma Metalanguage
+======================
 
-Version 1-prerelease
+
+**Version**: 1.0-beta2
 
 
 ## WORK IN PROGRESS
@@ -15,20 +16,20 @@ Public comments uncovered a number of issues that have mostly been addressed. Be
 Introduction
 ------------
 
-Syntactic metalanguages have made mainly haphazard gains over the past 60 years, and still only describe text-based formats. KBNF aims to be a modernized metalanguage with better expressivity and binary support.
+Syntactic metalanguages have made mainly haphazard gains over the past 60 years, and still only describe text-based formats. Dogma aims to be a modernized metalanguage with better expressivity and binary support.
 
 
 ### Introductory Example
 
-To show what KBNF can do, here is an Ethernet IEEE 802.3 frame, layer 2 (image from [Wikipedia](https://en.wikipedia.org/wiki/IEEE_802.1Q)):
+To demonstrate how powerful Dogma can be, here is an Ethernet IEEE 802.3 frame, layer 2 (image from [Wikipedia](https://en.wikipedia.org/wiki/IEEE_802.1Q)):
 
 ![IEEE 802.3 frame](Wikipedia-TCPIP_802.1ad_DoubleTag.svg)
 
-```kbnf
-kbnf_v1 utf-8
+```dogma
+dogma_v1 utf-8
 - identifier  = 802.3_layer2
 - description = IEEE 802.3 Ethernet frame, layer 2
-- note        = Words are sent big endian, but octets are sent LSB first.
+- note        = Words are byte-ordered big endian, but every octet is sent LSB first.
 
 frame             = preamble
                   & frame_start
@@ -70,18 +71,18 @@ payload_by_type(type, min_size) = [type >= min_size & type <= 1500: payload(type
                                    # Other types omitted for brevity
                                   ];
 payload(length)                 = uint(8,~){length};
-ipv4: expression                = """https://somewhere/ipv4.kbnf""";
-ipv6: expression                = """https://somewhere/ipv6.kbnf""";
+ipv4: expression                = """https://somewhere/ipv4.dogma""";
+ipv6: expression                = """https://somewhere/ipv6.dogma""";
 ```
 
-See also: [IPv4 described in KBNF](ipv4.kbnf)
+See also: [IPv4 described in Dogma](ipv4.dogma)
 
 
 
 Contents
 --------
 
-- [Karl's Backus-Naur Form](#karls-backus-naur-form)
+- [The Dogma Metalanguage](#the-dogma-metalanguage)
   - [WORK IN PROGRESS](#work-in-progress)
   - [Introduction](#introduction)
     - [Introductory Example](#introductory-example)
@@ -94,6 +95,7 @@ Contents
     - [Binary grammar support](#binary-grammar-support)
     - [Future proof](#future-proof)
   - [Forward Notes](#forward-notes)
+    - [Versioning](#versioning)
     - [About the Descriptions and Examples](#about-the-descriptions-and-examples)
     - [Bit Ordering](#bit-ordering)
     - [Non-Greedy](#non-greedy)
@@ -147,7 +149,7 @@ Contents
     - [`inf` Function](#inf-function)
     - [`nan` Function](#nan-function)
     - [`nzero` Function](#nzero-function)
-  - [The KBNF Grammar in KBNF](#the-kbnf-grammar-in-kbnf)
+  - [Dogma described as Dogma](#dogma-described-as-dogma)
 
 
 
@@ -156,24 +158,24 @@ Design Objectives
 
 ### Human readability
 
-The primary use case for KBNF is to describe text and binary grammars in a formalized way in documentation. Such a format must therefore be human-accessible, while also being concise and unambiguous.
+The primary use case for Dogma is to describe text and binary grammars in a formalized way in documentation. Such a format must therefore be human-accessible, while also being concise and unambiguous.
 
 ### Better expressivity
 
 Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, or ease-of-processing. A metalanguage for describing such data will require much more expressivity than current metalanguages allow. Better expressivity reduces boilerplate and improves readability even in text format descriptions.
 
 * **Repetition**: Any expression can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
-* **Bindings**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. KBNF supports assigning decoded values to variables.
+* **Bindings**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. Dogma supports assigning decoded values to variables.
 * **Exclusion**: Sometimes it's easier to express something as "everything except for ...".
 * **Grouping**: Grouping expressions together is an obvious convenince that most other BNF offshoots have already adopted.
-* **Prose**: In many cases, the actual encoding of something is already well-known and specified elsewhere, or is too complex for KBNF to describe adequately. Prose offers a free-form way to describe part of a grammar.
+* **Prose**: In many cases, the actual encoding of something is already well-known and specified elsewhere, or is too complex for Dogma to describe adequately. Prose offers a free-form way to describe part of a grammar.
 * **Whitespace not significant**: Many BNF notations (including the original BNF) assign meaning to whitespace (for example: whitespace as concatenation, or linefeeds to mark the end of a rule). This is bad from a UX perspective because it makes things harder for a human to parse in many circumstances, and reduces the ways in which a rule can be expressed over multiple lines.
 
 ### Character set support
 
 Metalanguages tend to support only ASCII, with Unicode (encoded as UTF-8) generally added as an afterthought. This restricts the usefulness of the metalanguage, as any other character sets (many of which are still in use) have no support at all.
 
-KBNF can be used with any character set, and requires the character set to be specified as part of the grammar document header.
+Dogma can be used with any character set, and requires the character set to be specified as part of the grammar document header.
 
 ### Codepoints as first-class citizens
 
@@ -195,16 +197,36 @@ Binary grammars have different needs from textual grammars, and require special 
 
 No specification is perfect, nor can it stand the test of time. Eventually an incompatible change will become necessary in order to stay relevant.
 
-KBNF documents are versioned to a particular KBNF specification so that changes can be made to the specification without breaking existing tooling.
+Dogma documents are versioned to a particular Dogma specification so that changes can be made to the specification without breaking existing tooling.
 
 
 
 Forward Notes
 -------------
 
+### Versioning
+
+Versioning is done in the form of `major`.`minor`:
+
+* Incrementing the major version signals a change in functionality (adding, removing, changing behavior).
+* Incrementing the minor version signals non-functional changes like clarifications or rewording or bug fixes.
+
+**Example**:
+
+* Version 1.0: First public release
+* Version 1.1: Clarification: z-ray is just as good as x-ray. In fact it's better; it's two more than x!
+* Version 1.2: Changed the wording of section 2.2 to make its intended use and limitations more clear.
+* Version 2.0: Added new type "y-ray" for the undecided.
+
+**In this repository**:
+
+* Each `dogma_vX.md` file is the evolving document for this major release, with any unreleased changes.
+* Each `dogma_vX.Y.md` file is the immutable document for this particular major.minor release.
+
+
 ### About the Descriptions and Examples
 
-Descriptions and examples will usually include some KBNF notation. When in doubt, please refer to the [full KBNF grammar at the end of this document](#the-kbnf-grammar-in-kbnf).
+Descriptions and examples will usually include some Dogma notation. When in doubt, please refer to the [full Dogma grammar at the end of this document](#dogma-described-as-dogma).
 
 
 ### Bit Ordering
@@ -226,7 +248,7 @@ All expression matching is assumed to be non-greedy.
 
 For example, given the following grammar:
 
-```kbnf
+```dogma
 document  = record+ & '.';
 record    = letter+ & terminator;
 letter    = 'a'~'z';
@@ -245,24 +267,24 @@ By default only the exact, non-processed (i.e. not normalized) codepoints presen
 Grammar Document
 ----------------
 
-A KBNF grammar document begins with a [header section](#document-header), followed by a series of [rules](#rules).
+A Dogma grammar document begins with a [header section](#document-header), followed by a series of [rules](#rules).
 
-```kbnf
+```dogma
 document = document_header & MAYBE_WSLC & start_rule & (MAYBE_WSLC & rule)*;
 ```
 
 
 ### Document Header
 
-The document header identifies the file format as KBNF, and contains the following mandatory information:
+The document header identifies the file format as Dogma, and contains the following mandatory information:
 
-* The version of the KBNF specification that the document adheres to.
+* The major version of the Dogma specification that the document adheres to.
 * The case-insensitive name of the character encoding used for all codepoint related expressions (use the [IANA preferred MIME name](https://www.iana.org/assignments/character-sets/character-sets.xhtml) whenever possible).
 
 Optionally, it may also include header lines. An empty line terminates the document header section.
 
-```kbnf
-document_header    = "kbnf_v" & kbnf_version & SOME_WS
+```dogma
+document_header    = "dogma_v" & dogma_major_version & SOME_WS
                    & character_encoding & LINE_END
                    & header_line* & LINE_END
                    ;
@@ -280,15 +302,15 @@ The following headers are officially recognized (all others are allowed, but are
 
 * `identifier`: A unique identifier for the grammar being described. It's customary to append a version number to the identifier.
 * `description`: A brief, one-line description of the grammar.
-* `kbnf_specification`: A pointer to the KBNF specification as a courtesy to anyone reading the document.
+* `dogma_specification`: A pointer to the Dogma specification as a courtesy to anyone reading the document.
 
-**Example**: A UTF-8 KBNF grammar called "mygrammar_v1".
+**Example**: A UTF-8 Dogma grammar called "mygrammar_v1".
 
-```kbnf
-kbnf_v1 utf-8
+```dogma
+dogma_v1 utf-8
 - identifier  = mygrammar_v1
 - description = My first grammar, version 1
-- kbnf_specification = https://github.com/kstenerud/kbnf/blob/master/kbnf_v1.md
+- dogma_specification = https://github.com/kstenerud/dogma/blob/master/dogma_v1.0.md
 
 document = "a"; # Yeah, this grammar doesn't do much...
 ```
@@ -302,7 +324,7 @@ Rules determine the restrictions on how terminals can be combined into a valid s
 
 Rules are written in the form `nonterminal = expression;`, with optional whitespace (including newlines) between rule elements.
 
-```kbnf
+```dogma
 rule          = symbol_rule | macro_rule | function_rule;
 start_rule    = symbol_rule;
 symbol_rule   = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
@@ -312,19 +334,19 @@ function_rule = function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';'
 
 The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their case-sensitive names share the same global namespace (i.e. they must be globally unique).
 
-**Note**: Whitespace in a KBNF rule is only used to separate tokens and for visual layout purposes; it does not imply any semantic meaning.
+**Note**: Whitespace in a Dogma rule is only used to separate tokens and for visual layout purposes; it does not imply any semantic meaning.
 
 
 ### Start Rule
 
-The first rule listed in a KBNF document is the start rule. Only a [symbol](#symbols) that produces [bits](#bits) can be a start rule.
+The first rule listed in a Dogma document is the start rule. Only a [symbol](#symbols) that produces [bits](#bits) can be a start rule.
 
 
 ### Symbols
 
 A symbol acts as a placeholder for something to be substituted in another rule.
 
-```kbnf
+```dogma
 symbol_rule           = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
 symbol                = identifier_restricted;
 identifier_restricted = identifier_any ! reserved_identifiers;
@@ -340,7 +362,7 @@ reserved_identifiers  = "sized" | "aligned" | "swapped" | "bind"
 
 **Example**: A record consists of a company name (which must not contain two full-width colons in a row), followed by two full-width colons, followed by an employee count in full-width characters (possibly approximated to the nearest 10,000), and is terminated by a linefeed.
 
-```kbnf
+```dogma
 記録		= 会社名 & "：：" & 従業員数 & LF;
 会社名		= unicode(L,M) & unicode(L,M,N,P,S,Zs)* ! "：：";
 従業員数		= '１'~'９' & '０'~'９'* & '万'?;
@@ -349,7 +371,7 @@ LF		= '\[a]';
 
 Or if you prefer, the same thing with English symbol names:
 
-```kbnf
+```dogma
 record         = company_name & "：：" & employee_count & LF;
 company_name   = unicode(L,M) & unicode(L,M,N,P,S,Zs)* ! "：：";
 employee_count = '１'~'９' & '０'~'９'* & '万'?;
@@ -360,21 +382,21 @@ LF             = '\[a]';
 
 A macro is essentially a symbol that accepts parameters, which are bound to local [variables](#variables) for use within the macro. The macro's contents are written like regular rules, but also have access to the injected local variables.
 
-```kbnf
+```dogma
 macro_rule = macro & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
 macro      = identifier_restricted & PARENTHESIZED(param_name & (ARG_SEP & param_name)*);
 ```
 
 When called, a macro substitutes the passed-in parameters and proceeds like a normal rule would. Parameter and return [types](#types) are inferred based on how the parameters are used within the macro, and the type resulting from the macro's expression. The grammar is malformed if a macro is called with incompatible types, or is used in a context that is incompatible with its return type.
 
-```kbnf
+```dogma
 call       = identifier_any & PARENTHESIZED(call_param & (ARG_SEP & call_param)*);
 call_param = any_type;
 ```
 
 **Example**: The main section consists of three records: A type 1 record and two type 2 records. A record begins with a type byte, followed by a length byte, followed by that many bytes of data.
 
-```kbnf
+```dogma
 main_section = record(1) & record(2){2};
 record(type) = byte(type) & byte(bind(length, ~)) & byte(~){length};
 byte(v)      = uint(8,v);
@@ -382,9 +404,9 @@ byte(v)      = uint(8,v);
 
 In the above example, `record` must only be called with an unsigned integer, because the `type` field is passed to the `byte` macro, which calls the [`uint` function](#uint-function), which expects an unsigned parameter.
 
-**Example**: An [IPV4](ipv4.kbnf) packet contains "header length" and "total length" fields, which together determine how big the "options" and "payload" sections are. "protocol" determines the protocol of the payload.
+**Example**: An [IPV4](ipv4.dogma) packet contains "header length" and "total length" fields, which together determine how big the "options" and "payload" sections are. "protocol" determines the protocol of the payload.
 
-```kbnf
+```dogma
 ip_packet                    = ...
                              & u4(bind(header_length, 5~)) # length is in 32-bit words
                                ...
@@ -430,7 +452,7 @@ The following standard types are recognized:
 * `sinteger`
 * `sintegers`
 
-Custom types may be invented (or further invariants defined) when the standard types are insufficient (such as in the [unicode function](#unicode-function)), provided their textual representation doesn't cause ambiguities with the KBNF document encoding.
+Custom types may be invented (or further invariants defined) when the standard types are insufficient (such as in the [unicode function](#unicode-function)), provided their textual representation doesn't cause ambiguities with the Dogma document encoding.
 
 #### Parameter and Return Type Alternatives
 
@@ -441,7 +463,7 @@ If a function can accept multiple types in a particular parameter, or can return
 The last parameter in a function can be made variadic by appending `...` (such as in the [unicode function](#unicode-function)).
 
 
-```kbnf
+```dogma
 function_rule      = function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';';
 function           = function_no_args | function_with_args;
 function_no_args   = identifier_restricted & TOKEN_SEP & type_specifier;
@@ -468,13 +490,13 @@ custom_type_name   = name;
 
 **Example**: A function to convert an unsigned int to its unsigned little endian base 128 representation.
 
-```kbnf
+```dogma
 uleb128(v: uinteger): expression = """https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128""";
 ```
 
 **Example**: A record contains a date followed by a colon, followed by a temperature reading.
 
-```kbnf
+```dogma
 record              = iso8601 & ':' & temperature;
 iso8601: expression = """https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations""";
 temperature         = digit+ & ('.' & digit+)?;
@@ -498,9 +520,9 @@ Identifiers are case sensitive, and must be unique to their scope. Locally scope
 
 Identifiers start with a letter, and can contain letters, numbers and the underscore character. The [builtin function names](#builtin-functions) are reserved at the global scope.
 
-The general convention is to use all uppercase identifiers for "background-y" things like whitespace and separators and other structural components, which makes them easier for a human to gloss over (see [the KBNF grammar document](#the-kbnf-grammar-in-kbnf) as an example).
+The general convention is to use all uppercase identifiers for "background-y" things like whitespace and separators and other structural components, which makes them easier for a human to gloss over (see [the Dogma grammar document](#dogma-described-as-dogma) as an example).
 
-```kbnf
+```dogma
 identifier           = (identifier_firstchar & identifier_nextchar*) ! reserved_identifiers;
 identifier_firstchar = unicode(L,M);
 identifier_nextchar  = identifier_firstchar | unicode(N) | '_';
@@ -514,7 +536,7 @@ reserved_identifiers = "sized" | "aligned" | "swapped" | "bind"
 Types
 -----
 
-KBNF has three main types:
+Dogma has three main types:
 
 * [`bits`](#bits): A set of possible bit sequences of arbitrary length.
 * [`numbers`](#number): Numeric values that may be used in calculations or even converted to a representations in bits. Number types are split into two primary forms:
@@ -533,7 +555,7 @@ Bits are produced by [codepoints](#codepoints), [strings](#strings), and [some f
 
 The bits type is a set of bit patterns, and can therefore be composed using [alternatives](#alternative), [concatenation](#concatenation), and [repetition](#repetition).
 
-```kbnf
+```dogma
 expression = symbol
            | call
            | string_literal
@@ -559,7 +581,7 @@ Bit fields (high to low):
 | Second      | 0   | 60     | 6    |
 | Microsecond | 0   | 999999 | 20   |
 
-```kbnf
+```dogma
 timestamp   = swapped(8, year & month & day & hour & minute & second & microsecond);
 year        = uint(18, ~);
 month       = uint(4, 1~12);
@@ -626,7 +648,7 @@ Condition precedence (low to high):
 * logical and
 * logical not
 
-```kbnf
+```dogma
 condition          = comparison | logical_op;
 logical_op         = logical_or | logical_op_and_not;
 logical_op_and_not = logical_and | logical_op_not;
@@ -646,7 +668,7 @@ logical_not        = '!' & TOKEN_SEP & condition;
 
 **Example**:
 
-```kbnf
+```dogma
 record       = uint(8, bind(type, 1~))
              & [type = 1: type_1;
                 type = 2: type_2;
@@ -672,7 +694,7 @@ When [binding](#bind-function) an [expression](#expressions) that itself binds a
 
 **Example**: A document consists of a type 1 record, followed by any number of type 5, 6, and 7 records, and is terminated with a type 0 record of length 0. A record begins with a header consisting of an 8-bit type and a 16-bit big endian unsigned integer indicating how many bytes of record data follow.
 
-```kbnf
+```dogma
 document            = record(1) & (record(5) | record(6) | record(7))* & terminator_record;
 record(type)        = bind(header, record_header(type)) & record_data(header.length);
 record_header(type) = u8(type) & u16(bind(length, ~));
@@ -698,7 +720,7 @@ Numeric literals can be expressed in binary, octal, decimal, or hexadecimal nota
 
 Conversions from literal reals to floating point encodings that differ in base are assumed to follow the generally accepted algorithms for such conversions (e.g. `Grisu`, `std::strtod`).
 
-```kbnf
+```dogma
 number_literal       = int_literal_bin | int_literal_oct | int_real_literal_dec | int_real_literal_hex;
 int_real_literal_dec = neg? digit_dec+
                      & ('.' & digit_dec+ & (('e' | 'E') ('+' | '-')? & digit_dec+)?)?
@@ -713,7 +735,7 @@ neg                  = '-';
 
 **Examples**:
 
-```kbnf
+```dogma
 header_signature = uint(5, 0b10111);
 ascii_char_8bit  = uint(8, 0x00~0x7f);
 tolerance        = float(32, -1.5~1.5);
@@ -726,7 +748,7 @@ Codepoints can be represented as literals, [ranges](#ranges), and [category sets
 
 Expressing codepoint literals as a [range](#ranges) causes every codepoint in the range to be added as an [alternative](#alternative).
 
-```kbnf
+```dogma
 codepoint_literal = '"' & maybe_escaped(printable_ws ! '"'){1} & '"'
                   | "'" & maybe_escaped(printable_ws ! "'"){1} & "'"
                   ;
@@ -734,7 +756,7 @@ codepoint_literal = '"' & maybe_escaped(printable_ws ! '"'){1} & '"'
 
 **Examples**:
 
-```kbnf
+```dogma
 letter_a     = 'a';     # or "a"
 a_to_c       = 'a'~'c'; # or "a"~"c", or 'a' | 'b' | 'c', or "a" | "b" | "c"
 alphanumeric = unicode(L,N);
@@ -744,7 +766,7 @@ alphanumeric = unicode(L,N);
 
 A string is syntactic sugar for a series of specific [codepoints](#codepoints) [concatenated](#concatenation) together. String literals are placed between single or double quotes.
 
-```kbnf
+```dogma
 string_literal = '"' & maybe_escaped(printable_ws ! '"'){2~} & '"'
                | "'" & maybe_escaped(printable_ws ! "'"){2~} & "'"
                ;
@@ -752,7 +774,7 @@ string_literal = '"' & maybe_escaped(printable_ws ! '"'){2~} & '"'
 
 **Example**: The following are all equivalent:
 
-```kbnf
+```dogma
 str_abc_1 = "abc";
 str_abc_2 = 'abc';
 str_abc_3 = "a" & "b" & "c";
@@ -766,13 +788,13 @@ str_abc_4 = 'a' & 'b' & 'c';
 
 Escape sequences are initiated with the backslash (`\`) character. If the next character following is an open square brace (`[`), it begins a [codepoint escape](#codepoint-escape). Otherwise the sequence represents that literal character.
 
-```kbnf
+```dogma
 escape_sequence = '\\' & (printable ! '[') | codepoint_escape);
 ```
 
 **Example**: A string containing double quotes.
 
-```kbnf
+```dogma
 mystr = "This is a \"string\""; # or using single quotes: 'This is a "string"'
 ```
 
@@ -780,13 +802,13 @@ mystr = "This is a \"string\""; # or using single quotes: 'This is a "string"'
 
 A codepoint escape interprets the hex digits between the sequence `\[` and `]` as the hexadecimal numeric value of the codepoint being referred to.
 
-```kbnf
+```dogma
 codepoint_escape = '[' & digit_hex+ & ']';
 ```
 
 **Example**: Emoji
 
-```kbnf
+```dogma
 mystr = "This is a \[1f415]"; # "This is a 🐕"
 ```
 
@@ -794,7 +816,7 @@ mystr = "This is a \[1f415]"; # "This is a 🐕"
 
 Prose is meant as a last resort in attempting to describe something. If it has already been described elsewhere, you could put a URL in here. Otherise you could put in a natural language description.
 
-```kbnf
+```dogma
 prose = '"""' & (maybe_escaped(printable_wsl)+ ! '"""') & '"""'
       | "'''" & (maybe_escaped(printable_wsl)+ ! "'''") & "'''"
       ;
@@ -804,7 +826,7 @@ prose = '"""' & (maybe_escaped(printable_wsl)+ ! '"""') & '"""'
 
 **Example**: A record contains a date and temperature separated by `:`, followed by a newline, followed by a flowery description of any length in iambic pentameter (newlines allowed), terminated by `=====` on its own line.
 
-```kbnf
+```dogma
 record              = date & ':' & temperature & LF & flowery_description & LF & '=====' & LF;
 date                = """YYYY-MM-DD, per https://en.wikipedia.org/wiki/ISO_8601#Calendar_dates""";
 temperature         = digit+ & ('.' & digit+)?;
@@ -829,7 +851,7 @@ A switch chooses one expression from a series of possibilities based on conditio
 
 **Note**: If more than one condition can match at the same time, the grammar is ambiguous.
 
-```kbnf
+```dogma
 switch         = '[' & TOKEN_SEP & switch_entry+ & (TOKEN_SEP & switch_default)? & TOKEN_SEP & ']';
 switch_entry   = condition & TOKEN_SEP & ':' & TOKEN_SEP & expression & TOKEN_SEP & ';';
 switch_default = ':' & TOKEN_SEP & expression & TOKEN_SEP & ';';
@@ -837,7 +859,7 @@ switch_default = ':' & TOKEN_SEP & expression & TOKEN_SEP & ';';
 
 **Example**: TR-DOS file descriptors contain differnt payload formats based on the extension.
 
-```kbnf
+```dogma
 file_descriptor  = filename
                  & bind(ext, extension)
                  & [ ext.type = 'B': format_basic;
@@ -888,13 +910,13 @@ The concatenation combination produces an expression consisting of the expressio
 
 Only [bits](#bits) can be concatenated.
 
-```kbnf
+```dogma
 concatenate = expression & TOKEN_SEP & '&' & TOKEN_SEP & expression;
 ```
 
 **Example**: Assignment consists of an identifier, at least one space, an equals sign, at least one space, and then an integer value, followed by a linefeed.
 
-```kbnf
+```dogma
 assignment = "a"~"z"+ 
            & " "+
            & "="
@@ -913,13 +935,13 @@ Alternatives are separated by a pipe (`|`) character. Only one of the alternativ
 
 [Bits](#bits) and [numbers](#numbers) sets can be built using alternatives.
 
-```kbnf
+```dogma
 alternate = expression & TOKEN_SEP & '|' & TOKEN_SEP & expression;
 ```
 
 **Example**: Addition or subtraction consists of an identifier, at least one space, a plus or minus sign, at least one space, and then another identifier, followed by a linefeed.
 
-```kbnf
+```dogma
 caculation = "a"~"z"+
            & " "+
            & ("+" | "-")
@@ -936,13 +958,13 @@ Exclusion removes an expression from the set of expression alternatives.
 
 [Bits](#bits) and [numbers](#numbers) sets can be modified using exclusion.
 
-```kbnf
+```dogma
 exclude = expression & TOKEN_SEP & '!' & TOKEN_SEP & expression;
 ```
 
 **Example**: An identifier can be any lowercase ASCII string except "fred".
 
-```kbnf
+```dogma
 identifier = "a"~"z"+ ! "fred";
 ```
 
@@ -959,7 +981,7 @@ The repetition amount is an unsigned integer, appended to an expression as a dis
 
 Only [bits](#bits) can have repetition applied.
 
-```kbnf
+```dogma
 repetition          = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
 repeat_range        = expression & '{' & TOKEN_SEP & maybe_ranged(number) & TOKEN_SEP & '}';
 repeat_zero_or_one  = expression & '?';
@@ -969,13 +991,13 @@ repeat_one_or_more  = expression & '+';
 
 **Example**: An identifier is 5, 6, 7, or 8 characters long, and is made up of characters from 'a' to 'z'.
 
-```kbnf
+```dogma
 identifier = 'a'~'z'{5~8};
 ```
 
 **Example**: An identifier must start with at least one uppercase ASCII letter, optionally followed by any number of lowercase ASCII letters, and optionally suffixed with an underscore.
 
-```kbnf
+```dogma
 identifier = 'A'~'Z'+ & 'a'~'z'* & '_'?;
 ```
 
@@ -986,14 +1008,14 @@ Grouping
 
 [Bits](#bits), [calculations](#calculations) and [conditions](#condition) can be grouped in order to override the default precedence, or as a visual aid to make things more readable. To group, place the items between parentheses.
 
-```kbnf
+```dogma
 grouped(item)       = PARENTHESIZED(item);
 PARENTHESIZED(item) = '(' & TOKEN_SEP & item & TOKEN_SEP & ')';
 ```
 
 **Exmples**:
 
-```kbnf
+```dogma
 my_rule         = ('a' | 'b') & ('x' | 'y');
 my_macro1(a)    = uint(8, (a + 5) * 2);
 my_macro2(a, b) = [(a < 10 | a > 20) & (b < 10 | b > 20): "abc";
@@ -1021,7 +1043,7 @@ The following operations can be used:
 **Notes**:
 
 * Division by zero is undefined behavior. Any grammar that allows division by zero to occur is ambiguous.
-* Depending on the operands, the modulo operation can produce two different values depending on how the remainder is derived. Modulo in KBNF follows the approach of C, ADA, PL/1, and Common Lisp of choosing the remainder with the same sign as the divisor.
+* Depending on the operands, the modulo operation can produce two different values depending on how the remainder is derived. Modulo in Dogma follows the approach of C, ADA, PL/1, and Common Lisp of choosing the remainder with the same sign as the divisor.
 
 Operator precedence (low to high):
 
@@ -1030,7 +1052,7 @@ Operator precedence (low to high):
 * power
 * negation
 
-```kbnf
+```dogma
 number       = calc_add | calc_sub | calc_mul_div;
 calc_mul_div = calc_mul | calc_div | calc_mod | calc_pow_neg;
 calc_pow_neg = calc_pow | calc_neg_val;
@@ -1047,7 +1069,7 @@ calc_neg     = '-' & calc_val;
 
 **Example**: A record begins with a 4-bit length field (length is in 32-bit increments) and 4-bit flags field containing (...), followed by the contents of the record.
 
-```kbnf
+```dogma
 record = uint(4, bind(length, ~)) & flags & uint(8, ~){length*4};
 flags  = ...
 ```
@@ -1071,7 +1093,7 @@ A [repetition](#repetition) range represents a range in the number of occurrence
 
 A [number](#numbers) range will ultimately be passed to a context requiring a specific [subtype](#types) (such as [repetition](#repetition), [uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent each value in the range (for all discrete values that are representable by the [subtype](#types)) as [alternatves](#alternative).
 
-```kbnf
+```dogma
 expression         = ...
                    | maybe_ranged(codepoint_literal)
                    | ...
@@ -1086,19 +1108,19 @@ maybe_ranged(item) = item | ranged(item);
 
 **Example**: Codepoint range.
 
-```kbnf
+```dogma
 hex_digit = ('0'~'9' | 'a'~'f');
 ```
 
 **Example**: Repetition range: A name field contains between 1 and 100 characters.
 
-```kbnf
+```dogma
 name_field = unicode(L,M,N,P,S){1~100};
 ```
 
 **Example**: Number range: The RPM value is an unsigned 16 bit big endian integer from 0 to 1000.
 
-```kbnf
+```dogma
 rpm = uint(16, ~1000); # It's a uint, so already limited to 0~
 ```
 
@@ -1109,14 +1131,14 @@ Comments
 
 A comment begins with a hash char (`#`) and continues to the end of the current line. Comments can be placed after pretty much any token.
 
-```kbnf
+```dogma
 comment = '#' & (printable_ws ! LINE_END)* & LINE_END;
 ```
 
 **Example**:
 
-```kbnf
-kbnf_v1 utf-8
+```dogma
+dogma_v1 utf-8
 - identifier = mygrammar_v1
 - description = My first grammar
 
@@ -1133,11 +1155,11 @@ myrule # comment
 Builtin Functions
 -----------------
 
-KBNF comes with some fundamental functions built-in:
+Dogma comes with some fundamental functions built-in:
 
 ### `sized` Function
 
-```kbnf
+```dogma
 sized(bit_count: uinteger, expr: expression): expression =
     """
     Requires that `expr` produce exactly `bit_count` bits.
@@ -1150,20 +1172,20 @@ sized(bit_count: uinteger, expr: expression): expression =
 
 **Example**: A name field must contain exactly 200 bytes worth of character data, padded with spaces as needed.
 
-```kbnf
+```dogma
 name_field = sized(200*8, unicode(L,M,N,P,Zs)* & ' '*);
 ```
 
 Technically, the `& ' '*` part is superfluous since Unicode category `Zs` already includes space, but it helps readability to highlight how to pad the field. One could even be more explicit:
 
-```kbnf
+```dogma
 name_field    = sized(200*8, unicode(L,M,N,P,Zs)* & space_padding);
 space_padding = ' '*;
 ```
 
 **Example**: The "records" section can contain any number of length-delimited records, but must be exactly 1024 bytes long. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload - essentially a zero byte).
 
-```kbnf
+```dogma
 record_section     = sized(1024*8, record* & zero_length_record*);
 record             = byte(bind(length,~)) & byte(~){length};
 zero_length_record = byte(0);
@@ -1172,7 +1194,7 @@ byte(v)            = uint(8,v);
 
 ### `aligned` Function
 
-```kbnf
+```dogma
 aligned(bit_count: uinteger, expr: expression, padding: expression): expression =
     """
     Requires that `expr` and `padding` together produce a multiple of `bit_count` bits.
@@ -1185,7 +1207,7 @@ aligned(bit_count: uinteger, expr: expression, padding: expression): expression 
 
 **Example**: The "records" section can contain any number of length-delimited records, but must end on a 32-bit boundary. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload - essentially a zero byte).
 
-```kbnf
+```dogma
 record_section     = aligned(32, record*, zero_length_record*);
 record             = byte(bind(length,~)) & byte(~){length};
 zero_length_record = byte(0);
@@ -1194,7 +1216,7 @@ byte(v)            = uint(8, v);
 
 ### `limited` Function
 
-```kbnf
+```dogma
 limited(bit_counts: uintegers, expr: expression): expression =
     """
     Limits `expr` to any of the bit counts contained in `bit_counts`.
@@ -1203,14 +1225,14 @@ limited(bit_counts: uintegers, expr: expression): expression =
 
 **Exammple**: A section contains at least 1 length delimited record (which can contain 1-100 bytes of payload each), and must be between 2 and 1024 bytes in total.
 
-```kbnf
+```dogma
 section = limited(2*8~1024*8, record+);
 record = uint(8,bind(length, 1~100)) uint(8,~){length};
 ```
 
 ### `swapped` Function
 
-```kbnf
+```dogma
 swapped(bit_granularity: uinteger, expr: expression): expression =
     """
     Swaps all bits of `expr` in chunks of `bit_granularity` size.
@@ -1231,7 +1253,7 @@ swapped(bit_granularity: uinteger, expr: expression): expression =
 
 **Example**: A document begins with a 32-bit little endian unsigned int version field, followed by the contents. Only version 5 documents are supported.
 
-```kbnf
+```dogma
 document  = version_5 & contents;
 version_5 = swapped(8, uint(32, 5));
 contents  = ...
@@ -1239,7 +1261,7 @@ contents  = ...
 
 **Example**: A header begins with a 16-bit unsigned int identifier that is actually bit-swapped, followed by contents based on the identifier.
 
-```kbnf
+```dogma
 header               = bitswapped_uint16(bind(identifier, ~)) & contents(identifier);
 bitswapped_uint16(v) = swapped(1, uint(16, v));
 contents(identifier) = [identifier = 1: type_1;
@@ -1251,7 +1273,7 @@ type_2               = ...
 
 ### `bind` Function
 
-```kbnf
+```dogma
 bind(variable_name: identifier, value: expression | ~number): expression | ~number =
     """
     Binds `value` to a local variable for subsequent re-use in the current rule.
@@ -1264,13 +1286,13 @@ bind(variable_name: identifier, value: expression | ~number): expression | ~numb
 
 **Example**: Match "abc/abc", "fred/fred" etc.
 
-```kbnf
+```dogma
 sequence = bind(repeating_value,('a'~'z')+) & '/' & repeating_value;
 ```
 
 **Example**: BASH "here" document: Bind the variable "terminator" to whatever follows the "<<" until the next linefeed. The here-document contents continue until the terminator value is encountered again.
 
-```kbnf
+```dogma
 here_document             = "<<" & bind(terminator, NOT_LF+) & LF & here_contents(terminator) & terminator;
 here_contents(terminator) = ANY_CHAR* ! terminator;
 ANY_CHAR                  = ~;
@@ -1280,7 +1302,7 @@ NOT_LF                    = ANY_CHAR ! LF;
 
 **Example**: Interpret the next 16 bits as a big endian unsigned int and bind the resolved number to "length". That many following bytes make up the record contents.
 
-```kbnf
+```dogma
 length_delimited_record = uint16(bind(length, ~)) & record_contents(length);
 record_contents(length) = byte(~){length};
 uint16(v)               = uint(16, v);
@@ -1289,7 +1311,7 @@ byte(v)                 = uint(8, v);
 
 ### `eod` Function
 
-```kbnf
+```dogma
 eod: expression =
    """
    A special expression that matches the end of the data stream.
@@ -1298,14 +1320,14 @@ eod: expression =
 
 **Exammple**: A document contains any number of length delimited records (1-100 bytes), continuing until the end of the file.
 
-```kbnf
+```dogma
 document = record* eod;
 record = uint(8,bind(length, 1~100)) uint(8,~){length};
 ```
 
 ### `unicode` Function
 
-```kbnf
+```dogma
 unicode(categories: unicode_category ...): expression =
     """
     Creates an expression containing the alternatives set of all Unicode
@@ -1320,13 +1342,13 @@ unicode(categories: unicode_category ...): expression =
 
 **Example**: Allow letter, numeral, and space characters.
 
-```kbnf
+```dogma
 letter_digit_space = unicode(N,L,Zs);
 ```
 
 ### `uint` Function
 
-```kbnf
+```dogma
 uint(bit_count: uinteger, values: uintegers): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
@@ -1337,14 +1359,14 @@ uint(bit_count: uinteger, values: uintegers): expression =
 
 **Example**: The length field is a 16-bit unsigned integer value.
 
-```kbnf
+```dogma
 length = uint(16, ~);
 ```
 
 
 ### `sint` Function
 
-```kbnf
+```dogma
 sint(bit_count: uinteger, values: sintegers): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
@@ -1355,14 +1377,14 @@ sint(bit_count: uinteger, values: sintegers): expression =
 
 **Example**: The points field is a 16-bit signed integer value from -10000 to 10000.
 
-```kbnf
+```dogma
 points = sint(32, -10000~10000);
 ```
 
 
 ### `float` Function
 
-```kbnf
+```dogma
 float(bit_count: uinteger, values: numbers): expression =
     """
     Creates an expression that matches every discrete bit pattern that can be
@@ -1377,20 +1399,20 @@ float(bit_count: uinteger, values: numbers): expression =
 
 **Example**: The temperature field is a 32-bit float value from -1000 to 1000.
 
-```kbnf
+```dogma
 rpm = float(32, -1000~1000);
 ```
 
 **Example**: Accept any 64-bit binary ieee754 float.
 
-```kbnf
+```dogma
 any_float64 = float(64,~) | inf(64,~) | nan(64,~) | nzero(64);
 ```
 
 
 ### `inf` Function
 
-```kbnf
+```dogma
 inf(bit_count: uinteger, sign: numbers): expression =
     """
     Creates an expression that matches big endian ieee754 binary infinity values
@@ -1403,7 +1425,7 @@ inf(bit_count: uinteger, sign: numbers): expression =
 
 **Example**: Negative infinity used as a record terminator.
 
-```kbnf
+```dogma
 record     = reading* terminator;
 reading    = float(32, ~) ! terminator;
 terminator = inf(32, -1);
@@ -1412,7 +1434,7 @@ terminator = inf(32, -1);
 
 ### `nan` Function
 
-```kbnf
+```dogma
 nan(bit_count: uinteger, payload: sintegers): expression =
     """
     Creates an expression that matches every big endian ieee754 binary NaN value
@@ -1431,7 +1453,7 @@ nan(bit_count: uinteger, payload: sintegers): expression =
 
 **Example**: Quiet NaN used to mark invalid readings.
 
-```kbnf
+```dogma
 record  = reading{32};
 reading = float(32, ~) | invalid;
 invalid = nan(32, 0x400001);
@@ -1440,7 +1462,7 @@ invalid = nan(32, 0x400001);
 
 ### `nzero` Function
 
-```kbnf
+```dogma
 nzero(bit_count: uinteger): expression =
     """
     Creates an expression that matches a big endian ieee754 binary negative 0 value
@@ -1451,7 +1473,7 @@ nzero(bit_count: uinteger): expression =
 
 **Example**: Negative zero used to mark invalid readings.
 
-```kbnf
+```dogma
 record  = reading{32};
 reading = float(32, ~) | invalid;
 invalid = nzero(32);
@@ -1459,19 +1481,19 @@ invalid = nzero(32);
 
 
 
-The KBNF Grammar in KBNF
+Dogma described as Dogma
 ------------------------
 
-```kbnf
-kbnf_v1 utf-8
-- identifier  = kbnf_v1
+```dogma
+dogma_v1 utf-8
+- identifier  = dogma_v1
 - description = Karl's Backus-Naur Form, version 1
 
 document               = document_header & MAYBE_WSLC & start_rule & (MAYBE_WSLC & rule)*;
 
-kbnf_version           = '1';
+dogma_major_version    = '1';
 
-document_header        = "kbnf_v" & kbnf_version & SOME_WS
+document_header        = "dogma_v" & dogma_major_version & SOME_WS
                        & character_encoding & LINE_END
                        & header_line* & LINE_END
                        ;
