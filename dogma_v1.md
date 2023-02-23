@@ -649,7 +649,8 @@ Condition precedence (low to high):
 **Notes**:
 
 * Comparisons cannot be done between [numbers](#number) and [bits](#bits); only bits compared to bits, or numbers compared to numbers.
-* [Bits](#bits) cannot be compared using `<`, `<=`, `>=`, or `>`.
+* [Bits](#bits) can only be compared using `=` and `!=`.
+* [Bits](#bits) can only be equal when both operands contain the same number of bits and every individual bit is equal.
 
 ```dogma
 condition          = comparison | logical_op;
