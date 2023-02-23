@@ -622,7 +622,7 @@ Number sets are produced using [ranges](#ranges), [alternatives](#alternative), 
 
 ### Condition
 
-Conditions are produced by comparing [numbers](#number), and by performing logical operations on those comparisons, resulting in either true or false. Conditions are used in [switches](#switch), and can be [grouped](#grouping).
+Conditions are produced by comparing [numbers](#number) or comparing [bits](#bits), and by performing logical operations on those comparisons, resulting in either true or false. Conditions are used in [switches](#switch), and can be [grouped](#grouping).
 
 Comparisons:
 
@@ -645,6 +645,11 @@ Condition precedence (low to high):
 * logical or
 * logical and
 * logical not
+
+**Notes**:
+
+* Comparisons cannot be done between [numbers](#number) and [bits](#bits); only bits compared to bits, or numbers compared to numbers.
+* [Bits](#bits) cannot be compared using `<`, `<=`, `>=`, or `>`.
 
 ```dogma
 condition          = comparison | logical_op;
@@ -872,7 +877,7 @@ file_descriptor  = filename
                  ;
 
 filename         = sized(8*8, uint(8,~)+ & uint(8,' ')*);
-extension        = uint(8, bind(type, ~));
+extension        = bind(type, uint(8, ~));
 file_sectors     = uint(8, ~);
 start_sector     = uint(8, ~);
 start_track      = uint(8, ~);
