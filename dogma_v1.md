@@ -354,8 +354,6 @@ identifier_any        = name;
 name                  = name_firstchar & name_nextchar*;
 name_firstchar        = unicode(L,M);
 name_nextchar         = name_firstchar | unicode(N) | '_';
-reserved_identifiers  = "sized" | "aligned" | "swapped" | "bind"
-                      | "uint" | "sint" | "float" | "inf" | "nan" | "nzero";
 ```
 
 **Note**: Symbol names are not limited to ASCII.
@@ -536,9 +534,6 @@ The general convention is to use all uppercase identifiers for "background-y" th
 identifier           = (identifier_firstchar & identifier_nextchar*) ! reserved_identifiers;
 identifier_firstchar = unicode(L,M);
 identifier_nextchar  = identifier_firstchar | unicode(N) | '_';
-reserved_identifiers = "sized" | "aligned" | "swapped" | "bind"
-                     | "uint" | "sint" | "float" | "inf" | "nan" | "nzero"
-                     ;
 ```
 
 
@@ -1535,7 +1530,8 @@ type_specifier         = ':' & TOKEN_SEP & type_alternatives & (TOKEN_SEP & vara
 type_alternatives      = type_name & (TOKEN_SEP & '|' & TOKEN_SEP & type_name)*;
 vararg                 = "...";
 type_name              = basic_type_name | custom_type_name;
-basic_type_name        = "bits"
+basic_type_name        = "expression"
+                       | "bits"
                        | "condition"
                        | "number"
                        | "numbers"
@@ -1581,8 +1577,10 @@ codepoint_escape       = '[' & digit_hex+ & ']';
 
 builtin_functions      = sized
                        | aligned
+                       | limited
                        | swapped
                        | bind
+                       | eod
                        | unicode
                        | uint
                        | sint
@@ -1770,8 +1768,11 @@ identifier_any         = name;
 identifier_restricted  = identifier_any ! reserved_identifiers;
 reserved_identifiers   = "sized"
                        | "aligned"
+                       | "limited"
                        | "swapped"
                        | "bind"
+                       | "eod"
+                       | "unicode"
                        | "uint"
                        | "sint"
                        | "float"
