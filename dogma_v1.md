@@ -863,16 +863,17 @@ file_descriptor  = filename
                  & [ ext.type = 'B': format_basic;
                      ext.type = 'C': format_code;
                      ext.type = 'D': format_data;
+                     ext.type = '#': format_print;
                                    : format_generic;
                    ]
-                 & file_length
+                 & file_sectors
                  & start_sector
                  & start_track
                  ;
 
 filename         = sized(8*8, uint(8,~)+ & uint(8,' ')*);
 extension        = uint(8, bind(type, ~));
-file_length      = uint(8, ~);
+file_sectors     = uint(8, ~);
 start_sector     = uint(8, ~);
 start_track      = uint(8, ~);
 
@@ -880,12 +881,20 @@ format_basic     = program_length & variables_offset;
 program_length   = uint(16,~);
 variables_offset = uint(16,~);
 
-format_code      = load_addres & file_length;
+format_code      = load_addres & code_length;
 load_address     = uint(16,~);
-file_length      = uint(16,~);
+code_length      = uint(16,~);
 
-format_data      = data_type & file_length;
+format_data      = data_type & array_length;
 data_type        = uint(16,~);
+array_length     = uint(16,~);
+
+format_print     = extent_no & uint(8, 0x20) & print_length;
+extent_no        = uint(8, ~);
+print_length     = uint(16, 0~4096);
+
+format_generic   = uint(16,~) & generic_length;
+generic_length   = uint(16,~);
 ```
 
 
