@@ -164,7 +164,7 @@ The primary use case for Dogma is to describe text and binary grammars in a form
 
 Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, or ease-of-processing. A metalanguage for describing such data will require much more expressivity than current metalanguages allow. Better expressivity reduces boilerplate and improves readability even in text format descriptions.
 
-* **Repetition**: Any expression can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
+* **Repetition**: Any [bits](#bits) can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
 * **Bindings**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. Dogma supports assigning decoded values to variables.
 * **Exclusion**: Sometimes it's easier to express something as "everything except for ...".
 * **Grouping**: Grouping expressions together is an obvious convenince that most other BNF offshoots have already adopted.
@@ -231,7 +231,7 @@ Descriptions and examples will usually include some Dogma notation. When in doub
 
 ### Bit Ordering
 
-All sequences of bits (i.e. all [expressions](#expressions)) are assumed to be in big endian bit order (higher bits come first), and if necessary can be swapped at any granularity using the [`swapped` function](#swapped-function).
+All sequences of [bits](#bits) are assumed to be in big endian bit order (higher bits come first), and if necessary can be swapped at any granularity using the [`swapped` function](#swapped-function).
 
 **For example**:
 
@@ -244,7 +244,7 @@ All sequences of bits (i.e. all [expressions](#expressions)) are assumed to be i
 
 ### Non-Greedy
 
-All expression matching is assumed to be non-greedy.
+All [bits](#bits) matching is assumed to be non-greedy.
 
 For example, given the following grammar:
 
@@ -507,9 +507,19 @@ digit          = '0'~'9';
 
 ### Expressions
 
-Expressions form the body of a rule.
+Expressions form the body of a rule, and can produce [bits](#bits), [numbers](#number), or [conditions](#condition).
 
-- can produce bits, numbers, or a conditon.
+```dogma
+expression = symbol
+           | call
+           | string_literal
+           | maybe_ranged(codepoint_literal)
+           | combination
+           | builtin_functions
+           | variable
+           | grouped(expression)
+           ;
+```
 
 
 ### Identifier
@@ -554,18 +564,6 @@ The bits type represents the set of possible bit sequences that can be matched a
 Bits are produced by [codepoints](#codepoints), [strings](#strings), and [some functions](#builtin-functions), and can be of arbitrary length (i.e. not just a multiple of 8 bits).
 
 The bits type is a set of bit patterns, and can therefore be composed using [alternatives](#alternative), [concatenation](#concatenation), and [repetition](#repetition).
-
-```dogma
-expression = symbol
-           | call
-           | string_literal
-           | maybe_ranged(codepoint_literal)
-           | combination
-           | builtin_functions
-           | variable
-           | grouped(expression)
-           ;
-```
 
 **Example**: Each UTC timestamp field is stored in its own bitfield, with the final constructed 64 bit value stored in little endian byte order:
 
@@ -1537,7 +1535,7 @@ type_specifier         = ':' & TOKEN_SEP & type_alternatives & (TOKEN_SEP & vara
 type_alternatives      = type_name & (TOKEN_SEP & '|' & TOKEN_SEP & type_name)*;
 vararg                 = "...";
 type_name              = basic_type_name | custom_type_name;
-basic_type_name        = "expression"
+basic_type_name        = "bits"
                        | "condition"
                        | "number"
                        | "numbers"
