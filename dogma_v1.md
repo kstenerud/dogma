@@ -37,7 +37,7 @@ frame             = preamble
                   & frame_start
                   & dst_address
                   & src_address
-                  & bind(etype, ether_type)
+                  & var(etype, ether_type)
                   & [etype.type = 0x8100: dot1q_frame;
                      etype.type = 0x88a8: double_tag_frame;
                                         : payload_by_type(etype.type, 46);
@@ -48,17 +48,17 @@ preamble          = uint(8, 0b01010101){7};
 frame_start       = uint(8, 0b11010101);
 dst_address       = uint(48, ~);
 src_address       = uint(48, ~);
-ether_type        = uint(16, bind(type, ~));
+ether_type        = uint(16, var(type, ~));
 frame_check       = uint(32, ~);
 
 dot1q_frame       = tag_control_info
-                  & bind(etype, ether_type)
+                  & var(etype, ether_type)
                   & payload_by_type(etype.type, 42)
                   ;
 double_tag_frame  = service_tag
                   & uint(16, 0x8100)
                   & customer_tag
-                  & bind(etype, ether_type)
+                  & var(etype, ether_type)
                   & payload_by_type(etype.type, 38)
                   ;
 
@@ -144,7 +144,7 @@ Contents
     - [`aligned` Function](#aligned-function)
     - [`limited` Function](#limited-function)
     - [`swapped` Function](#swapped-function)
-    - [`bind` Function](#bind-function)
+    - [`var` Function](#var-function)
     - [`eod` Function](#eod-function)
     - [`unicode` Function](#unicode-function)
     - [`uint` Function](#uint-function)
@@ -169,7 +169,7 @@ The primary use case for Dogma is to describe text and binary grammars in a form
 Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, or ease-of-processing. A metalanguage for describing such data will require much more expressiveness than current metalanguages allow. Better expressiveness reduces boilerplate and improves readability even in text format descriptions.
 
 * **Repetition**: Any [bits](#bits) can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
-* **Bindings**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. Dogma supports assigning decoded values to variables.
+* **Variables**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. Dogma supports assigning decoded values to variables.
 * **Exclusion**: Sometimes it's easier to express something as "everything except for ...".
 * **Grouping**: Grouping expressions together is an obvious convenience that most other BNF offshoots have already adopted.
 * **Prose**: In many cases, the actual encoding of something is already well-known and specified elsewhere, or is too complex for Dogma to describe adequately. Prose offers a free-form way to describe part of a grammar.
@@ -397,7 +397,7 @@ call_param = any_type;
 
 ```dogma
 main_section = record(1) & record(2){2};
-record(type) = byte(type) & byte(bind(length, ~)) & byte(~){length};
+record(type) = byte(type) & byte(var(length, ~)) & byte(~){length};
 byte(v)      = uint(8,v);
 ```
 
@@ -407,11 +407,11 @@ In the above example, `record` must only be called with an unsigned integer, bec
 
 ```dogma
 ip_packet                    = ...
-                             & u4(bind(header_length, 5~)) # length is in 32-bit words
+                             & u4(var(header_length, 5~)) # length is in 32-bit words
                                ...
-                             & u16(bind(total_length, 20~)) # length is in bytes
+                             & u16(var(total_length, 20~)) # length is in bytes
                                ...
-                             & u8(bind(protocol, registered_protocol))
+                             & u8(var(protocol, registered_protocol))
                                ...
                              & options((header_length-5) * 32)
                              & payload(protocol, (total_length-(header_length*4)) * 8)
@@ -455,7 +455,7 @@ Custom types may be invented (or further invariants defined) when the standard t
 
 #### Parameter and Return Type Alternatives
 
-If a function can accept multiple types in a particular parameter, or can return multiple types, those types will be listed, separated by the pipe (`|`) character. See the [bind function](#bind-function) as an example.
+If a function can accept multiple types in a particular parameter, or can return multiple types, those types will be listed, separated by the pipe (`|`) character. See the [var function](#var-function) as an example.
 
 #### Variadic Functions
 
@@ -670,7 +670,7 @@ logical_not        = '!' & condition;
 **Example**:
 
 ```dogma
-record       = uint(8, bind(type, 1~))
+record       = uint(8, var(type, 1~))
              & [type = 1: type_1;
                 type = 2: type_2;
                         : type_default;
@@ -685,18 +685,18 @@ type_default = ...
 Variables
 ---------
 
-In some contexts, resolved data (data that has already been matched) or literal values can be bound to a variable for use elsewhere. Variables are bound either manually using the [`bind`](#bind-function) builtin function, or automatically when passing parameters to a [macro](#macros). The variable's [type](#types) is inferred from its provenance and where it is ultimately used (a type mismatch indicates a malformed grammar).
+In some contexts, resolved data (data that has already been matched) or literal values can be bound to a variable for use elsewhere. Variables are bound either manually using the [`var`](#var-function) builtin function, or automatically when passing parameters to a [macro](#macros). The variable's [type](#types) is inferred from its provenance and where it is ultimately used (a type mismatch indicates a malformed grammar).
 
 **Note**: Variables cannot be re-bound.
 
-When [binding](#bind-function) an [expression](#expressions) that itself binds a variable, that expression's bound variables are accessible from the outer scope using dot notation (`this_exp_bound_value.sub_exp_bound_value`).
+When [making a variable](#var-function) of an [expression](#expressions) that itself is a variable, that expression's bound variables are accessible from the outer scope using dot notation (`this_exp_bound_value.sub_exp_bound_value`).
 
 **Example**: A document consists of a type 1 record, followed by any number of type 5, 6, and 7 records, and is terminated with a type 0 record of length 0. A record begins with a header consisting of an 8-bit type and a 16-bit big endian unsigned integer indicating how many bytes of record data follow.
 
 ```dogma
 document            = record(1) & (record(5) | record(6) | record(7))* & terminator_record;
-record(type)        = bind(header, record_header(type)) & record_data(header.length);
-record_header(type) = u8(type) & u16(bind(length, ~));
+record(type)        = var(header, record_header(type)) & record_data(header.length);
+record_header(type) = u8(type) & u16(var(length, ~));
 record_data(length) = u8(~){length};
 terminator_record   = u8(0) u16(0);
 u8(v)               = uint(8, v);
@@ -860,7 +860,7 @@ switch_default = ':' & expression & ';';
 
 ```dogma
 file_descriptor  = filename
-                 & bind(ext, extension)
+                 & var(ext, extension)
                  & [ ext.type = 'B': format_basic;
                      ext.type = 'C': format_code;
                      ext.type = 'D': format_data;
@@ -873,7 +873,7 @@ file_descriptor  = filename
                  ;
 
 filename         = sized(8*8, uint(8,~)+ & uint(8,' ')*);
-extension        = bind(type, uint(8, ~));
+extension        = var(type, uint(8, ~));
 file_sectors     = uint(8, ~);
 start_sector     = uint(8, ~);
 start_track      = uint(8, ~);
@@ -1078,7 +1078,7 @@ calc_neg     = '-' & calc_val;
 **Example**: A record begins with a 4-bit length field (length is in 32-bit increments) and 4-bit flags field containing (...), followed by the contents of the record.
 
 ```dogma
-record = uint(4, bind(length, ~)) & flags & uint(8, ~){length*4};
+record = uint(4, var(length, ~)) & flags & uint(8, ~){length*4};
 flags  = ...
 ```
 
@@ -1195,7 +1195,7 @@ space_padding = ' '*;
 
 ```dogma
 record_section     = sized(1024*8, record* & zero_length_record*);
-record             = byte(bind(length,~)) & byte(~){length};
+record             = byte(var(length,~)) & byte(~){length};
 zero_length_record = byte(0);
 byte(v)            = uint(8,v);
 ```
@@ -1217,7 +1217,7 @@ aligned(bit_count: uinteger, expr: bits, padding: bits): bits =
 
 ```dogma
 record_section     = aligned(32, record*, zero_length_record*);
-record             = byte(bind(length,~)) & byte(~){length};
+record             = byte(var(length,~)) & byte(~){length};
 zero_length_record = byte(0);
 byte(v)            = uint(8, v);
 ```
@@ -1235,7 +1235,7 @@ limited(bit_counts: uintegers, expr: bits): bits =
 
 ```dogma
 section = limited(2*8~1024*8, record+);
-record = uint(8,bind(length, 1~100)) uint(8,~){length};
+record = uint(8,var(length, 1~100)) uint(8,~){length};
 ```
 
 ### `swapped` Function
@@ -1270,7 +1270,7 @@ contents  = ...
 **Example**: A header begins with a 16-bit unsigned int identifier that is actually bit-swapped, followed by contents based on the identifier.
 
 ```dogma
-header               = bitswapped_uint16(bind(identifier, ~)) & contents(identifier);
+header               = bitswapped_uint16(var(identifier, ~)) & contents(identifier);
 bitswapped_uint16(v) = swapped(1, uint(16, v));
 contents(identifier) = [identifier = 1: type_1;
                         identifier = 2: type_2;
@@ -1279,14 +1279,14 @@ type_1               = ...
 type_2               = ...
 ```
 
-### `bind` Function
+### `var` Function
 
 ```dogma
-bind(variable_name: identifier, value: bits | numbers): bits | numbers =
+var(variable_name: identifier, value: bits | numbers): bits | numbers =
     """
     Binds `value` to a local variable for subsequent re-use in the current rule.
-    `bind` transparently passes through the type and value of `value`, meaning that
-    the context around the `bind` call behaves as though only what the `bind`
+    `var` transparently passes through the type and value of `value`, meaning that
+    the context around the `var` call behaves as though only what the `var`
     function surrounded is present. This allows a match as normal, while also
     allowing the resolved value to be used again later in the rule.
     """;
@@ -1295,23 +1295,23 @@ bind(variable_name: identifier, value: bits | numbers): bits | numbers =
 **Example**: Match "abc/abc", "fred/fred" etc.
 
 ```dogma
-sequence = bind(repeating_value,('a'~'z')+) & '/' & repeating_value;
+sequence = var(repeating_value,('a'~'z')+) & '/' & repeating_value;
 ```
 
 **Example**: BASH "here" document: Bind the variable "terminator" to whatever follows the "<<" until the next linefeed. The here-document contents continue until the terminator value is encountered again.
 
 ```dogma
-here_document             = "<<" & bind(terminator, NOT_LF+) & LF & here_contents(terminator) & terminator;
+here_document             = "<<" & var(terminator, NOT_LF+) & LF & here_contents(terminator) & terminator;
 here_contents(terminator) = ANY_CHAR* ! terminator;
 ANY_CHAR                  = ~;
 LF                        = '\[a]';
 NOT_LF                    = ANY_CHAR ! LF;
 ```
 
-**Example**: Interpret the next 16 bits as a big endian unsigned int and bind the resolved number to "length". That many following bytes make up the record contents.
+**Example**: Interpret the next 16 bits as a big endian unsigned int and bind the resolved number to the variable "length". That many following bytes make up the record contents.
 
 ```dogma
-length_delimited_record = uint16(bind(length, ~)) & record_contents(length);
+length_delimited_record = uint16(var(length, ~)) & record_contents(length);
 record_contents(length) = byte(~){length};
 uint16(v)               = uint(16, v);
 byte(v)                 = uint(8, v);
@@ -1330,7 +1330,7 @@ eod: expression =
 
 ```dogma
 document = record* eod;
-record = uint(8,bind(length, 1~100)) uint(8,~){length};
+record = uint(8,var(length, 1~100)) uint(8,~){length};
 ```
 
 ### `unicode` Function
@@ -1594,7 +1594,7 @@ builtin_functions      = sized
                        | aligned
                        | limited
                        | swapped
-                       | bind
+                       | var
                        | eod
                        | unicode
                        | uint
@@ -1644,11 +1644,11 @@ swapped(bit_granularity: uinteger, expr: bits): bits =
     if `bit_granularity` is 0, `expr` is passed through unchanged.
     """;
 
-bind(variable_name: identifier, value: bits | numbers): bits | numbers =
+var(variable_name: identifier, value: bits | numbers): bits | numbers =
     """
     Binds `value` to a local variable for subsequent re-use in the current rule.
-    `bind` transparently passes through the type and value of `value`, meaning that
-    the context around the `bind` call behaves as though only what the `bind`
+    `var` transparently passes through the type and value of `value`, meaning that
+    the context around the `var` call behaves as though only what the `var`
     function surrounded is present. This allows a match as normal, while also
     allowing the resolved value to be used again later in the rule.
     """;
@@ -1785,7 +1785,7 @@ reserved_identifiers   = "sized"
                        | "aligned"
                        | "limited"
                        | "swapped"
-                       | "bind"
+                       | "var"
                        | "eod"
                        | "unicode"
                        | "uint"

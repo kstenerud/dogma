@@ -31,7 +31,7 @@ frame             = preamble
                   & frame_start
                   & dst_address
                   & src_address
-                  & bind(etype, ether_type)
+                  & var(etype, ether_type)
                   & [etype.type = 0x8100: dot1q_frame;
                      etype.type = 0x88a8: double_tag_frame;
                                         : payload_by_type(etype.type, 46);
@@ -42,17 +42,17 @@ preamble          = uint(8, 0b01010101){7};
 frame_start       = uint(8, 0b11010101);
 dst_address       = uint(48, ~);
 src_address       = uint(48, ~);
-ether_type        = uint(16, bind(type, ~));
+ether_type        = uint(16, var(type, ~));
 frame_check       = uint(32, ~);
 
 dot1q_frame       = tag_control_info
-                  & bind(etype, ether_type)
+                  & var(etype, ether_type)
                   & payload_by_type(etype.type, 42)
                   ;
 double_tag_frame  = service_tag
                   & uint(16, 0x8100)
                   & customer_tag
-                  & bind(etype, ether_type)
+                  & var(etype, ether_type)
                   & payload_by_type(etype.type, 38)
                   ;
 
@@ -93,7 +93,7 @@ The primary use case for Dogma is to describe text and binary grammars in a form
 Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, or ease-of-processing. A metalanguage for describing such data will require much more expressiveness than current metalanguages allow. Better expressiveness reduces boilerplate and improves readability even in text format descriptions.
 
 * **Repetition**: Any expression can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
-* **Bindings**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. Dogma supports assigning decoded values to variables.
+* **Variables**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. Dogma supports assigning decoded values to variables.
 * **Exclusion**: Sometimes it's easier to express something as "everything except for ...".
 * **Grouping**: Grouping expressions together is an obvious convenience that most other BNF offshoots have already adopted.
 * **Prose**: In many cases, the actual encoding of something is already well-known and specified elsewhere, or is too complex for Dogma to describe adequately. Prose offers a free-form way to describe part of a grammar.

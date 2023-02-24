@@ -4,15 +4,15 @@ dogma_v1 utf-8
 - dogma_specification = https://github.com/kstenerud/dogma/blob/master/dogma_v1.md
 
 ip_packet                          = version
-                                   & u4(bind(header_length, 5~)) # length is in 32-bit words
+                                   & u4(var(header_length, 5~)) # length is in 32-bit words
                                    & differentiated_services_code_point
                                    & explicit_congestion_notification
-                                   & u16(bind(total_length, 20~)) # length is in bytes
+                                   & u16(var(total_length, 20~)) # length is in bytes
                                    & identification
                                    & flags
                                    & fragment_offset
                                    & time_to_live
-                                   & u8(bind(protocol, registered_protocol))
+                                   & u8(var(protocol, registered_protocol))
                                    & header_checksum
                                    & source_ip_address
                                    & destination_ip_address
