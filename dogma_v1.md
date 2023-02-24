@@ -1,6 +1,7 @@
 The Dogma Metalanguage
 ======================
 
+_Describing how things should be_
 
 **Version**: 1.0-beta2
 
