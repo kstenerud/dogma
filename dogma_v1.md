@@ -402,7 +402,7 @@ record(type) = byte(type) & byte(var(length, ~)) & byte(~){length};
 byte(v)      = uint(8,v);
 ```
 
-In the above example, `record` must only be called with an unsigned integer, because the `type` field is passed to the `byte` macro, which calls the [`uint` function](#uint-function), which expects an unsigned parameter.
+In the above example, `record` can only be called with unsigned integer values, because the `type` field is passed to the `byte` macro, which calls the [`uint` function](#uint-function), which expects a [`uintegers`](#numbers) parameter.
 
 **Example**: An [IPV4](ipv4.dogma) packet contains "header length" and "total length" fields, which together determine how big the "options" and "payload" sections are. "protocol" determines the protocol of the payload.
 
@@ -552,7 +552,7 @@ Dogma has three main types:
   - [number set](#numbers): A set of values.
 * [`conditions`](#condition): True or false assertions about the current state.
 
-Types become relevant when calling [functions](#functions), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to unsigned integers.
+Types become relevant when calling [functions](#functions), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to [unsigned integers](#numbers).
 
 
 ### Bits
@@ -982,7 +982,7 @@ identifier = "a"~"z"+ ! "fred";
 
 "Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Repetition amounts can be defined as a [range](#ranges) or as a discrete amount. Think of repetition as "this [expression](#expressions), [concatenated](#concatenation) together for this range of occurrences".
 
-The repetition amount is an unsigned integer, appended to an expression as a discrete amount or [range](#ranges) between curly braces (e.g. `{10}` or `{1~5}`). There are also shorthand notations for common cases:
+The repetition amount is an [unsigned integer set](#numbers), appended to an expression as a discrete amount or [range](#ranges) between curly braces (e.g. `{10}` or `{1~5}`). There are also shorthand notations for common cases:
 
 * `?`: Zero or one (equivalent to `{0~1}`)
 * `*`: Zero or more (equivalent to `{0~}`)
