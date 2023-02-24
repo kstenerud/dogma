@@ -809,7 +809,7 @@ codepoint_escape = '[' & digit_hex+ & ']';
 **Example**: Emoji
 
 ```dogma
-mystr = "This is a \[1f415]"; # "This is a 🐕"
+mystr = "This is all just a bunch of \[1f415]ma!"; # "This is all just a bunch of 🐕ma!"
 ```
 
 ### Prose
