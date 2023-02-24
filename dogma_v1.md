@@ -600,7 +600,7 @@ The two most common numeric invariants are supported natively as pseudo-types:
 
 These pseudo-types only place restrictions on the final realized value; they are still `number` types and behave like mathematical reals for all operations, with the destination invariant type (such as a [function](#functions) parameter's type) restricting what resulting values are allowed.
 
-**Note**: Unlike in the [`numbers`](#numbers) type, values that break a `number` invariant represent an erroneous condition. A value that breaks its invariant (e.g. 0.5 passed to a `sinteger` or `uinteger` parameter) results in no match for anything that depends on it, and ideally should cause a diagnostic in a codec implementation.
+**Note**: A value that breaks an invariant on a `number` (the singular `number` type, not the set `numbers` type) represents an erroneous condition. A value that breaks its `number` invariant (e.g. 0.5 passed to a `sinteger` or `uinteger` parameter) results in no match for anything that depends on it, and ideally should raise a diagnostic in any tool.
 
 #### Numbers
 
@@ -608,7 +608,7 @@ The `numbers` type (and associated pseudo-type invariants `sintegers` and `uinte
 
 Number sets are produced using [ranges](#ranges), [alternatives](#alternative), and [exclusion](#exclusion).
 
-**Note**: Any value in a number set that breaks its invariant is silently removed from the set. For example `0~1.5` passed to a `sintegers` invariant will be reduced to the set of integer values 0 and 1. `0.5~0.6` passed to a `sintegers` invariant will be reduced to the empty set. `-5` passed to a `uintegers` invariant will be reduced to the empty set.
+**Note**: Any value in a `numbers` set that breaks its invariant is silently removed from the set. For example `0~1.5` passed to a `sintegers` invariant will be reduced to the set of integer values 0 and 1. `0.5~0.6` passed to a `sintegers` invariant will be reduced to the empty set. `-5` passed to a `uintegers` invariant will be reduced to the empty set.
 
 **Examples**:
 
@@ -679,8 +679,6 @@ type_1       = ...
 type_2       = ...
 type_default = ...
 ```
-
-
 
 
 
