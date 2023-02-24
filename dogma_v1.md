@@ -239,9 +239,10 @@ All sequences of [bits](#bits) are assumed to be in big endian bit order (higher
 
 **For example**:
 
-* `uint(16,0xc01f)` matches big endian 0xc01f (bit sequence 1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1).
-* `swapped(8, uint(16,0xc01f))` matches little endian 0xc01f (bit sequence 0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0).
-* `swapped(1, uint(16,0xc01f))` matches bit-swapped 0xc01f (bit sequence 1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1).
+* `uint(16,0x5bbc)` matches big endian 0x5bbc (bit sequence 0,1,0,1,1,0,1,1,1,0,1,1,1,1,0,0).
+* `swapped(8, uint(16,0x5bbc))` matches little endian 0xbc5b (bit sequence 1,0,1,1,1,1,0,0,0,1,0,1,1,0,1,1).
+* `swapped(2, uint(16,0x5bbc))` matches 2-bit-swapped 0x3ee5 (bit sequence 0,0,1,1,1,1,1,0,1,1,1,0,0,1,0,1).
+* `swapped(1, uint(16,0x5bbc))` matches bit-swapped 0x3dda (bit sequence 0,0,1,1,1,1,0,1,1,1,0,1,1,0,1,0).
 
 [Codepoints](#codepoints) follow the byte ordering of the character encoding scheme specified in the [document header](#document-header) (although per-byte bit ordering remains nominally big endian). Character sets with ambiguous byte ordering (such as `utf-16`) should generally be avoided in favor of those with explicit byte ordering (`utf-16be`, `utf-16le`).
 
