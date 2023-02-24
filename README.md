@@ -92,7 +92,7 @@ The primary use case for Dogma is to describe text and binary grammars in a form
 
 Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, or ease-of-processing. A metalanguage for describing such data will require much more expressiveness than current metalanguages allow. Better expressiveness reduces boilerplate and improves readability even in text format descriptions.
 
-* **Repetition**: Any expression can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
+* **Repetition**: Any sequence of bits can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
 * **Variables**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. Dogma supports assigning decoded values to variables.
 * **Exclusion**: Sometimes it's easier to express something as "everything except for ...".
 * **Grouping**: Grouping expressions together is an obvious convenience that most other BNF offshoots have already adopted.
