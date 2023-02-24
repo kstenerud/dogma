@@ -744,7 +744,7 @@ tolerance        = float(32, -1.5~1.5);
 
 ### Codepoints
 
-Codepoints can be represented as literals, [ranges](#ranges), and [category sets](#unicode-function). Codepoint literals are placed between single or double quotes.
+A codepoint is the [bits](#bits) representation of a character in a particular [encoding](https://en.wikipedia.org/wiki/Character_encoding). Codepoints can be represented as literals, [ranges](#ranges), and [category sets](#unicode-function). Codepoint literals are placed between single or double quotes.
 
 Expressing codepoint literals as a [range](#ranges) causes every codepoint in the range to be added as an [alternative](#alternative).
 
