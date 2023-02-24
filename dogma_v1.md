@@ -293,7 +293,7 @@ document_header    = "dogma_v" & dogma_major_version & SOME_WS
                    & character_encoding & LINE_END
                    & header_line* & LINE_END
                    ;
-character_encoding = ('a'~'z' | 'A'~'Z' | '0'~'9' | '_' | '-' | '.' | ':' | '+' | '(' | ')'){1~40};
+character_encoding = ('a'~'z' | 'A'~'Z' | '0'~'9' | '_' | '-' | '.' | ':' | '+' | '(' | ')')+;
 header_line        = '-' & SOME_WS & header_name & '=' & header_value & LINE_END;
 header_name        = printable+;
 header_value       = printable_ws+;
@@ -1505,7 +1505,7 @@ document_header        = "dogma_v" & dogma_major_version & SOME_WS
                        & character_encoding & LINE_END
                        & header_line* & LINE_END
                        ;
-character_encoding     = ('a'~'z' | 'A'~'Z' | '0'~'9' | '_' | '-' | '.' | ':' | '+' | '(' | ')'){1~40};
+character_encoding     = ('a'~'z' | 'A'~'Z' | '0'~'9' | '_' | '-' | '.' | ':' | '+' | '(' | ')')+;
 header_line            = '-' & SOME_WS
                        & header_name & MAYBE_WS
                        & '=' & MAYBE_WS
