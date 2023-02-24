@@ -273,7 +273,7 @@ By default only the exact, non-processed (i.e. not normalized) codepoints presen
 Grammar Document
 ----------------
 
-A Dogma grammar document begins with a [header section](#document-header), followed by a series of [rules](#rules).
+A Dogma grammar document begins with a [header section](#document-header), followed by a [start rule](#start-rule) and possibly more [rules](#rules).
 
 ```dogma
 document = document_header & start_rule & rule*;
