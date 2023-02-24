@@ -686,21 +686,53 @@ In some contexts, resolved data (data that has already been matched) or literal 
 
 When [making a variable](#var-function) of an [expression](#expressions) that itself is a variable, that expression's bound variables are accessible from the outer scope using dot notation (`this_exp_bound_value.sub_exp_bound_value`).
 
-**Example**: A document consists of a type 1 record, followed by any number of type 5, 6, and 7 records, and is terminated with a type 0 record of length 0. A record begins with a header consisting of an 8-bit type and a 16-bit big endian unsigned integer indicating how many bytes of record data follow.
+**Example**: An [RTP (version 2) packet](https://en.wikipedia.org/wiki/Real-time_Transport_Protocol) contains flags to determine if padding or an extension are present. It also contains a 4-bit count of the number of contributing sources that are present. If the padding flag is 1, then the last CSRC is actually 3 bytes of padding followed by a one-byte length field defining how many bytes of the trailing entries in the CSRC list are actually padding (including the last entry containing the byte count).  Padding bytes must contain all zero bits, except for the very last byte which is the padding length field.
+
+We make use of variables such as `has_padding`, `has_extension`, and `csrc_count` to decide how the rest of the packet is structured. We also pass some variables to [macros](#macros) to keep things cleaner.
+
+The padding portion is [switched](#switch) on `has_padding`, and the extension portion is switched on `has_extension`.
+
+Since the padding count is in bytes, we must convert between counts of 32-bit words and counts of bytes to determine how many CSRC entries are real entries, and how many bytes worth of CSRC data at the end are actually padding.
 
 ```dogma
-document            = record(1) & (record(5) | record(6) | record(7))* & terminator_record;
-record(type)        = var(header, record_header(type)) & record_data(header.length);
-record_header(type) = u8(type) & u16(var(length, ~));
-record_data(length) = u8(~){length};
-terminator_record   = u8(0) u16(0);
-u8(v)               = uint(8, v);
-u16(v)              = uint(16, v);
+rtp_packet   = version
+             & uint(1,var(has_padding,~))
+             & uint(1,var(has_extension,~))
+             & uint(4,var(csrc_count,~))
+             & marker
+             & payload_type
+             & sequence_no
+             & timestamp
+             & ssrc
+             & csrc_list(has_padding, csrc_count)
+             & [has_extension = 1: extension;]
+             ;
+version      = uint(2,2);
+marker       = uint(1,~);
+payload_type = uint(7,~);
+sequence_no  = uint(16,~);
+timestamp    = uint(32,~);
+ssrc         = uint(32,~);
+csrc         = uint(32,~);
+
+csrc_list(has_padding, count) = [has_padding = 1: csrc{count - last.length/4}
+                                                & padding{last.length - 4}
+                                                & var(last,padding_last)
+                                                ;
+                                                : csrc{count};
+                                ];
+
+padding             = uint(8,0);
+padding_last        = padding{3} & uint(8,var(length,4~));
+
+extension           = custom_data
+                    & uint(16,var(length,~))
+                    & extension_payload(length)
+                    ;
+custom_data         = uint(16,~);
+ext_payload(length) = uint(32,~){length};
 ```
 
-* The `record` rule (a [macro](#macros) because it takes parameters) binds the result of the `record_header` rule to a variable called `header`. This gives it access to the `record_header` `length` variable as `header.length`.
-* The `record_header` rule specifies an 8-bit type value (a variable passed in to the macro as a parameter), and binds a 16-bit integer value to a variable called `length`.
-* The `record_data` rule takes a length parameter and matches that many bytes using [repetition](#repetition).
 
 
 Literals
@@ -1070,11 +1102,23 @@ calc_pow     = calc_pow_val & '^' & calc_neg_val;
 calc_neg     = '-' & calc_val;
 ```
 
-**Example**: A record begins with a 4-bit length field (length is in 32-bit increments) and 4-bit flags field containing (...), followed by the contents of the record.
+**Example**: A [UDP packet](https://en.wikipedia.org/wiki/User_Datagram_Protocol) consists of a source port, a destination port, a length, a checksum, and a body. The length field refers to the size of the entire packet, not just the body.
+
+The variable `length` is captured and passed to the `body` [macro](#macros), which then uses that variable in a [repetition](#repetition) expression.
+
+Since the length field refers to the entire packet including headers, we must subtract 8 bytes (the size of the four headers) to get the body length. This also means that the minimum length allowed for a UDP packet is 8 (for an empty packet).
 
 ```dogma
-record = uint(4, var(length, ~)) & flags & uint(8, ~){length*4};
-flags  = ...
+udp_packet   = src_port
+             & dst_port
+             & uint(16,var(length,8~))
+             & checksum
+             & body(length - 8)
+             ;
+src_port     = uint(16,~);
+dst_port     = uint(16,~);
+checksum     = uint(16,~);
+body(length) = uint(8,~){length};
 ```
 
 
