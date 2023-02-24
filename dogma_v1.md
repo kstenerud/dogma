@@ -668,18 +668,12 @@ logical_and        = condition & '&' & condition;
 logical_not        = '!' & condition;
 ```
 
-**Example**:
+**Examples**:
 
-```dogma
-record       = uint(8, var(type, 1~))
-             & [type = 1: type_1;
-                type = 2: type_2;
-                        : type_default;
-               ];
-type_1       = ...
-type_2       = ...
-type_default = ...
-```
+* `type = 2`
+* `(value >= 3 & value < 10) | value = 0`
+* `(x > 3 & y > 5) | x * y > 15`
+* `nextchar != 'a'`
 
 
 
