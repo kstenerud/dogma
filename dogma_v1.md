@@ -103,7 +103,7 @@ Contents
     - [Versioning](#versioning)
     - [Informal Dogma in Descriptions](#informal-dogma-in-descriptions)
     - [Bit Ordering](#bit-ordering)
-    - [Non-Greedy](#non-greedy)
+    - [Non-Greedy Matching](#non-greedy-matching)
     - [Unicode Equivalence and Normalization](#unicode-equivalence-and-normalization)
   - [Grammar Document](#grammar-document)
     - [Document Header](#document-header)
@@ -211,7 +211,7 @@ Forward Notes
 
 ### Versioning
 
-Versioning is done in the form of `major`.`minor`:
+Versioning for the Dogma specification is done in the form `major`.`minor`:
 
 * Incrementing the major version signals a change in functionality (adding, removing, changing behavior).
 * Incrementing the minor version signals non-functional changes like clarifications or rewording or bug fixes.
@@ -248,7 +248,7 @@ All sequences of [bits](#bits) are assumed to be in big endian bit order (higher
 [Codepoints](#codepoints) follow the byte ordering of the character encoding scheme specified in the [document header](#document-header) (although per-byte bit ordering remains nominally big endian). Character sets with ambiguous byte ordering (such as `utf-16`) should generally be avoided in favor of those with explicit byte ordering (`utf-16be`, `utf-16le`).
 
 
-### Non-Greedy
+### Non-Greedy Matching
 
 All [bits](#bits) matching is assumed to be non-greedy.
 
