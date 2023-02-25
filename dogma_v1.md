@@ -444,7 +444,7 @@ Since functions are opaque, their parameter and return [types](#types) cannot be
 
 #### Variadic Functions
 
-The last parameter in a function can be made [variadic](https://en.wikipedia.org/wiki/Variadic_function) by appending `...` (such as in the [unicode function](#unicode-function)).
+The last parameter in a function can be made [variadic](https://en.wikipedia.org/wiki/Variadic_function) by appending `...` (for an example, see the [unicode function](#unicode-function)).
 
 ```dogma
 function_rule      = function & '=' & prose & ';';
@@ -531,14 +531,14 @@ Dogma has the following types:
 
 * [`bits`](#bits): A set of possible bit sequences of arbitrary length.
 * [`conditions`](#condition): True or false assertions about the current state.
-* Numeric types that may be used in calculations or converted to a representations in bits. There are two primary forms:
+* Numeric types that may be used in calculations and can be converted to a representations in bits. There are two primary forms:
   - Singular value type [`number` and its invariants `sinteger` and `uinteger`](#number).
   - Number set type [`numbers` and its invariants `sintegers` and `uintegers`](#numbers).
 * `expression`: Used for special situations like the [`eod` function](#eod-function).
 
-Types become relevant when calling [functions](#functions), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to the [`uintegers`](#numbers) type.
+Types become relevant in certain contexts, particularly when calling [functions](#functions) (which have restrictions on what types they accept and return).
 
-Custom types may be invented (or further invariants defined) when the standard types are insufficient (such as in the [unicode function](#unicode-function)), provided their textual representation doesn't cause parsing ambiguities with the Dogma document encoding.
+Custom types may be invented (or further invariants defined) when the standard types are insufficient (such as in the [unicode function](#unicode-function)), provided their textual representation doesn't cause parsing ambiguities with the Dogma grammar.
 
 ### Bits
 
@@ -550,17 +550,17 @@ The bits type is a set of bit patterns, and can therefore be composed using [alt
 
 **Example**: Each UTC timestamp field is stored in its own bitfield, with the final constructed 64 bit value stored in little endian byte order:
 
-Bit fields (high to low):
+Bit fields (from high bit to low bit, before little endian encoding):
 
-| Field       | Min | Max    | Bits |
-| ----------- | --- | ------ | ---- |
-| Year        | 0   | 262143 | 18   |
-| Month       | 1   | 12     | 4    |
-| Day         | 1   | 31     | 5    |
-| Hour        | 0   | 23     | 5    |
-| Minute      | 0   | 59     | 6    |
-| Second      | 0   | 60     | 6    |
-| Microsecond | 0   | 999999 | 20   |
+| Field       | Bits | Min | Max    |
+| ----------- | ---- | --- | ------ |
+| Year        | 18   | 0   | 262143 |
+| Month       | 4    | 1   | 12     |
+| Day         | 5    | 1   | 31     |
+| Hour        | 5    | 0   | 23     |
+| Minute      | 6    | 0   | 59     |
+| Second      | 6    | 0   | 60     |
+| Microsecond | 20   | 0   | 999999 |
 
 ```dogma
 timestamp   = swapped(8, year & month & day & hour & minute & second & microsecond);
@@ -669,7 +669,7 @@ In some contexts, resolved data (data that has already been matched) or literal 
 
 **Note**: Variables cannot be re-bound.
 
-When [making a variable](#var-function) of an [expression](#expressions) that itself is a variable, that expression's bound variables are accessible from the outer scope using dot notation (`this_exp_bound_value.sub_exp_bound_value`).
+When [making a variable](#var-function) of an [expression](#expressions) that already contains variable(s), that expression's bound variables are accessible from the outer scope using dot notation (`this_exp_bound_value.sub_exp_bound_value`).
 
 **Example**: An [RTP (version 2) packet](https://en.wikipedia.org/wiki/Real-time_Transport_Protocol) contains flags to determine if padding or an extension are present. It also contains a 4-bit count of the number of contributing sources that are present. If the padding flag is 1, then the last CSRC is actually 3 bytes of padding followed by a one-byte length field defining how many bytes of the trailing entries in the CSRC list are actually padding (including the last entry containing the byte count).  Padding bytes must contain all zero bits, except for the very last byte which is the padding length field.
 
@@ -725,7 +725,10 @@ Literals
 
 ### Numeric Literals
 
-Numeric literals can be expressed in binary, octal, decimal, or hexadecimal notation for integers, and in decimal or hexadecimal notation for reals.
+Numeric literals can be expressed in many ways:
+
+* Integers can be expressed in binary, octal, decimal, or hexadecimal notation.
+* Reals can be expressed in decimal or hexadecimal notation.
 
 **Note**: Decimal real notation translates more cleanly to decimal float encodings such as [ieee754 decimal](https://en.wikipedia.org/wiki/Decimal64_floating-point_format), and hexadecimal real notation translates more cleanly to binary float encodings such as [ieee754 binary](https://en.wikipedia.org/wiki/Double-precision_floating-point_format).
 
@@ -775,7 +778,7 @@ alphanumeric = unicode(L,N);
 
 ### Strings
 
-A string is syntactic sugar for a series of specific [codepoints](#codepoints) [concatenated](#concatenation) together. String literals are placed between single or double quotes.
+A string is syntactic sugar for a series of specific [codepoints](#codepoints), [concatenated](#concatenation) together. String literals are placed between single or double quotes.
 
 ```dogma
 string_literal = '"' & maybe_escaped(printable_ws ! '"'){2~} & '"'
@@ -811,7 +814,7 @@ mystr = "This is a \"string\""; # or using single quotes: 'This is a "string"'
 
 #### Codepoint Escape
 
-A codepoint escape interprets the hex digits between the sequence `\[` and `]` as the hexadecimal numeric value of the codepoint being referred to. What actual [bits](#bits) result from the codepoint escape depends on the [character set]((https://www.iana.org/assignments/character-sets/character-sets.xhtml))
+A codepoint escape interprets the hex digits between the sequence `\[` and `]` as the hexadecimal numeric value of the codepoint being referred to. What actual [bits](#bits) result from the codepoint escape depends on the [character set](https://www.iana.org/assignments/character-sets/character-sets.xhtml) being used.
 
 ```dogma
 codepoint_escape = '[' & digit_hex+ & ']';
@@ -825,7 +828,7 @@ mystr = "This is all just a bunch of \[1f415]ma!"; # "This is all just a bunch o
 
 ### Prose
 
-Prose describes a [function's](#functions) invariants and implementation in natural language, or in the case of a URL, points to another document.
+Prose describes a [function's](#functions) invariants and implementation in natural language, or it may contain a URL pointing to another document.
 
 ```dogma
 prose = '"""' & (maybe_escaped(printable_wsl)+ ! '"""') & '"""'
@@ -990,7 +993,7 @@ identifier = "a"~"z"+ ! "fred";
 
 ### Repetition
 
-"Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Think of repetition as "this [bits](#bits) expression, [concatenated](#concatenation) together for a total of X occurrences".
+"Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Think of repetition as "this [bits](#bits) expression, [concatenated](#concatenation) together for a total of N occurrences".
 
 Repetition amounts are [unsigned integer sets](#numbers) placed between curly braces (e.g. `{10}`, `{1~5}`, `{1 | 3| 6~12}`). Each value in the set produces an [alternative](#alternative) expression with that repetition amount applied, contributing to a final bits expression set (for example, `"a"{1~3}` is equivalent to `"a" | "aa" | "aaa"`).
 
@@ -1063,8 +1066,8 @@ The following operations can be used:
 
 **Notes**:
 
-* Division by zero is undefined behavior. Any grammar that allows division by zero to occur is ambiguous.
-* Depending on the operands, the modulo operation can produce two different values depending on how the remainder is derived. Modulo in Dogma follows the approach of C, ADA, PL/1, and Common Lisp: The remainder with the same sign as the divisor is chosen.
+* Any operation giving a result that is mathematically undefined (such as division by zero) is undefined behavior. A grammar that allows undefined behavior to occur is ambiguous.
+* Depending on the operands, [the modulo operation can produce two different values depending on how the remainder is derived](https://en.wikipedia.org/wiki/Modulo#Variants_of_the_definition). Modulo in Dogma uses truncated division (where the remainder has the same sign as the dividend), which is the most common approach used in popular programming languages.
 
 Operator precedence (low to high):
 
@@ -1152,7 +1155,7 @@ name_field = unicode(L,M,N,P,S){1~100};
 **Example**: Number range: The RPM value is an unsigned 16 bit big endian integer from 0 to 1000.
 
 ```dogma
-rpm = uint(16, ~1000); # It's a uint, so already limited to 0~
+rpm = uint(16, ~1000); # A uinteger cannot be < 0, so it's implied 0~1000
 ```
 
 
