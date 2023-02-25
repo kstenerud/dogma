@@ -113,7 +113,6 @@ Contents
     - [Macros](#macros)
     - [Functions](#functions)
       - [Function Parameter and Return Types](#function-parameter-and-return-types)
-      - [Parameter and Return Type Alternatives](#parameter-and-return-type-alternatives)
       - [Variadic Functions](#variadic-functions)
     - [Expressions](#expressions)
     - [Identifier](#identifier)
@@ -442,10 +441,6 @@ Functions that take no parameters are defined and called without the trailing pa
 #### Function Parameter and Return Types
 
 Since functions are opaque, their parameter and return [types](#types) cannot be automatically deduced like they can for [macros](#macros). Functions therefore declare all parameter and return [types](#types). If a function is called with the wrong types or its return value is used in an incompatible context, the grammar is malformed.
-
-#### Parameter and Return Type Alternatives
-
-If a function can accept multiple types in a particular parameter, or can return multiple types, those types will be listed separated by the pipe (`|`) character. See the [`var` function](#var-function) as an example.
 
 #### Variadic Functions
 
