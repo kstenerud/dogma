@@ -103,7 +103,7 @@ Binary formats tend to be structured in much more complicated ways than text for
 
 Metalanguages tend to support only ASCII, with Unicode (encoded as UTF-8) generally added as an afterthought. This restricts the usefulness of the metalanguage, as any other character sets (many of which are still in use) have no support at all.
 
-Dogma can be used with any character set, and requires the character set to be specified as part of the grammar document header.
+Dogma can be used with any [character set](https://www.iana.org/assignments/character-sets/character-sets.xhtml), and requires the character set to be specified as part of the grammar document header.
 
 ### Codepoints as first-class citizens
 

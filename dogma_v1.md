@@ -180,7 +180,7 @@ Binary formats tend to be structured in much more complicated ways than text for
 
 Metalanguages tend to support only ASCII, with Unicode (encoded as UTF-8) generally added as an afterthought. This restricts the usefulness of the metalanguage, as any other character sets (many of which are still in use) have no support at all.
 
-Dogma can be used with any character set, and requires the character set to be specified as part of the grammar document header.
+Dogma can be used with any [character set](https://www.iana.org/assignments/character-sets/character-sets.xhtml), and requires the character set to be specified as part of the grammar document header.
 
 ### Codepoints as first-class citizens
 
@@ -433,35 +433,23 @@ payload_contents(protocol)   = [protocol = 0: protocol_hopopt;
 
 ### Functions
 
-Functions behave similarly to macros, except that they are opaque: whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is either one of the [built-in functions](#builtin-functions), or is user-defined in [prose](#prose) (as a description, or as a URL pointing to a description).
+Functions behave similarly to macros, except that they are opaque: whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is user-defined in [prose](#prose) (as a description, or as a URL pointing to a description).
 
 Functions that take no parameters are defined and called without the trailing parentheses (similar to defining or calling a [symbol](#symbols)).
+
+**Note**: Dogma pre-defines a number of essential [built-in functions](#builtin-functions).
 
 #### Function Parameter and Return Types
 
 Since functions are opaque, their parameter and return [types](#types) cannot be automatically deduced like they can for [macros](#macros). Functions therefore declare all parameter and return [types](#types). If a function is called with the wrong types or its return value is used in an incompatible context, the grammar is malformed.
 
-The following standard types are recognized:
-
-* `bits`
-* `condition`
-* `number`
-* `numbers`
-* `uinteger`
-* `uintegers`
-* `sinteger`
-* `sintegers`
-
-Custom types may be invented (or further invariants defined) when the standard types are insufficient (such as in the [unicode function](#unicode-function)), provided their textual representation doesn't cause ambiguities with the Dogma document encoding.
-
 #### Parameter and Return Type Alternatives
 
-If a function can accept multiple types in a particular parameter, or can return multiple types, those types will be listed, separated by the pipe (`|`) character. See the [var function](#var-function) as an example.
+If a function can accept multiple types in a particular parameter, or can return multiple types, those types will be listed separated by the pipe (`|`) character. See the [`var` function](#var-function) as an example.
 
 #### Variadic Functions
 
-The last parameter in a function can be made variadic by appending `...` (such as in the [unicode function](#unicode-function)).
-
+The last parameter in a function can be made [variadic](https://en.wikipedia.org/wiki/Variadic_function) by appending `...` (such as in the [unicode function](#unicode-function)).
 
 ```dogma
 function_rule      = function & '=' & prose & ';';
@@ -495,7 +483,7 @@ custom_type_name   = name;
 uleb128(v: uinteger): bits = """https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128""";
 ```
 
-**Example**: A record contains a date followed by a colon, followed by a temperature reading.
+**Example**: A record contains an ISO 8601 encoded date, then a colon, followed by a temperature reading.
 
 ```dogma
 record         = iso8601 & ':' & temperature;
@@ -544,24 +532,26 @@ identifier_nextchar  = identifier_firstchar | unicode(N) | '_';
 Types
 -----
 
-Dogma has three main types:
+Dogma has the following types:
 
 * [`bits`](#bits): A set of possible bit sequences of arbitrary length.
-* [`numbers`](#number): Numeric values that may be used in calculations or converted to a representations in bits. Split into two primary forms:
-  - [singular number](#number): A single numeric value.
-  - [number set](#numbers): A set of values.
 * [`conditions`](#condition): True or false assertions about the current state.
+* Numeric types that may be used in calculations or converted to a representations in bits. There are two primary forms:
+  - Singular value type [`number` and its invariants `sinteger` and `uinteger`](#number).
+  - Number set type [`numbers` and its invariants `sintegers` and `uintegers`](#numbers).
+* `expression`: Used for special situations like the [`eod` function](#eod-function).
 
-Types become relevant when calling [functions](#functions), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to [unsigned integers](#numbers).
+Types become relevant when calling [functions](#functions), which have restrictions on what types they accept and return. Also, [repetition](#repetition) amounts are restricted to the [`uintegers`](#numbers) type.
 
+Custom types may be invented (or further invariants defined) when the standard types are insufficient (such as in the [unicode function](#unicode-function)), provided their textual representation doesn't cause parsing ambiguities with the Dogma document encoding.
 
 ### Bits
 
 The bits type represents the set of possible bit sequences that can be matched at a particular point.
 
-Bits are produced by [codepoints](#codepoints), [strings](#strings), and [some functions](#builtin-functions), and can be of arbitrary length (i.e. not just a multiple of 8 bits).
+Bits are produced by [codepoints](#codepoints), [strings](#strings), and [some functions](#builtin-functions). They can be of arbitrary length (i.e. not just a multiple of 8 bits).
 
-The bits type is a set of bit patterns, and can therefore be composed using [alternatives](#alternative), [concatenation](#concatenation), and [repetition](#repetition).
+The bits type is a set of bit patterns, and can therefore be composed using [alternatives](#alternative), [concatenation](#concatenation), [repetition](#repetition), and [exclusion](#exclusion).
 
 **Example**: Each UTC timestamp field is stored in its own bitfield, with the final constructed 64 bit value stored in little endian byte order:
 
@@ -812,7 +802,7 @@ str_abc_4 = 'a' & 'b' & 'c';
 
 [Codepoint literals](#codepoints), [string literals](#strings), and [prose](#prose) may contain codepoint escape sequences to represent troublesome codepoints.
 
-Escape sequences are initiated with the backslash (`\`) character. If the next character following is an open square brace (`[`), it begins a [codepoint escape](#codepoint-escape). Otherwise the sequence represents that literal character.
+Escape sequences are initiated with the backslash (`\`) character. If the next character following is an open square brace (`[`), it begins a [codepoint escape](#codepoint-escape). Otherwise the escape sequence represents that literal character.
 
 ```dogma
 escape_sequence = '\\' & (printable ! '[') | codepoint_escape);
@@ -826,7 +816,7 @@ mystr = "This is a \"string\""; # or using single quotes: 'This is a "string"'
 
 #### Codepoint Escape
 
-A codepoint escape interprets the hex digits between the sequence `\[` and `]` as the hexadecimal numeric value of the codepoint being referred to.
+A codepoint escape interprets the hex digits between the sequence `\[` and `]` as the hexadecimal numeric value of the codepoint being referred to. What actual [bits](#bits) result from the codepoint escape depends on the [character set]((https://www.iana.org/assignments/character-sets/character-sets.xhtml))
 
 ```dogma
 codepoint_escape = '[' & digit_hex+ & ']';
@@ -840,15 +830,13 @@ mystr = "This is all just a bunch of \[1f415]ma!"; # "This is all just a bunch o
 
 ### Prose
 
-Prose is meant as a last resort in attempting to describe something. If it has already been described elsewhere, you could put a URL in here. Otherise you could put in a natural language description.
+Prose describes a [function's](#functions) invariants and implementation in natural language, or in the case of a URL, points to another document.
 
 ```dogma
 prose = '"""' & (maybe_escaped(printable_wsl)+ ! '"""') & '"""'
       | "'''" & (maybe_escaped(printable_wsl)+ ! "'''") & "'''"
       ;
 ```
-
-**Note**: Prose can only be used to define a [function](#functions) because it is by nature opaque; the function definition will assign types.
 
 **Example**: A record contains a date and temperature separated by `:`, followed by a newline, followed by a flowery description of any length in iambic pentameter (newlines allowed), terminated by `=====` on its own line.
 
@@ -873,9 +861,10 @@ Or sinking as the light wind lives or dies.
 Switch
 ------
 
-A switch chooses one expression from a series of possibilities based on condition matching. When no conditions match, the default expression (if any) is produced.
+A switch statement chooses one expression from a set of possibilities based on condition matching.
 
-**Note**: If more than one condition can match at the same time, the grammar is ambiguous.
+* When no conditions match, the default expression (if any) is used.
+* If more than one condition can match at the same time, the grammar is ambiguous.
 
 ```dogma
 switch         = '[' & switch_entry+ & switch_default? & ']';
@@ -941,7 +930,7 @@ Combination precedence (low to high):
 
 ### Concatenation
 
-The concatenation combination produces an expression consisting of the expression on the left, followed by the expression on the right (both must match in their proper order for the combined expression to match). The operator symbol is `&` (think of it as meaning "x and then y").
+Concatenation produces an expression consisting of the expression on the left, followed by the expression on the right (both must match in their proper order for the combined expression to match). The operator symbol is `&` (think of it as meaning "x and then y").
 
 Only [bits](#bits) can be concatenated.
 
@@ -964,7 +953,7 @@ assignment = "a"~"z"+
 
 ### Alternative
 
-The alternative combination produces an expression that can match either the expression on the left or the expression on the right.
+Alternative produces an expression that can match either the expression on the left or the expression on the right (essentially a set of two possibilities).
 
 Alternatives are separated by a pipe (`|`) character. Only one of the alternative branches will be taken.
 
@@ -1006,9 +995,11 @@ identifier = "a"~"z"+ ! "fred";
 
 ### Repetition
 
-"Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Repetition amounts can be defined as a [range](#ranges) or as a discrete amount. Think of repetition as "this [expression](#expressions), [concatenated](#concatenation) together for this range of occurrences".
+"Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Think of repetition as "this [bits](#bits) expression, [concatenated](#concatenation) together for a total of X occurrences".
 
-The repetition amount is an [unsigned integer set](#numbers), appended to an expression as a discrete amount or [range](#ranges) between curly braces (e.g. `{10}` or `{1~5}`). There are also shorthand notations for common cases:
+Repetition amounts are [unsigned integer sets](#numbers) placed between curly braces (e.g. `{10}`, `{1~5}`, `{1 | 3| 6~12}`). Each value in the set produces an [alternative](#alternative) expression with that repetition amount applied, contributing to a final bits expression set (for example, `"a"{1~3}` is equivalent to `"a" | "aa" | "aaa"`).
+
+There are also shorthand notations for common cases:
 
 * `?`: Zero or one (equivalent to `{0~1}`)
 * `*`: Zero or more (equivalent to `{0~}`)
@@ -1041,7 +1032,7 @@ identifier = 'A'~'Z'+ & 'a'~'z'* & '_'?;
 Grouping
 --------
 
-[Bits](#bits), [calculations](#calculations) and [conditions](#condition) can be grouped in order to override the default precedence, or as a visual aid to make things more readable. To group, place the items between parentheses.
+[Bits](#bits), [calculations](#calculations) and [conditions](#condition) can be grouped together in order to override the default precedence, or as a visual aid to make things more readable. To group, place the items between parentheses `(`, `)`.
 
 ```dogma
 grouped(item)       = PARENTHESIZED(item);
@@ -1078,7 +1069,7 @@ The following operations can be used:
 **Notes**:
 
 * Division by zero is undefined behavior. Any grammar that allows division by zero to occur is ambiguous.
-* Depending on the operands, the modulo operation can produce two different values depending on how the remainder is derived. Modulo in Dogma follows the approach of C, ADA, PL/1, and Common Lisp of choosing the remainder with the same sign as the divisor.
+* Depending on the operands, the modulo operation can produce two different values depending on how the remainder is derived. Modulo in Dogma follows the approach of C, ADA, PL/1, and Common Lisp: The remainder with the same sign as the divisor is chosen.
 
 Operator precedence (low to high):
 
@@ -1126,19 +1117,17 @@ body(length) = uint(8,~){length};
 Ranges
 ------
 
-A range consists of one of the following:
+A range builds a [set of numbers](#numbers) consisting of all reals in the range as a closed interval. Ranges can be defined in a number of ways:
 
 * A low value and a high value separated by a tilde (low ~ high), indicating a (closed interval) low and high bound.
 * A low value followed by a tilde (low ~), indicating a low bound only.
 * A tilde followed by a high value (~ high), indicating a high bound only.
-* A tilde by itself (~), indicating no bound.
-* A value with no tilde, restricting the "range" to only that value.
+* A tilde by itself (~), indicating no bound (i.e. the range consists of the set of all reals).
+* A value with no tilde, restricting the "range" to only that one value.
 
-A [codepoint](#codepoints) range represents the set of each codepoint in the range as [alternatives](#alternative).
+A [codepoint](#codepoints) range represents a set where each [`uinteger`](#number) contained in the range represents a codepoint [alternatives](#alternative).
 
-A [repetition](#repetition) range represents a range in the number of occurrences that will match the rule.
-
-A [number](#numbers) range will ultimately be passed to a context requiring a specific [subtype](#types) (such as [repetition](#repetition), [uint](#uint-function), [sint](#sint-function), [float](#float-function)), and will thus represent each value in the range (for all discrete values that are representable by the [subtype](#types)) as [alternatives](#alternative).
+A [repetition](#repetition) range represents a set where each [`uinteger`](#number) contained in the range represents a number of occurrences that will be applied to a [bits](#bits) expression as an [alternative](#alternative).
 
 ```dogma
 expression         = ...
@@ -1176,7 +1165,7 @@ rpm = uint(16, ~1000); # It's a uint, so already limited to 0~
 Comments
 --------
 
-A comment begins with a hash char (`#`) and continues to the end of the current line. Comments can be placed after pretty much any token.
+A comment begins with a hash char (`#`) and continues to the end of the current line. Comments are not valid in the [document header](#document-header).
 
 ```dogma
 comment = '#' & (printable_ws ! LINE_END)* & LINE_END;
@@ -1321,7 +1310,7 @@ type_2               = ...
 ### `var` Function
 
 ```dogma
-var(variable_name: identifier, value: bits | numbers): bits | numbers =
+var(variable_name: identifier, value: expression): expression =
     """
     Binds `value` to a local variable for subsequent re-use in the current rule.
     `var` transparently passes through the type and value of `value`, meaning that
