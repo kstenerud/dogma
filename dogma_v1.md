@@ -3,12 +3,12 @@ The Dogma Metalanguage
 
 _Describing how things should be_
 
-**Version**: 1.0-beta2
+**Version**: 1.0-beta3
 
 
 ## WORK IN PROGRESS
 
-Current status: 1.0-beta2 (Feb 18, 2023).
+Current status: 1.0-beta3 (Feb 25, 2023).
 
 Public comments uncovered a number of issues that have mostly been addressed. Beta3 will be released soon after some more cleanup.
 
@@ -142,7 +142,6 @@ Contents
   - [Builtin Functions](#builtin-functions)
     - [`sized` Function](#sized-function)
     - [`aligned` Function](#aligned-function)
-    - [`limited` Function](#limited-function)
     - [`swapped` Function](#swapped-function)
     - [`var` Function](#var-function)
     - [`eod` Function](#eod-function)
@@ -383,14 +382,14 @@ A macro is essentially a symbol that accepts parameters, which are bound to loca
 
 ```dogma
 macro_rule = macro & '=' & expression & ';';
-macro      = identifier_restricted & PARENTHESIZED(param_name & (ARG_SEP & param_name)*);
+macro      = identifier_restricted & PARENTHESIZED(param_name+);
 ```
 
 When called, a macro substitutes the passed-in parameters and proceeds like a normal rule would. Parameter and return [types](#types) are inferred based on how the parameters are used within the macro, and the type resulting from the macro's expression. The grammar is malformed if a macro is called with incompatible types, or is used in a context that is incompatible with its return type.
 
 ```dogma
 call       = identifier_any & PARENTHESIZED(call_param & (ARG_SEP & call_param)*);
-call_param = any_type;
+call_param = condition | number | expression;
 ```
 
 **Example**: The main section consists of three records: A type 1 record and two type 2 records. A record begins with a type byte, followed by a length byte, followed by that many bytes of data.
@@ -451,12 +450,12 @@ function_rule      = function & '=' & prose & ';';
 function           = function_no_args | function_with_args;
 function_no_args   = identifier_restricted & type_specifier;
 function_with_args = identifier_restricted
-                   & PARENTHESIZED(function_param & (ARG_SEP & function_param)*)
+                   & PARENTHESIZED(function_param & function_param* & last_param?)
                    & type_specifier
                    ;
 function_param     = param_name & type_specifier;
-type_specifier     = ':' & type_alternatives & vararg?;
-type_alternatives  = type_name & ('|' & type_name)*;
+last_param         = function_param  & vararg?;
+type_specifier     = ':' & type_name;
 vararg             = "...";
 type_name          = basic_type_name | custom_type_name;
 basic_type_name    = "expression"
@@ -817,6 +816,7 @@ mystr = "This is a \"string\""; # or using single quotes: 'This is a "string"'
 A codepoint escape interprets the hex digits between the sequence `\[` and `]` as the hexadecimal numeric value of the codepoint being referred to. What actual [bits](#bits) result from the codepoint escape depends on the [character set](https://www.iana.org/assignments/character-sets/character-sets.xhtml) being used.
 
 ```dogma
+escape_sequence  = '\\' & (printable ! '[') | codepoint_escape);
 codepoint_escape = '[' & digit_hex+ & ']';
 ```
 
@@ -1248,22 +1248,6 @@ zero_length_record = byte(0);
 byte(v)            = uint(8, v);
 ```
 
-### `limited` Function
-
-```dogma
-limited(bit_counts: uintegers, expr: bits): bits =
-    """
-    Limits `expr` to any of the bit counts contained in `bit_counts`.
-    """;
-```
-
-**Exammple**: A section contains at least 1 length delimited record (which can contain 1-100 bytes of payload each), and must be between 2 and 1024 bytes in total.
-
-```dogma
-section = limited(2*8~1024*8, record+);
-record = uint(8,var(length, 1~100)) uint(8,~){length};
-```
-
 ### `swapped` Function
 
 ```dogma
@@ -1563,12 +1547,12 @@ param_name             = identifier_restricted;
 function               = function_no_args | function_with_args;
 function_no_args       = identifier_restricted & TOKEN_SEP & type_specifier;
 function_with_args     = identifier_restricted
-                       & PARENTHESIZED(function_param & (ARG_SEP & function_param)*)
+                       & PARENTHESIZED(function_param & (ARG_SEP & function_param)* & (ARG_SEP & last_param)?)
                        & TOKEN_SEP & type_specifier
                        ;
 function_param         = param_name & TOKEN_SEP & type_specifier;
-type_specifier         = ':' & TOKEN_SEP & type_alternatives & (TOKEN_SEP & vararg)?;
-type_alternatives      = type_name & (TOKEN_SEP & '|' & TOKEN_SEP & type_name)*;
+last_param             = function_param  & (TOKEN_SEP & vararg)?;
+type_specifier         = ':' & TOKEN_SEP & type_name;
 vararg                 = "...";
 type_name              = basic_type_name | custom_type_name;
 basic_type_name        = "expression"
@@ -1584,7 +1568,7 @@ basic_type_name        = "expression"
 custom_type_name       = name;
 
 call                   = identifier_any & PARENTHESIZED(call_param & (ARG_SEP & call_param)*);
-call_param             = any_type;
+call_param             = condition | number | expression;
 
 switch                 = '[' & TOKEN_SEP & switch_entry+ & (TOKEN_SEP & switch_default)? & TOKEN_SEP & ']';
 switch_entry           = condition & TOKEN_SEP & ':' & TOKEN_SEP & expression & TOKEN_SEP & ';';
@@ -1618,7 +1602,6 @@ codepoint_escape       = '[' & digit_hex+ & ']';
 
 builtin_functions      = sized
                        | aligned
-                       | limited
                        | swapped
                        | var
                        | eod
@@ -1647,11 +1630,6 @@ aligned(bit_count: uinteger, expr: bits, padding: bits): bits =
     is used in the same manner as the `sized` function to produce the remaining bits.
 
     if `bit_count` is 0, `expr` has no alignment requirements and `padding` is ignored.
-    """;
-
-limited(bit_counts: uintegers, expr: bits): bits =
-    """
-    Limits `expr` to any of the bit counts contained in `bit_counts`.
     """;
 
 swapped(bit_granularity: uinteger, expr: bits): bits =
@@ -1755,7 +1733,6 @@ padding                = expression;
 bit_count              = number;
 bit_granularity        = number;
 unicode_category       = ('A'~'Z') & ('a'~'z')?;
-any_type               = condition | number | expression;
 
 variable               = local_id | variable & '.' & local_id;
 local_id               = identifier_restricted;
@@ -1809,7 +1786,6 @@ identifier_any         = name;
 identifier_restricted  = identifier_any ! reserved_identifiers;
 reserved_identifiers   = "sized"
                        | "aligned"
-                       | "limited"
                        | "swapped"
                        | "var"
                        | "eod"
