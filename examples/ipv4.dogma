@@ -75,7 +75,7 @@ copy_yes                           = u1(1);
 copy_no                            = u1(0);
 class_control                      = u2(0);
 class_debug_measure                = u2(2);
-rfc1108                            = """https://www.rfc-editor.org/rfc/rfc1108.html""";
+rfc1108: bits                      = """https://www.rfc-editor.org/rfc/rfc1108.html""";
 rfc791                             = """https://www.rfc-editor.org/rfc/rfc791.html""";
 draft_ietf_cipso_ipsecurity_01     = """https://datatracker.ietf.org/doc/draft-ietf-cipso-ipsecurity/01/""";
 

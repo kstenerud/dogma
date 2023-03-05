@@ -1,0 +1,51 @@
+dogma_v1 utf-8
+- identifier          = 802.3_layer2
+- description         = IEEE 802.3 Ethernet frame, layer 2
+- dogma_specification = https://github.com/kstenerud/dogma/blob/master/dogma_v1.md
+- note                = Words are byte-ordered big endian, but every octet is sent LSB first.
+
+frame             = preamble
+                  & frame_start
+                  & dst_address
+                  & src_address
+                  & var(etype, ether_type)
+                  & [
+                      etype.type = 0x8100: dot1q_frame;
+                      etype.type = 0x88a8: double_tag_frame;
+                                         : payload_by_type(etype.type, 46);
+                    ]
+                  & frame_check
+                  ;
+preamble          = uint(8, 0b01010101){7};
+frame_start       = uint(8, 0b11010101);
+dst_address       = uint(48, ~);
+src_address       = uint(48, ~);
+ether_type        = uint(16, var(type, ~));
+frame_check       = uint(32, ~);
+
+dot1q_frame       = tag_control_info
+                  & var(etype, ether_type)
+                  & payload_by_type(etype.type, 42)
+                  ;
+double_tag_frame  = service_tag
+                  & uint(16, 0x8100)
+                  & customer_tag
+                  & var(etype, ether_type)
+                  & payload_by_type(etype.type, 38)
+                  ;
+
+tag_control_info  = priority & drop_eligible & vlan_id;
+priority          = uint(3, ~);
+drop_eligible     = uint(1, ~);
+vlan_id           = uint(12, ~);
+service_tag       = tag_control_info;
+customer_tag      = tag_control_info;
+
+payload_by_type(type, min_size) = [type >= min_size & type <= 1500: generic_payload(type);
+                                   type = 0x0800                  : ipv4;
+                                   type = 0x86dd                  : ipv6;
+                                   # TODO: The rest of the payload types
+                                  ];
+generic_payload(length)         = uint(8,~){length};
+ipv4: bits                      = """https://somewhere/ipv4.dogma""";
+ipv6: bits                      = """https://somewhere/ipv6.dogma""";

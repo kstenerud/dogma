@@ -1,9 +1,9 @@
 The Dogma Metalanguage
 ======================
 
-Syntactic metalanguages have made mainly haphazard gains over the past 60 years, and still only describe text-based formats. Dogma aims to be a modernized metalanguage with better expressiveness and binary support.
+Dogma is a human-friendly metalanguage for describing data formats (text or binary) in documentation.
 
-Dogma follows the familiar patterns of [Backus-Naur Form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form), and includes a number of innovations that make it also suitable for describing binary data.
+Dogma follows the familiar patterns of [Backus-Naur Form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form), with a number of innovations that make it also suitable for describing binary data.
 
 
 
@@ -84,20 +84,32 @@ ipv6: bits                      = """https://somewhere/ipv6.dogma""";
 Design Objectives
 -----------------
 
+The design objectives of Dogma are, in descending order of importance:
+
 ### Human readability
 
-The primary use case for Dogma is to describe text and binary grammars in a formalized way in documentation. Such a format must therefore be human-accessible, while also being concise and unambiguous.
+Dogma's primary use case is describing text and binary data in a formalized way for documentation. It must therefore be human-accessible, while also being concise and unambiguous.
 
-### Better expressiveness
+### Improved expressiveness
 
-Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, or ease-of-processing. A metalanguage for describing such data will require much more expressiveness than current metalanguages allow. Better expressiveness reduces boilerplate and improves readability even in text format descriptions.
+Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, and ease-of-processing. A metalanguage would require much more expressiveness in order to describe such data.
 
 * **Repetition**: Any sequence of bits can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
-* **Variables**: Some constructs (such as here documents or length delimited fields) require access to previously decoded values. Dogma supports assigning decoded values to variables.
+* **Variables**: Some constructs (such as ["here" documents](https://en.wikipedia.org/wiki/Here_document) or length delimited fields) require access to previously decoded values. Dogma supports assigning decoded values to variables.
 * **Exclusion**: Sometimes it's easier to express something as "everything except for ...".
-* **Grouping**: Grouping expressions together is an obvious convenience that most other BNF offshoots have already adopted.
+* **Grouping**: Grouping expressions together is a convenience that most other BNF offshoots have already adopted.
 * **Prose**: In many cases, the actual encoding of something is already well-known and specified elsewhere, or is too complex for Dogma to describe adequately. Prose offers a free-form way to describe part of a grammar.
 * **Whitespace not significant**: Many BNF notations (including the original BNF) assign meaning to whitespace (for example: whitespace as concatenation, or linefeeds to mark the end of a rule). This is bad from a UX perspective because it makes things harder for a human to parse in many circumstances, and reduces the ways in which a rule can be expressed over multiple lines.
+
+### Binary grammar support
+
+Binary grammars have different needs from textual grammars, and require special support:
+
+* **Bit Arrays**: Binary formats tend to work at bit-level granularity, and thus require support for arbitrarily sized bit arrays.
+* **Variables, Macros & Functions**: Binary formats often represent data in complex ways that can't be parsed without passing some context around.
+* **Conditionals & Logic**: Binary formats often include or exclude portions based on encoded values elsewhere. Evaluating these requires the use of conditionals and logic operators.
+* **Calculations**: Many binary field sizes are determined by data stored elsewhere in the document, and often they require calculations of some sort to determine the final field size.
+* **Functions**: Binary data often undergoes transformations that are too complex for normal BNF-style rules to express (for example [LEB128](https://en.wikipedia.org/wiki/LEB128)). Functions offer a way to escape from the metalanguage syntax.
 
 ### Character set support
 
@@ -108,18 +120,8 @@ Dogma can be used with any [character set](https://www.iana.org/assignments/char
 ### Codepoints as first-class citizens
 
 * Codepoints beyond the ASCII range must be directly inputtable into a grammar document.
-* Difficult codepoints must also be supported (for example via escape sequences).
+* Difficult codepoints must also be supported (via escape sequences).
 * [Unicode categories](https://unicode.org/glossary/#general_category) must be supported.
-
-### Binary grammar support
-
-Binary grammars have different needs from textual grammars, and require special support:
-
-* **Bit arrays**: Binary formats tend to work at bit-level granularity, and thus require support for arbitrarily sized bit arrays.
-* **Variables, Macros & Functions**: Binary formats often represent data in complex ways that can't be parsed without passing some context around.
-* **Conditionals & Logic**: Binary formats often include or exclude portions based on encoded values elsewhere. Evaluating these requires the use of conditionals and logic operators.
-* **Calculations**: Many binary field sizes are determined by data stored elsewhere in the document, and often they require calculations of some sort to determine the final field size.
-* **Transformations**: Binary data often undergoes transformations that are too complex for normal BNF-style rules to express (for example [LEB128](https://en.wikipedia.org/wiki/LEB128)).
 
 ### Future proof
 
