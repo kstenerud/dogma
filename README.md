@@ -14,6 +14,14 @@ Specification
 
 
 
+Syntax Highlighter (VS Code)
+----------------------------
+
+* [From the marketplace](https://marketplace.visualstudio.com/items?itemName=kstenerud.dogma-v1)
+* [From source](https://github.com/kstenerud/dogma-tmlanguage)
+
+
+
 Example
 -------
 
