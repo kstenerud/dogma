@@ -83,7 +83,7 @@ ipv6: bits                      = """https://somewhere/ipv6.dogma""";
 
 ### Other Examples
 
-* Internet Protocol, version 4: [ipv4.dogma](ipv4.dogma)
+* [Examples in this repo](examples)
 * Concise Text Encoding: [cte.dogma](https://github.com/kstenerud/concise-encoding/blob/master/cte.dogma)
 * Concise Binary Encoding: [cbe.dogma](https://github.com/kstenerud/concise-encoding/blob/master/cbe.dogma)
 
