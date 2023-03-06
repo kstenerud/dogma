@@ -10,7 +10,7 @@ _Describing how things should be_
 
 Current status: 1.0-beta3 (Feb 25, 2023).
 
-Public comments uncovered a number of issues that have mostly been addressed. Beta3 will be released soon after some more cleanup.
+Beta3 uncovered far fewer issues. Beta4 will be released soon, and if it also uncoveres no significant issues, version 1 will be released.
 
 
 
@@ -246,7 +246,7 @@ All sequences of [bits](#bits) are assumed to be in big endian bit order (higher
 * `swapped(2, uint(16,0x5bbc))` matches 2-bit-swapped 0x3ee5 (bit sequence 0,0,1,1,1,1,1,0,1,1,1,0,0,1,0,1).
 * `swapped(1, uint(16,0x5bbc))` matches bit-swapped 0x3dda (bit sequence 0,0,1,1,1,1,0,1,1,1,0,1,1,0,1,0).
 
-[Codepoints](#codepoints) follow the byte ordering of the character encoding scheme specified in the [document header](#document-header) (although per-byte bit ordering remains nominally big endian). Character sets with ambiguous byte ordering (such as `utf-16`) should generally be avoided in favor of those with explicit byte ordering (`utf-16be`, `utf-16le`).
+[Codepoints](#codepoints) follow the _byte_ ordering of the character encoding scheme specified in the [document header](#document-header) (although each byte's bit ordering remains nominally big endian). Character sets with ambiguous byte ordering (such as `utf-16`) should generally be avoided in favor of those with explicit byte ordering (`utf-16be`, `utf-16le`).
 
 
 ### Non-Greedy Matching
@@ -267,7 +267,7 @@ The document `azzzbzzzczzz.` contains 3 records (`a`, `b`, and `c`), not one rec
 
 ### Unicode Equivalence and Normalization
 
-By default only the exact, non-processed (i.e. not normalized) codepoints present in a Unicode expression will be matched. For more advanced matching, define [functions](#functions) that apply normalization preprocessing or produce equivalence [alternatives](#alternative) to a string expression.
+By default only the exact, as-entered, non-processed (i.e. not normalized) codepoints present in a Unicode expression will be matched. For more advanced matching, define [functions](#functions) that apply normalization preprocessing or produce equivalence [alternatives](#alternative) to a string expression.
 
 
 
@@ -297,7 +297,7 @@ document_header    = "dogma_v" & dogma_major_version & SOME_WS
                    ;
 character_encoding = ('a'~'z' | 'A'~'Z' | '0'~'9' | '_' | '-' | '.' | ':' | '+' | '(' | ')')+;
 header_line        = '-' & SOME_WS & header_name & '=' & header_value & LINE_END;
-header_name        = printable+;
+header_name        = (printable ! '=')+;
 header_value       = printable_ws+;
 ```
 
@@ -413,13 +413,13 @@ In the above example, `record` can only be called with unsigned integer values, 
 **Example**: An [IPV4](https://en.wikipedia.org/wiki/Internet_Protocol_version_4) packet contains "header length" and "total length" fields, which together determine how big the "options" and "payload" sections are. "protocol" determines the protocol of the payload.
 
 ```dogma
-ip_packet                    = ...
+ip_packet                    = # ...
                              & u4(var(header_length, 5~)) # header length in 32-bit words
-                               ...
+                               # ...
                              & u16(var(total_length, 20~)) # total length in bytes
-                               ...
+                               # ...
                              & u8(var(protocol, registered_protocol))
-                               ...
+                               # ...
                              & options((header_length-5) * 32)
                              & payload(protocol, (total_length-(header_length*4)) * 8)
                              ;
@@ -427,13 +427,13 @@ ip_packet                    = ...
 options(bit_count)           = sized(bit_count, option*);
 option                       = option_eool
                              | option_nop
-                             | ...
+                             # | ...
                              ;
 
 payload(protocol, bit_count) = sized(bit_count, payload_contents(protocol) & u1(0)*);
 payload_contents(protocol)   = [protocol = 0: protocol_hopopt;
                                 protocol = 1: protocol_icmp;
-                                ...
+                                # ...
                                ];
 ```
 
@@ -1136,9 +1136,9 @@ A [codepoint](#codepoints) range represents a set where each [`uinteger`](#numbe
 A [repetition](#repetition) range represents a set where each [`uinteger`](#number) contained in the range represents a number of occurrences that will be applied to a [bits](#bits) expression as an [alternative](#alternative).
 
 ```dogma
-expression         = ...
+expression         = # ...
                    | maybe_ranged(codepoint_literal)
-                   | ...
+                   # | ...
                    ;
 repeat_range       = expression & '{' & maybe_ranged(number) & '}';
 function_uint      = fname_uint & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
@@ -1282,7 +1282,8 @@ swapped(bit_granularity: uinteger, expr: bits): bits =
 ```dogma
 document  = version_5 & contents;
 version_5 = swapped(8, uint(32, 5));
-contents  = ...
+contents  = # ...
+          ;
 ```
 
 **Example**: A header begins with a 16-bit unsigned int identifier that is actually bit-swapped, followed by contents based on the identifier.
@@ -1293,8 +1294,10 @@ bitswapped_uint16(v) = swapped(1, uint(16, v));
 contents(identifier) = [identifier = 1: type_1;
                         identifier = 2: type_2;
                        ];
-type_1               = ...
-type_2               = ...
+type_1               = # ...
+                     ;
+type_2               = # ...
+                     ;
 ```
 
 ### `var` Function
@@ -1341,7 +1344,7 @@ byte(v)                 = uint(8, v);
 eod: expression =
    """
    A special expression that matches the end of the data stream.
-   """
+   """;
 ```
 
 **Exammple**: A document contains any number of length delimited records (1-100 bytes), continuing until the end of the file.
@@ -1354,7 +1357,7 @@ record = uint(8,var(length, 1~100)) uint(8,~){length};
 ### `unicode` Function
 
 ```dogma
-unicode(categories: unicode_category ...): bits =
+unicode(categories: unicode_category...): bits =
     """
     Creates an expression containing the alternatives set of all Unicode
     codepoints that have any of the given Unicode categories.
@@ -1529,7 +1532,7 @@ header_line            = '-' & SOME_WS
                        & '=' & MAYBE_WS
                        & header_value & LINE_END
                        ;
-header_name            = printable+;
+header_name            = (printable ! '=')+;
 header_value           = printable_ws+;
 
 rule                   = symbol_rule | macro_rule | function_rule;
@@ -1559,7 +1562,7 @@ function_with_args     = identifier_restricted
                        & TOKEN_SEP & type_specifier
                        ;
 function_param         = param_name & TOKEN_SEP & type_specifier;
-last_param             = function_param  & (TOKEN_SEP & vararg)?;
+last_param             = function_param  & vararg?;
 type_specifier         = ':' & TOKEN_SEP & type_name;
 vararg                 = "...";
 type_name              = basic_type_name | custom_type_name;
@@ -1668,9 +1671,9 @@ var(variable_name: identifier, value: bits | numbers): bits | numbers =
 eod: expression =
    """
    A special expression that matches the end of the data stream.
-   """
+   """;
 
-unicode(categories: unicode_category ...): bits =
+unicode(categories: unicode_category...): bits =
     """
     Creates an expression containing the alternatives set of all Unicode
     codepoints that have any of the given Unicode categories.
