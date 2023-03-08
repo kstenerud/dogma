@@ -41,10 +41,11 @@ vlan_id           = uint(12, ~);
 service_tag       = tag_control_info;
 customer_tag      = tag_control_info;
 
-payload_by_type(type, min_size) = [type >= min_size & type <= 1500: generic_payload(type);
-                                   type = 0x0800                  : ipv4;
-                                   type = 0x86dd                  : ipv6;
-                                   # TODO: The rest of the payload types
+payload_by_type(type, min_size) = [
+                                    type >= min_size & type <= 1500: generic_payload(type);
+                                    type = 0x0800                  : ipv4;
+                                    type = 0x86dd                  : ipv6;
+                                    # TODO: The rest of the payload types
                                   ];
 generic_payload(length)         = uint(8,~){length};
 ipv4: bits                      = """https://somewhere/ipv4.dogma""";

@@ -23,11 +23,12 @@ timestamp    = uint(32,~);
 ssrc         = uint(32,~);
 csrc         = uint(32,~);
 
-csrc_list(has_padding, count) = [has_padding = 1: csrc{count - last.length/4}
-                                                & padding{last.length - 4}
-                                                & var(last,padding_last)
-                                                ;
-                                                : csrc{count};
+csrc_list(has_padding, count) = [
+                                  has_padding = 1: csrc{count - last.length/4}
+                                                 & padding{last.length - 4}
+                                                 & var(last,padding_last)
+                                                 ;
+                                                 : csrc{count};
                                 ];
 
 padding             = uint(8,0);

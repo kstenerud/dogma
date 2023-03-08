@@ -5,7 +5,8 @@ dogma_v1 utf-8
 
 file_descriptor  = filename
                  & var(ext, extension)
-                 & [ ext.type = 'B': format_basic;
+                 & [
+                     ext.type = 'B': format_basic;
                      ext.type = 'C': format_code;
                      ext.type = 'D': format_data;
                      ext.type = '#': format_print;

@@ -71,10 +71,11 @@ vlan_id           = uint(12, ~);
 service_tag       = tag_control_info;
 customer_tag      = tag_control_info;
 
-payload_by_type(type, min_size) = [type >= min_size & type <= 1500: generic_payload(type);
-                                   type = 0x0800                  : ipv4;
-                                   type = 0x86dd                  : ipv6;
-                                   # Other types omitted for brevity
+payload_by_type(type, min_size) = [
+                                    type >= min_size & type <= 1500: generic_payload(type);
+                                    type = 0x0800                  : ipv4;
+                                    type = 0x86dd                  : ipv6;
+                                    # Other types omitted for brevity
                                   ];
 generic_payload(length)         = uint(8,~){length};
 ipv4: bits                      = """https://somewhere/ipv4.dogma""";
@@ -323,7 +324,7 @@ document = "a"; # Yeah, this grammar doesn't do much...
 Rules
 -----
 
-Rules determine the restrictions on how terminals can be combined into a valid sequence. A rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions), and can work with or produce any of the standard [types](#types).
+Rules specify the restrictions on how terminals can be combined into a valid sequence. A rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions), and can work with or produce any of the standard [types](#types).
 
 Rules are written in the form `nonterminal = expression;`, with optional whitespace (including newlines) between rule elements.
 
@@ -431,9 +432,10 @@ option                       = option_eool
                              ;
 
 payload(protocol, bit_count) = sized(bit_count, payload_contents(protocol) & u1(0)*);
-payload_contents(protocol)   = [protocol = 0: protocol_hopopt;
-                                protocol = 1: protocol_icmp;
-                                # ...
+payload_contents(protocol)   = [
+                                 protocol = 0: protocol_hopopt;
+                                 protocol = 1: protocol_icmp;
+                                 # ...
                                ];
 ```
 
@@ -485,10 +487,10 @@ custom_type_name   = name;
 uleb128(v: uinteger): bits = """https://en.wikipedia.org/wiki/LEB128#Unsigned_LEB128""";
 ```
 
-**Example**: A record contains an ISO 8601 encoded date, then a colon, followed by a temperature reading.
+**Example**: A record contains an ISO 8601 encoded date, then an equals sign, followed by a temperature reading.
 
 ```dogma
-record         = iso8601 & ':' & temperature;
+record         = iso8601 & '=' & temperature;
 iso8601: bits  = """https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations""";
 temperature    = digit+ & ('.' & digit+)?;
 digit          = '0'~'9';
@@ -538,10 +540,10 @@ Dogma has the following types:
 
 * [`bits`](#bits): A set of possible bit sequences of arbitrary length.
 * [`conditions`](#condition): True or false assertions about the current state.
-* Numeric types that may be used in calculations and can be converted to a representations in bits. There are two primary forms:
+* [Numeric types](#number) that may be used in calculations and can be converted to a representations in bits. There are two primary forms:
   - Singular value type [`number` and its invariants `sinteger` and `uinteger`](#number).
   - Number set type [`numbers` and its invariants `sintegers` and `uintegers`](#numbers).
-* `expression`: Used for special situations like the [`eod` function](#eod-function).
+* `expression`: Used for special situations such as the [`eod` function](#eod-function).
 
 Types become relevant in certain contexts, particularly when calling [functions](#functions) (which have restrictions on what types they accept and return).
 
@@ -707,11 +709,12 @@ timestamp    = uint(32,~);
 ssrc         = uint(32,~);
 csrc         = uint(32,~);
 
-csrc_list(has_padding, count) = [has_padding = 1: csrc{count - last.length/4}
-                                                & padding{last.length - 4}
-                                                & var(last,padding_last)
-                                                ;
-                                                : csrc{count};
+csrc_list(has_padding, count) = [
+                                  has_padding = 1: csrc{count - last.length/4}
+                                                 & padding{last.length - 4}
+                                                 & var(last,padding_last)
+                                                 ;
+                                                 : csrc{count};
                                 ];
 
 padding             = uint(8,0);
@@ -961,7 +964,7 @@ assignment = "a"~"z"+
 
 Alternative produces an expression that can match either the expression on the left or the expression on the right (essentially a set of two possibilities).
 
-Alternatives are separated by a pipe (`|`) character. Only one of the alternative branches will be taken.
+Alternatives are separated by a pipe (`|`) character. Only one of the alternative branches will be taken. If more than one alternative can match at the same time, the grammar is ambiguous.
 
 [Bits](#bits) and [numbers](#numbers) sets can be built using alternatives.
 
@@ -1003,7 +1006,7 @@ identifier = "a"~"z"+ ! "fred";
 
 "Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Think of repetition as "this [bits](#bits) expression, [concatenated](#concatenation) together for a total of N occurrences".
 
-Repetition amounts are [unsigned integer sets](#numbers) placed between curly braces (e.g. `{10}`, `{1~5}`, `{1 | 3| 6~12}`). Each value in the set produces an [alternative](#alternative) expression with that repetition amount applied, contributing to a final bits expression set (for example, `"a"{1~3}` is equivalent to `"a" | "aa" | "aaa"`).
+Repetition amounts are [unsigned integer sets](#numbers) placed between curly braces (e.g. `{10}`, `{1~5}`, `{1 | 3| 6~12}`). Each value in the repetition set produces an [alternative](#alternative) expression with that repetition amount applied, contributing to a final bits expression set (for example, `"a"{1~3}` is equivalent to `"a" | "aa" | "aaa"`).
 
 There are also shorthand notations for common cases:
 
@@ -1050,8 +1053,9 @@ PARENTHESIZED(item) = '(' & item & ')';
 ```dogma
 my_rule         = ('a' | 'b') & ('x' | 'y');
 my_macro1(a)    = uint(8, (a + 5) * 2);
-my_macro2(a, b) = [(a < 10 | a > 20) & (b < 10 | b > 20): "abc";
-                                                        : "def";
+my_macro2(a, b) = [
+                    (a < 10 | a > 20) & (b < 10 | b > 20): "abc";
+                                                         : "def";
                   ];
 ```
 
@@ -1075,7 +1079,7 @@ The following operations can be used:
 **Notes**:
 
 * Any operation giving a result that is mathematically undefined (such as division by zero) is undefined behavior. A grammar that allows undefined behavior to occur is ambiguous.
-* Depending on the operands, [the modulo operation can produce two different values depending on how the remainder is derived](https://en.wikipedia.org/wiki/Modulo#Variants_of_the_definition). Modulo in Dogma uses truncated division (where the remainder has the same sign as the dividend), which is the most common approach used in popular programming languages.
+* [The modulo operation can produce two different values depending on how the remainder is derived](https://en.wikipedia.org/wiki/Modulo#Variants_of_the_definition). Modulo in Dogma uses truncated division (where the remainder has the same sign as the dividend), which is the most common approach used in popular programming languages.
 
 Operator precedence (low to high):
 
@@ -1131,7 +1135,7 @@ A range builds a [set of numbers](#numbers) consisting of all reals in the range
 * A tilde by itself (~), indicating no bound (i.e. the range consists of the set of all reals).
 * A value with no tilde, restricting the "range" to only that one value.
 
-A [codepoint](#codepoints) range represents a set where each [`uinteger`](#number) contained in the range represents a codepoint [alternatives](#alternative).
+A [codepoint](#codepoints) range represents a set where each [`uinteger`](#number) contained in the range represents a codepoint [alternative](#alternative).
 
 A [repetition](#repetition) range represents a set where each [`uinteger`](#number) contained in the range represents a number of occurrences that will be applied to a [bits](#bits) expression as an [alternative](#alternative).
 
@@ -1171,7 +1175,7 @@ rpm = uint(16, ~1000); # A uinteger cannot be < 0, so it's implied 0~1000
 Comments
 --------
 
-A comment begins with a hash char (`#`) and continues to the end of the current line. Comments are not valid in the [document header](#document-header).
+A comment begins with a hash character (`#`) and continues to the end of the current line. Comments are not valid in the [document header](#document-header).
 
 ```dogma
 comment = '#' & (printable_ws ! LINE_END)* & LINE_END;
@@ -1291,8 +1295,9 @@ contents  = # ...
 ```dogma
 header               = bitswapped_uint16(var(identifier, ~)) & contents(identifier);
 bitswapped_uint16(v) = swapped(1, uint(16, v));
-contents(identifier) = [identifier = 1: type_1;
-                        identifier = 2: type_2;
+contents(identifier) = [
+                         identifier = 1: type_1;
+                         identifier = 2: type_2;
                        ];
 type_1               = # ...
                      ;
