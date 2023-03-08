@@ -25,7 +25,7 @@ Syntax Highlighter (VS Code)
 Example
 -------
 
-To demonstrate how powerful Dogma can be, here is an Ethernet IEEE 802.3 frame, layer 2 (image from [Wikipedia](https://en.wikipedia.org/wiki/IEEE_802.1Q)):
+To demonstrate the power of Dogma, here is an Ethernet IEEE 802.3 frame, layer 2 (image from [Wikipedia](https://en.wikipedia.org/wiki/IEEE_802.1Q)):
 
 ![IEEE 802.3 frame](Wikipedia-TCPIP_802.1ad_DoubleTag.svg)
 
@@ -92,22 +92,22 @@ ipv6: bits                      = """https://somewhere/ipv6.dogma""";
 Design Objectives
 -----------------
 
-The design objectives of Dogma are, in descending order of importance:
+Dogma is designed primarily for documentation purposes (although it is parser friendly). It's design objectives are:
 
 ### Human readability
 
-Dogma's primary use case is describing text and binary data in a formalized way for documentation. It must therefore be human-accessible, while also being concise and unambiguous.
+First and foremost it must be human friendly since documentation is for explaining and describing. It must therefore be human-accessible, while also being concise and unambiguous. Comments are also important for guiding readers through the more complex portions of a format.
 
 ### Improved expressiveness
 
-Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, and ease-of-processing. A metalanguage would require much more expressiveness in order to describe such data.
+Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, and ease-of-processing. A metalanguage requires much more expressiveness in order to describe such data.
 
 * **Repetition**: Any sequence of bits can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
-* **Variables**: Some constructs (such as ["here" documents](https://en.wikipedia.org/wiki/Here_document) or length delimited fields) require access to previously decoded values. Dogma supports assigning decoded values to variables.
-* **Exclusion**: Sometimes it's easier to express something as "everything except for ...".
-* **Grouping**: Grouping expressions together is a convenience that most other BNF offshoots have already adopted.
+* **Variables**: Some constructs (such as ["here" documents](https://en.wikipedia.org/wiki/Here_document) or length delimited fields) require access to values decoded elsewhere. Dogma supports assigning decoded values to variables.
+* **Exclusion**: Sometimes it's easier to express something as "this set, except for ...".
+* **Grouping**: For overriding the default operator precedence, or to make things more clear for a reader.
 * **Prose**: In many cases, the actual encoding of something is already well-known and specified elsewhere, or is too complex for Dogma to describe adequately. Prose offers a free-form way to describe part of a grammar.
-* **Whitespace not significant**: Many BNF notations (including the original BNF) assign meaning to whitespace (for example: whitespace as concatenation, or linefeeds to mark the end of a rule). This is bad from a UX perspective because it makes things harder for a human to parse in many circumstances, and reduces the ways in which a rule can be expressed over multiple lines.
+* **Whitespace not significant**: Whitespace _never_ has any implied meaning (e.g. many BNF-style grammars use whitespace to imply concatenation). Whitespace is only used to separate tokens, and for visual alignment.
 
 ### Binary grammar support
 
@@ -135,4 +135,4 @@ Dogma can be used with any [character set](https://www.iana.org/assignments/char
 
 No specification is perfect, nor can it stand the test of time. Eventually an incompatible change will become necessary in order to stay relevant.
 
-Dogma documents are versioned to a particular Dogma specification so that changes can be made to the specification without breaking existing tooling.
+Every Dogma document records the Dogma specification version it was built against so that changes can be made to the specification without breaking existing tooling.
