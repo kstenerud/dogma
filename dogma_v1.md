@@ -3,14 +3,14 @@ The Dogma Metalanguage
 
 _Describing how things should be_
 
-**Version**: 1.0-beta3
+**Version**: 1.0-beta4
 
 
 ## WORK IN PROGRESS
 
-Current status: 1.0-beta3 (Feb 25, 2023).
+Current status: 1.0-beta4 (Mar 8, 2023).
 
-Beta3 uncovered far fewer issues. Beta4 will be released soon, and if it also uncoveres no significant issues, version 1 will be released.
+Beta4 contains only minor fixes. If no significant issues are discovered, version 1 will be released.
 
 
 
