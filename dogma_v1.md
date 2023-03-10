@@ -26,7 +26,7 @@ Dogma follows the familiar patterns of [Backus-Naur Form](https://en.wikipedia.o
 
 To demonstrate the power of Dogma, here is an Ethernet IEEE 802.3 frame, layer 2 (image from [Wikipedia](https://en.wikipedia.org/wiki/IEEE_802.1Q)):
 
-![IEEE 802.3 frame](Wikipedia-TCPIP_802.1ad_DoubleTag.svg)
+![IEEE 802.3 frame](img/Wikipedia-TCPIP_802.1ad_DoubleTag.svg)
 
 ```dogma
 dogma_v1 utf-8
