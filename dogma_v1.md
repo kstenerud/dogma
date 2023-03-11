@@ -247,7 +247,7 @@ All sequences of [bits](#bits) are assumed to be in big endian bit order (higher
 * `swapped(2, uint(16,0x5bbc))` 2-bit-swapped (bits 0,0,1,1,1,1,1,0,1,1,1,0,0,1,0,1).
 * `swapped(1, uint(16,0x5bbc))` little endian _bit_ order (bits 0,0,1,1,1,1,0,1,1,1,0,1,1,0,1,0).
 
-[Codepoints](#codepoints) follow the _byte_ ordering of the character encoding scheme specified in the [document header](#document-header) (although each byte's bit ordering remains nominally big endian unless otherwise defined in your spec). Character sets with ambiguous byte ordering (such as `utf-16`) should generally be avoided in favor of those with explicit byte ordering (`utf-16be`, `utf-16le`).
+[Codepoints](#codepoints) follow the _byte_ ordering of the character set specified in the [document header](#document-header) (although each byte's bit ordering remains nominally big endian unless otherwise defined in your spec). Some multibyte character sets allow a [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark), which determines the endianness of the codepoints that follow. The BOM (when present) is assumed be honored when processing a string.
 
 
 ### Non-Greedy Matching
