@@ -104,11 +104,16 @@ Contents
   - [Forward Notes](#forward-notes)
     - [Versioning](#versioning)
     - [Informal Dogma in Descriptions](#informal-dogma-in-descriptions)
-    - [Bit Ordering](#bit-ordering)
-    - [Non-Greedy Matching](#non-greedy-matching)
     - [Unicode Equivalence and Normalization](#unicode-equivalence-and-normalization)
+  - [Concepts](#concepts)
+    - [Non-Greedy Matching](#non-greedy-matching)
+    - [Bit Ordering](#bit-ordering)
+    - [Byte Ordering](#byte-ordering)
+      - [Codepoint Byte Ordering](#codepoint-byte-ordering)
+    - [Namespaces](#namespaces)
   - [Grammar Document](#grammar-document)
     - [Document Header](#document-header)
+      - [Standard Headers](#standard-headers)
   - [Rules](#rules)
     - [Start Rule](#start-rule)
     - [Symbols](#symbols)
@@ -123,11 +128,15 @@ Contents
     - [Number](#number)
       - [Numbers](#numbers)
     - [Condition](#condition)
+    - [Enumerated Types](#enumerated-types)
+      - [Ordering](#ordering)
+      - [Unicode Category](#unicode-category)
   - [Variables](#variables)
   - [Literals](#literals)
     - [Numeric Literals](#numeric-literals)
     - [Codepoints](#codepoints)
-    - [Strings](#strings)
+      - [Strings and Byte Order Mark](#strings-and-byte-order-mark)
+      - [String Literals](#string-literals)
     - [Escape Sequence](#escape-sequence)
       - [Codepoint Escape](#codepoint-escape)
     - [Prose](#prose)
@@ -144,7 +153,11 @@ Contents
   - [Builtin Functions](#builtin-functions)
     - [`sized` Function](#sized-function)
     - [`aligned` Function](#aligned-function)
-    - [`swapped` Function](#swapped-function)
+    - [`reversed` Function](#reversed-function)
+    - [`ordered` function](#ordered-function)
+    - [`byte_order` Function](#byte_order-function)
+    - [`peek` Function](#peek-function)
+    - [`offset` Function](#offset-function)
     - [`var` Function](#var-function)
     - [`eod` Function](#eod-function)
     - [`unicode` Function](#unicode-function)
@@ -236,19 +249,14 @@ Versioning for the Dogma specification is done in the form `major`.`minor`:
 Section descriptions in this specification will usually include some "informal" Dogma notation (where structural tokens such as those for whitespace are omitted for clarity). When in doubt, please refer to the [formal Dogma grammar at the end of this document](#dogma-described-as-dogma).
 
 
-### Bit Ordering
+### Unicode Equivalence and Normalization
 
-All sequences of [bits](#bits) are assumed to be in big endian bit order (higher bits come first), and if necessary can be swapped at any granularity using the [`swapped` function](#swapped-function).
+By default only the exact, as-entered, non-processed (i.e. not normalized) codepoints present in a Unicode expression will be matched. For more advanced matching, define [functions](#functions) that apply normalization preprocessing or produce equivalence [alternatives](#alternative) to a string expression.
 
-**For example**:
 
-* `uint(16,0x5bbc)` matches big endian _bit_ order 0x5bbc (bit sequence 0,1,0,1,1,0,1,1,1,0,1,1,1,1,0,0).
-* `swapped(8, uint(16,0x5bbc))` LE _byte_ order, BE _bit_ order (bits 1,0,1,1,1,1,0,0,0,1,0,1,1,0,1,1).
-* `swapped(2, uint(16,0x5bbc))` 2-bit-swapped (bits 0,0,1,1,1,1,1,0,1,1,1,0,0,1,0,1).
-* `swapped(1, uint(16,0x5bbc))` little endian _bit_ order (bits 0,0,1,1,1,1,0,1,1,1,0,1,1,0,1,0).
 
-[Codepoints](#codepoints) follow the _byte_ ordering of the character set specified in the [document header](#document-header) (although each byte's bit ordering remains nominally big endian unless otherwise defined in your spec). Some multibyte character sets allow a [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark), which determines the endianness of the codepoints that follow. The BOM (when present) is assumed be honored when processing a string.
-
+Concepts
+--------
 
 ### Non-Greedy Matching
 
@@ -266,9 +274,43 @@ terminaor = "zzz";
 The document `azzzbzzzczzz.` contains 3 records (`a`, `b`, and `c`), not one record (`azzzbzzzc`).
 
 
-### Unicode Equivalence and Normalization
+### Bit Ordering
 
-By default only the exact, as-entered, non-processed (i.e. not normalized) codepoints present in a Unicode expression will be matched. For more advanced matching, define [functions](#functions) that apply normalization preprocessing or produce equivalence [alternatives](#alternative) to a string expression.
+Bit ordering is assumed to be "most significant bit first" since it is almost always abstracted that way by the hardware, and ordering generally only comes into play when actually transmitting data serially (which is outside of the scope of Dogma).
+
+Bit ordering can be manipulated on a smaller scale using the [`reversed` function](#reversed-function). For example:
+
+| Expression                                  | Matches bits        | Notes                                              |
+| ------------------------------------------- | ------------------- | -------------------------------------------------- |
+| `uint(16,0x5bbc)`                           | `01011011 10111100` | BE _byte_ order, BE _bit_ order (ABCDEFGHIJKLMNOP) |
+| `reversed(8, uint(16,0x5bbc))`              | `10111100 01011011` | LE _byte_ order, BE _bit_ order (IJKLMNOPABCDEFGH) |
+| `reversed(8, reversed(1, uint(16,0x5bbc)))` | `11011010 00111101` | BE _byte_ order, LE _bit_ order (HGFEDCBAPONMLKJI) |
+| `reversed(1, uint(16,0x5bbc))`              | `00111101 11011010` | LE _byte_ order, LE _bit_ order (PONMLKJIHGFEDCBA) |
+| `reversed(2, uint(16,0x5bbc))`              | `00111110 11100101` | 2-bit granularity reversed (OPMNKLIJGHEFCDAB)      |
+
+
+### Byte Ordering
+
+Because some data formats store endianness information in the data itself, byte ordering needs to be selectable while parsing.
+
+Byte ordering can be `msb` (most significant byte first) or `lsb` (least significant byte first), and only comes into effect for expressions passed to an [`ordered` function](#ordered-function) call (and by extension the [`uint`](#uint-function), [`sint`](#sint-function), and [`float`](#float-function) functions). Outside of this context, all non-codepoint multibyte data is assumed to be `msb` regardless of the byte order setting.
+
+The initial byte ordering is `msb`, and can be changed for a subexpression using the [`byte_order` function](#byte_order-function).
+
+#### Codepoint Byte Ordering
+
+The byte ordering rules of the [character set](#character-set-support) always override the [byte order](#byte-ordering) setting. For example, `utf-16le` will always be interpreted "least significant byte first", even if the [byte order](#byte-ordering) is set to `msb`.
+
+Some Unicode character sets allow a [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark), which determines the endianness of the codepoints that follow. The BOM (if present) is assumed be honored for setting the byte ordering when processing the current string. Note that a BOM only affects the _current_ string, not any subsequent strings.
+
+
+### Namespaces
+
+All [symbols](#symbols), [macros](#macros), [functions](#functions) and [variables](#variables) have names that are part of a namespace. All names are case sensitive and must be unique to their namespace.
+
+The global namespace consists of all [rule](#rules) names, including the [built-in functions](#builtin-functions).
+
+Each [rule](#rules) has a copy of the global namespace as a local namespace, and can bind [variables](#variables) to names in their local namespace so long as they don't clash with existing names. Variables are bound either via [macro arguments](#macros) or using the [`var` function](#var-function), and cannot be re-bound.
 
 
 
@@ -301,6 +343,8 @@ header_line        = '-' & SOME_WS & header_name & '=' & header_value & LINE_END
 header_name        = (printable ! '=')+;
 header_value       = printable_ws+;
 ```
+
+#### Standard Headers
 
 The following headers are officially recognized (all others are allowed, but are not standardized):
 
@@ -415,11 +459,11 @@ In the above example, `record` can only be called with unsigned integer values, 
 
 ```dogma
 ip_packet                    = # ...
-                             & u4(var(header_length, 5~)) # header length in 32-bit words
+                             & uint(4,var(header_length, 5~)) # header length in 32-bit words
                                # ...
-                             & u16(var(total_length, 20~)) # total length in bytes
+                             & uint(16,var(total_length, 20~)) # total length in bytes
                                # ...
-                             & u8(var(protocol, registered_protocol))
+                             & uint(8,var(protocol, registered_protocol))
                                # ...
                              & options((header_length-5) * 32)
                              & payload(protocol, (total_length-(header_length*4)) * 8)
@@ -431,7 +475,7 @@ option                       = option_eool
                              # | ...
                              ;
 
-payload(protocol, bit_count) = sized(bit_count, payload_contents(protocol) & u1(0)*);
+payload(protocol, bit_count) = sized(bit_count, payload_contents(protocol) & uint(1,0)*);
 payload_contents(protocol)   = [
                                  protocol = 0: protocol_hopopt;
                                  protocol = 1: protocol_icmp;
@@ -477,6 +521,9 @@ basic_type_name    = "expression"
                    | "uintegers"
                    | "sinteger"
                    | "sintegers"
+                   | "ordering"
+                   | "unicode_category"
+                   | "nothing"
                    ;
 custom_type_name   = name;
 ```
@@ -539,11 +586,15 @@ Types
 Dogma has the following types:
 
 * [`bits`](#bits): A set of possible bit sequences of arbitrary length.
-* [`conditions`](#condition): True or false assertions about the current state.
+* [`condition`](#condition): True or false assertions about the current state.
 * [Numeric types](#number) that may be used in calculations and can be converted to a representations in bits. There are two primary forms:
   - Singular value type [`number` and its invariants `sinteger` and `uinteger`](#number).
   - Number set type [`numbers` and its invariants `sintegers` and `uintegers`](#numbers).
+* [Enumerated types](#enumerated-types)
+  - [`ordering`](#ordering): Byte ordering (whether the least or most significant byte comes first).
+  - [`unicode_category`](#unicode-category): A [Unicode major or minor category](https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153).
 * `expression`: Used for special situations such as the [`eod` function](#eod-function).
+* `nothing`: Used to specify that a function doesn't return anything. This is used for functions that look or process elsewhere in the data.
 
 Types become relevant in certain contexts, particularly when calling [functions](#functions) (which have restrictions on what types they accept and return).
 
@@ -553,13 +604,13 @@ Custom types may be invented (or further invariants defined) when the standard t
 
 The bits type represents the set of possible bit sequences that can be matched at a particular point.
 
-Bits are produced by [codepoints](#codepoints), [strings](#strings), and [some functions](#builtin-functions). They can be of arbitrary length (i.e. not just a multiple of 8 bits).
+Bits are produced by [codepoints](#codepoints), [strings](#string-literals), and [some functions](#builtin-functions). They can be of arbitrary length (i.e. not just a multiple of 8 bits).
 
 The bits type is a set of bit patterns, and can therefore be composed using [alternatives](#alternative), [concatenation](#concatenation), [repetition](#repetition), and [exclusion](#exclusion).
 
-**Example**: Each UTC timestamp field is stored in its own bitfield, with the final constructed 64 bit value stored in little endian byte order:
+**Example**: Each UTC timestamp field is stored in its own bitfield, with the final constructed 64 bit value stored in big endian byte order:
 
-Bit fields (from high bit to low bit, before little endian encoding):
+Bit fields (from high bit to low bit):
 
 | Field       | Bits | Min | Max    |
 | ----------- | ---- | --- | ------ |
@@ -572,7 +623,7 @@ Bit fields (from high bit to low bit, before little endian encoding):
 | Microsecond | 20   | 0   | 999999 |
 
 ```dogma
-timestamp   = swapped(8, year & month & day & hour & minute & second & microsecond);
+timestamp   = year & month & day & hour & minute & second & microsecond;
 year        = uint(18, ~);
 month       = uint(4, 1~12);
 day         = uint(5, 1~31);
@@ -668,6 +719,78 @@ logical_not        = '!' & condition;
 * `(value >= 3 & value < 10) | value = 0`
 * `(x > 3 & y > 5) | x * y > 15`
 * `nextchar != 'a'`
+
+
+### Enumerated Types
+
+An Enumerated type is a type that is constrained to a predefined set of named values.
+
+#### Ordering
+
+Specifies the [byte ordering](#byte-ordering) when processing expressions in certain contexts. This type supports two values:
+
+* `msb` = Most significant byte first
+* `lsb` = Least significant byte first
+
+**Example**: The entire document is in little endian byte order.
+
+```dogma
+document = byte_order(lsb, header & payload);
+header   = ...;
+payload  = ...;
+```
+
+#### Unicode Category
+
+Specifies the [Unicode category](https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153) when selecting from the Unicode character set:
+
+| Category | Description                |
+| -------- | -------------------------- |
+| L        | Letter                     |
+| Lu       | Letter, uppercase          |
+| Ll       | Letter, lowercase          |
+| Lt       | Letter, titlecase          |
+| Lm       | Letter, modifier           |
+| Lo       | Letter, other              |
+| M        | Mark                       |
+| Mn       | Mark, nonspacing           |
+| Mc       | Mark, spacing combining    |
+| Me       | Mark, enclosing            |
+| N        | Number                     |
+| Nd       | Number, decimal digit      |
+| Nl       | Number, letter             |
+| No       | Number, other              |
+| P        | Punctuation                |
+| Pc       | Punctuation, connector     |
+| Pd       | Punctuation, dash          |
+| Ps       | Punctuation, open          |
+| Pe       | Punctuation, close         |
+| Pi       | Punctuation, initial quote |
+| Pf       | Punctuation, final quote   |
+| Po       | Punctuation, other         |
+| S        | Symbol                     |
+| Sm       | Symbol, math               |
+| Sc       | Symbol, currency           |
+| Sk       | Symbol, modifier           |
+| So       | Symbol, other              |
+| Z        | Separator                  |
+| Zs       | Separator, space           |
+| Zl       | Separator, line            |
+| Zp       | Separator, paragraph       |
+| C        | Other                      |
+| Cc       | Other, control             |
+| Cf       | Other, format              |
+| Cs       | Other, surrogate           |
+| Co       | Other, private use         |
+| Cn       | Other, not assigned        |
+
+**Examples**:
+
+```dogma
+alphanumeric           = unicode(L,N);
+alphanumeric_uppercase = unicode(Lu,N);
+name_field             = unicode(L,M,N,P,S){1~100};
+```
 
 
 
@@ -786,9 +909,14 @@ a_to_c       = 'a'~'c'; # or "a"~"c", or 'a' | 'b' | 'c', or "a" | "b" | "c"
 alphanumeric = unicode(L,N);
 ```
 
-### Strings
+#### Strings and Byte Order Mark
 
-A string is syntactic sugar for a series of specific [codepoints](#codepoints), [concatenated](#concatenation) together. String literals are placed between single or double quotes.
+Any sequence of two or more codepoints is considered a "string" for the purposes of [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark) processing. When the [character set](#character-set-support) supports a BOM, it must be honored. The BOM still counts as a character when determining length or counting codepoint [repetition](#repetition) expressions.
+
+
+#### String Literals
+
+A string literal can be thought of as syntactic sugar for a series of specific [codepoints](#codepoints), [concatenated](#concatenation) together. String literals are placed between single or double quotes, same as for single codepoint literals.
 
 ```dogma
 string_literal = '"' & maybe_escaped(printable_ws ! '"'){2~} & '"'
@@ -808,7 +936,7 @@ str_abc_4 = 'a' & 'b' & 'c';
 
 ### Escape Sequence
 
-[Codepoint literals](#codepoints), [string literals](#strings), and [prose](#prose) may contain codepoint escape sequences to represent troublesome codepoints.
+[Codepoint literals](#codepoints), [string literals](#string-literals), and [prose](#prose) may contain codepoint escape sequences to represent troublesome codepoints.
 
 Escape sequences are initiated with the backslash (`\`) character. If the next character following is an open square brace (`[`), it begins a [codepoint escape](#codepoint-escape). Otherwise the escape sequence represents that literal character.
 
@@ -1175,7 +1303,7 @@ rpm = uint(16, ~1000); # A uinteger cannot be < 0, so it's implied 0~1000
 Comments
 --------
 
-A comment begins with a hash character (`#`) and continues to the end of the current line. Comments are not valid in the [document header](#document-header).
+A comment begins with a hash character (`#`) and continues to the end of the current line. Comments are only valid after the [document header](#document-header) section.
 
 ```dogma
 comment = '#' & (printable_ws ! LINE_END)* & LINE_END;
@@ -1209,8 +1337,9 @@ Dogma comes with some fundamental functions built-in:
 sized(bit_count: uinteger, expr: bits): bits =
     """
     Requires that `expr` produce exactly `bit_count` bits.
-    Expressions containing repetition that would have matched on their own are
-    no longer sufficient until the production fills exactly `bit_count` bits.
+
+    Expressions containing repetition that would have matched on their own are no longer
+    sufficient until the production fills exactly `bit_count` bits.
 
     if `bit_count` is 0, `expr` has no size requirements.
     """;
@@ -1244,8 +1373,9 @@ byte(v)            = uint(8,v);
 aligned(bit_count: uinteger, expr: bits, padding: bits): bits =
     """
     Requires that `expr` and `padding` together produce a multiple of `bit_count` bits.
-    If `expr` doesn't produce a multiple of `bit_count` bits, the `padding` expression
-    is used in the same manner as the `sized` function to produce the remaining bits.
+
+    If `expr` doesn't produce a multiple of `bit_count` bits, the `padding` expression is used in
+    the same manner as the `sized` function to produce the remaining bits.
 
     if `bit_count` is 0, `expr` has no alignment requirements and `padding` is ignored.
     """;
@@ -1260,61 +1390,187 @@ zero_length_record = byte(0);
 byte(v)            = uint(8, v);
 ```
 
-### `swapped` Function
+### `reversed` Function
 
 ```dogma
-swapped(bit_granularity: uinteger, expr: bits): bits =
+reversed(bit_granularity: uinteger, expr: bits): bits =
     """
-    Swaps all bits of `expr` in chunks of `bit_granularity` size.
+    Reverses all bits of `expr` in chunks of `bit_granularity` size.
 
     For example, given some nominal bits = ABCDEFGHIJKLMNOP:
-        swapped(8, bits) -> IJKLMNOPABCDEFGH
-        swapped(4, bits) -> MNOPIJKLEFGHABCD
-        swapped(2, bits) -> OPMNKLIJGHEFCDAB
-        swapped(1, bits) -> PONMLKJIHGFEDCBA
+        reversed(8, bits) -> IJKLMNOPABCDEFGH
+        reversed(4, bits) -> MNOPIJKLEFGHABCD
+        reversed(2, bits) -> OPMNKLIJGHEFCDAB
+        reversed(1, bits) -> PONMLKJIHGFEDCBA
 
-    If `expr` doesn't resolve to a multiple of `bit_granularity` bits, the
-    resulting expression matches nothing.
-
+    Every alternative in the set of `expr` must be a multiple of `bit_granularity` bits wide,
+    otherwise the grammar is malformed.
 
     if `bit_granularity` is 0, `expr` is passed through unchanged.
     """;
 ```
 
-**Example**: A document begins with a 32-bit little endian unsigned int version field, followed by the contents. Only version 5 documents are supported.
+**Example**: [dsPIC bit reversed addressing](https://skills.microchip.com/dsp-features-of-the-microchip-dspic-dsc/694435) allows for efficient "butterflies" calculation in DFT algorithms by automatically reversing the four second-from-lowest bits of the address in hardware.
 
 ```dogma
-document  = version_5 & contents;
-version_5 = swapped(8, uint(32, 5));
-contents  = # ...
-          ;
+Wsrc  = uint(11,~) & uint(4,~)             & uint(1)
+Wdest = uint(11,~) & reversed(1, uint(4,~)) & uint(1)
 ```
 
-**Example**: A header begins with a 16-bit unsigned int identifier that is actually bit-swapped, followed by contents based on the identifier.
+
+### `ordered` function
 
 ```dogma
-header               = bitswapped_uint16(var(identifier, ~)) & contents(identifier);
-bitswapped_uint16(v) = swapped(1, uint(16, v));
-contents(identifier) = [
-                         identifier = 1: type_1;
-                         identifier = 2: type_2;
-                       ];
-type_1               = # ...
-                     ;
-type_2               = # ...
-                     ;
+ordered(expr: bits): bits =
+   """
+   Applies the current byte ordering to `expr`. If the current byte ordering is `lsb`, all bytes
+   are reversed as if calling reversed(8,expr).
+
+   Every alternative in the set of `expr` must be a multiple of 8 bits wide, otherwise the
+   grammar is malformed.
+
+   Note: This function has no effect on `expr` alternatives that are only 0 or 8 bits wide.
+   """;
+
 ```
+
+**Example**: The [MS-DOS date and time format](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-dosdatetimetofiletime) is made up of two 16-bit bitfields that are stored in little endian byte order.
+
+```dogma
+date_time = byte_order(lsb, date & time);
+
+date      = ordered(year & month & day);
+year      = uint(7, ~); # Add 1980 to get year
+month     = uint(4, 1~12);
+day       = uint(5, 1~31);
+
+time      = ordered(hour & minute & second);
+hour      = uint(5, 0~24);
+minute    = uint(6, 0~59);
+second    = uint(5, 0~29); # Must multiply by 2
+```
+
+
+### `byte_order` Function
+
+```dogma
+byte_order(first: ordering, expr: bits): bits
+   """
+   Process `expr` using the specified byte ordering.
+
+   `first` can be `msb` (most significant byte) or `lsb` (least significant byte), and determines
+   whether the most or least significant byte comes first in any call to the `ordered` function.
+
+   Note that this function does not modify `expr` in any way; it only sets the byte ordering for
+   any calls to `ordered`, (and by extension `uint`, `sint`, and `float`) made within `expr`.
+   """;
+```
+
+**Example**: See the [`peek` function](#peek-function) example.
+
+
+### `peek` Function
+
+```dogma
+peek(expr: bits): nothing
+   """
+   Peeks ahead using expr without consuming any bits. The current position in the data is
+  unaffected after expr is evaluated.
+
+   This is mainly useful for binding variables from later than the current position in the data.
+   """;
+```
+
+**Example**: The endianness of an [Android dex file](https://source.android.com/docs/core/runtime/dex-format) is determined by a 32-bit unsigned integer field, containing either the value 0x12345678 (big endian) or 0x78563412 (little endian).
+
+Since the endianness field is later in the dex file than some other fields that depend on it, we must first peek ahead in order to bind it to a variable before we can determine and apply byte endianness to the whole file.
+
+```dogma
+document    = peek(var(head, header))
+            & [
+                head.endian.tag = 0x12345678: byte_order(msb, doc_endian);
+                head.endian.tag = 0x78563412: byte_order(lsb, doc_endian);
+              ]
+            ;
+
+doc_endian  = header & body;
+
+header      = magic
+            & checksum
+            & signature
+            & file_size
+            & header_size
+            & var(endian, endianness)
+            # & ...
+            ;
+
+magic       = "dex\[a]039\[0]";
+checksum    = uint(32,~);
+signature   = uint(8,~){20};
+file_size   = uint(32,~);
+header_size = uint(32,0x70);
+endianness  = uint(32, var(tag, 0x12345678 | 0x78563412));
+body        = ...;
+```
+
+
+### `offset` Function
+
+```dogma
+offset(offset: uinteger, expr: bits): nothing
+   """
+   Process expr on the contents of a specific offset from the beginning of the document.
+
+   This function is useful for processing data that must be parsed in a non-linear fashion, such
+   as a file containing an index of offsets, and payload chunks.
+   """;
+```
+
+**Example**: In a [Microsoft ICO file](https://learn.microsoft.com/en-us/previous-versions/ms997538(v=msdn.10)), the location of each icon is determined by an offset field in each icon directory entry.
+
+```dogma
+document       = byte_order(lsb, document_le);
+
+document_le    = var(head,header)
+               & icon_dir_entry{head.count}
+               ;
+
+header         = uint(16,0)
+               & uint(16,1)
+               & uint(16,var(count,~))
+               ;
+
+icon_dir_entry = width
+               & height
+               & color_count
+               & uint(8,0)
+               & color_planes
+               & bits_per_pixel
+               & uint(32,var(byte_count,~))
+               & uint(32,var(image_offset,~))
+               & offset(image_offset, image)
+               ;
+width          = uint(8,~);
+height         = uint(8,~);
+color_count    = uint(8,~);
+color_planes   = uint(16,~);
+bits_per_pixel = uint(16,~);
+
+image          = ...;
+```
+
 
 ### `var` Function
 
 ```dogma
-var(variable_name: identifier, value: expression): expression =
+var(variable_name: identifier, value: bits | numbers): bits | numbers =
     """
     Binds `value` to a local variable for subsequent re-use in the current rule.
-    `var` transparently passes through the type and value of `value`, meaning that
-    the context around the `var` call behaves as though only what the `var`
-    function surrounded is present. This allows a match as normal, while also
-    allowing the resolved value to be used again later in the rule.
+
+    `var` transparently passes through the type and value of `value`, meaning that the context
+    around the `var` call behaves as though only what the `var` function surrounded is present.
+    This allows a match as normal, while also allowing the resolved value to be used again later
+    in the rule.
     """;
 ```
 
@@ -1364,11 +1620,11 @@ record = uint(8,var(length, 1~100)) uint(8,~){length};
 ```dogma
 unicode(categories: unicode_category...): bits =
     """
-    Creates an expression containing the alternatives set of all Unicode
-    codepoints that have any of the given Unicode categories.
+    Creates an expression containing the alternatives set of all Unicode codepoints that have any
+    of the given Unicode categories.
 
-    `categories` is a comma separated list of 1 letter major category or 2-letter minor
-    category names, as listed in https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153
+    `categories` is a comma separated list of 1 letter major category or 2-letter minor category
+    names, as listed in https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153
 
     Example: all letters and space separators: unicode(L,Zs)
     """;
@@ -1385,9 +1641,8 @@ letter_digit_space = unicode(N,L,Zs);
 ```dogma
 uint(bit_count: uinteger, values: uintegers): bits =
     """
-    Creates an expression that matches every discrete bit pattern that can be
-    represented in the given values set as big endian unsigned integers of
-    size `bit_count`.
+    Creates an expression that matches every discrete bit pattern that can be represented in the
+    given values set as big endian unsigned integers of size `bit_count`.
     """;
 ```
 
@@ -1403,9 +1658,8 @@ length = uint(16, ~);
 ```dogma
 sint(bit_count: uinteger, values: sintegers): bits =
     """
-    Creates an expression that matches every discrete bit pattern that can be
-    represented in the given values set as big endian 2's complement signed
-    integers of size `bit_count`.
+    Creates an expression that matches every discrete bit pattern that can be represented in the
+    given values set as big endian 2's complement signed integers of size `bit_count`.
     """;
 ```
 
@@ -1421,12 +1675,12 @@ points = sint(32, -10000~10000);
 ```dogma
 float(bit_count: uinteger, values: numbers): bits =
     """
-    Creates an expression that matches every discrete bit pattern that can be
-    represented in the given values set as big endian ieee754 binary floating
-    point values of size `bit_count`.
-    Note that expressions produced by this function will never include the
-    special infinity values, NaN values, or negative 0, for which there are
-    specialized functions.
+    Creates an expression that matches every discrete bit pattern that can be represented in the
+    given values set as big endian ieee754 binary floating point values of size `bit_count`.
+
+    Note: expressions produced by this function will never include the special infinity values,
+    NaN values, or negative 0, for which there are specialized functions.
+
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 ```
@@ -1449,10 +1703,11 @@ any_float64 = float(64,~) | inf(64,~) | nan(64,~) | nzero(64);
 ```dogma
 inf(bit_count: uinteger, sign: numbers): bits =
     """
-    Creates an expression that matches big endian ieee754 binary infinity values
-    of size `bit_count` whose sign matches the `sign` values set. One or two
-    matches will be made (positive infinity, negative infinity) depending on
-    whether the `sign` values include both positive and negative values or not.
+    Creates an expression that matches big endian ieee754 binary infinity values of size
+    `bit_count` whose sign matches the `sign` values set. One or two matches will be made
+    (positive infinity, negative infinity) depending on whether the `sign` values include both
+    positive and negative values or not.
+
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 ```
@@ -1471,17 +1726,19 @@ terminator = inf(32, -1);
 ```dogma
 nan(bit_count: uinteger, payload: sintegers): bits =
     """
-    Creates an expression that matches every big endian ieee754 binary NaN value
-    size `bit_count` with the given payload values set. NaN payloads can be
-    positive or negative, up to the min/max value allowed for a NaN payload in a
-    float of the given size (10 bits for float-16, 23 bits for float32, etc).
+    Creates an expression that matches every big endian ieee754 binary NaN value size `bit_count`
+    with the given payload values set.
+
+    NaN payloads can be positive or negative, up to the min/max value allowed for a NaN payload in
+    a float of the given size (10 bits for float-16, 23 bits for float32, etc).
+
     `bit_count` must be a valid size according to ieee754 binary.
 
     Notes:
-    - The absolute value of `payload` is encoded, with the sign going into the
-      sign bit (i.e. the value is not encoded as 2's complement).
-    - The payload value 0 is automatically removed from the possible matches
-      because such an encoding would be interpreted as infinity.
+    - The absolute value of `payload` is encoded, with the sign going into the sign bit (i.e. the
+      value is not encoded as 2's complement).
+    - The payload value 0 is automatically removed from the possible matches because such an
+      encoding would be interpreted as infinity under the rules of ieee754.
     """;
 ```
 
@@ -1499,8 +1756,9 @@ invalid = nan(32, 0x400001);
 ```dogma
 nzero(bit_count: uinteger): bits =
     """
-    Creates an expression that matches a big endian ieee754 binary negative 0 value
-    of size `bit_count`.
+    Creates an expression that matches a big endian ieee754 binary negative 0 value of size
+    `bit_count`.
+
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 ```
@@ -1512,7 +1770,6 @@ record  = reading{32};
 reading = float(32, ~) | invalid;
 invalid = nzero(32);
 ```
-
 
 
 Dogma described as Dogma
@@ -1580,6 +1837,9 @@ basic_type_name        = "expression"
                        | "uintegers"
                        | "sinteger"
                        | "sintegers"
+                       | "ordering"
+                       | "unicode_category"
+                       | "nothing"
                        ;
 custom_type_name       = name;
 
@@ -1618,7 +1878,11 @@ codepoint_escape       = '[' & digit_hex+ & ']';
 
 builtin_functions      = sized
                        | aligned
-                       | swapped
+                       | reversed
+                       | ordered
+                       | byte_order
+                       | peek
+                       | offset
                        | var
                        | eod
                        | unicode
@@ -1633,8 +1897,9 @@ builtin_functions      = sized
 sized(bit_count: uinteger, expr: bits): bits =
     """
     Requires that `expr` produce exactly `bit_count` bits.
-    Expressions containing repetition that would have matched on their own are
-    no longer sufficient until the production fills exactly `bit_count` bits.
+
+    Expressions containing repetition that would have matched on their own are no longer
+    sufficient until the production fills exactly `bit_count` bits.
 
     if `bit_count` is 0, `expr` has no size requirements.
     """;
@@ -1642,35 +1907,75 @@ sized(bit_count: uinteger, expr: bits): bits =
 aligned(bit_count: uinteger, expr: bits, padding: bits): bits =
     """
     Requires that `expr` and `padding` together produce a multiple of `bit_count` bits.
-    If `expr` doesn't produce a multiple of `bit_count` bits, the `padding` expression
-    is used in the same manner as the `sized` function to produce the remaining bits.
+
+    If `expr` doesn't produce a multiple of `bit_count` bits, the `padding` expression is used in
+    the same manner as the `sized` function to produce the remaining bits.
 
     if `bit_count` is 0, `expr` has no alignment requirements and `padding` is ignored.
     """;
 
-swapped(bit_granularity: uinteger, expr: bits): bits =
+reversed(bit_granularity: uinteger, expr: bits): bits =
     """
-    Swaps all bits of `expr` in chunks of `bit_granularity` size.
+    Reverses all bits of `expr` in chunks of `bit_granularity` size.
 
     For example, given some nominal bits = ABCDEFGHIJKLMNOP:
-        swapped(8, bits) -> IJKLMNOPABCDEFGH
-        swapped(4, bits) -> MNOPIJKLEFGHABCD
-        swapped(2, bits) -> OPMNKLIJGHEFCDAB
-        swapped(1, bits) -> PONMLKJIHGFEDCBA
+        reversed(8, bits) -> IJKLMNOPABCDEFGH
+        reversed(4, bits) -> MNOPIJKLEFGHABCD
+        reversed(2, bits) -> OPMNKLIJGHEFCDAB
+        reversed(1, bits) -> PONMLKJIHGFEDCBA
 
-    If `expr` doesn't resolve to a multiple of `bit_granularity` bits, the
-    resulting expression matches nothing.
+    Every alternative in the set of `expr` must be a multiple of `bit_granularity` bits wide,
+    otherwise the grammar is malformed.
 
     if `bit_granularity` is 0, `expr` is passed through unchanged.
     """;
 
+ordered(expr: bits): bits =
+   """
+   Applies the current byte ordering to `expr`. If the current byte ordering is `lsb`, all bytes
+   are reversed as if calling reversed(8,expr).
+
+   Every alternative in the set of `expr` must be a multiple of 8 bits wide, otherwise the
+   grammar is malformed.
+
+   Note: This function has no effect on `expr` alternatives that are only 0 or 8 bits wide.
+   """;
+
+byte_order(first: ordering, expr: bits): bits
+   """
+   Process `expr` using the specified byte ordering.
+
+   `first` can be `msb` (most significant byte) or `lsb` (least significant byte), and determines
+   whether the most or least significant byte comes first in any call to the `ordered` function.
+
+   Note that this function does not modify `expr` in any way; it only sets the byte ordering for
+   any calls to `ordered`, (and by extension `uint`, `sint`, and `float`) made within `expr`.
+   """;
+
+peek(expr: bits): nothing
+   """
+   Peeks ahead using expr without consuming any bits. The current position in the data is
+  unaffected after expr is evaluated.
+
+   This is mainly useful for binding variables from later than the current position in the data.
+   """;
+
+offset(offset: uinteger, expr: bits): nothing
+   """
+   Process expr on the contents of a specific offset from the beginning of the document.
+
+   This function is useful for processing data that must be parsed in a non-linear fashion, such
+   as a file containing an index of offsets, and payload chunks.
+   """;
+
 var(variable_name: identifier, value: bits | numbers): bits | numbers =
     """
     Binds `value` to a local variable for subsequent re-use in the current rule.
-    `var` transparently passes through the type and value of `value`, meaning that
-    the context around the `var` call behaves as though only what the `var`
-    function surrounded is present. This allows a match as normal, while also
-    allowing the resolved value to be used again later in the rule.
+
+    `var` transparently passes through the type and value of `value`, meaning that the context
+    around the `var` call behaves as though only what the `var` function surrounded is present.
+    This allows a match as normal, while also allowing the resolved value to be used again later
+    in the rule.
     """;
 
 eod: expression =
@@ -1680,68 +1985,70 @@ eod: expression =
 
 unicode(categories: unicode_category...): bits =
     """
-    Creates an expression containing the alternatives set of all Unicode
-    codepoints that have any of the given Unicode categories.
+    Creates an expression containing the alternatives set of all Unicode codepoints that have any
+    of the given Unicode categories.
 
-    `categories` is a comma separated list of 1 letter major category or 2-letter minor
-    category names, as listed in https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153
+    `categories` is a comma separated list of 1 letter major category or 2-letter minor category
+    names, as listed in https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153
 
     Example: all letters and space separators: unicode(L,Zs)
     """;
 
 uint(bit_count: uinteger, values: uintegers): bits =
     """
-    Creates an expression that matches every discrete bit pattern that can be
-    represented in the given values set as big endian unsigned integers of
-    size `bit_count`.
+    Creates an expression that matches every discrete bit pattern that can be represented in the
+    given values set as big endian unsigned integers of size `bit_count`.
     """;
 
 sint(bit_count: uinteger, values: sintegers): bits =
     """
-    Creates an expression that matches every discrete bit pattern that can be
-    represented in the given values set as big endian 2's complement signed
-    integers of size `bit_count`.
+    Creates an expression that matches every discrete bit pattern that can be represented in the
+    given values set as big endian 2's complement signed integers of size `bit_count`.
     """;
 
 float(bit_count: uinteger, values: numbers): bits =
     """
-    Creates an expression that matches every discrete bit pattern that can be
-    represented in the given values set as big endian ieee754 binary floating
-    point values of size `bit_count`.
-    Note that expressions produced by this function will never include the
-    special infinity values, NaN values, or negative 0, for which there are
-    specialized functions.
+    Creates an expression that matches every discrete bit pattern that can be represented in the
+    given values set as big endian ieee754 binary floating point values of size `bit_count`.
+
+    Note: expressions produced by this function will never include the special infinity values,
+    NaN values, or negative 0, for which there are specialized functions.
+
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 
 inf(bit_count: uinteger, sign: numbers): bits =
     """
-    Creates an expression that matches big endian ieee754 binary infinity values
-    of size `bit_count` whose sign matches the `sign` values set. One or two
-    matches will be made (positive infinity, negative infinity) depending on
-    whether the `sign` values include both positive and negative values or not.
+    Creates an expression that matches big endian ieee754 binary infinity values of size
+    `bit_count` whose sign matches the `sign` values set. One or two matches will be made
+    (positive infinity, negative infinity) depending on whether the `sign` values include both
+    positive and negative values or not.
+
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 
 nan(bit_count: uinteger, payload: sintegers): bits =
     """
-    Creates an expression that matches every big endian ieee754 binary NaN value
-    size `bit_count` with the given payload values set. NaN payloads can be
-    positive or negative, up to the min/max value allowed for a NaN payload in a
-    float of the given size (10 bits for float-16, 23 bits for float32, etc).
+    Creates an expression that matches every big endian ieee754 binary NaN value size `bit_count`
+    with the given payload values set.
+
+    NaN payloads can be positive or negative, up to the min/max value allowed for a NaN payload in
+    a float of the given size (10 bits for float-16, 23 bits for float32, etc).
+
     `bit_count` must be a valid size according to ieee754 binary.
 
     Notes:
-    - The absolute value of `payload` is encoded, with the sign going into the
-      sign bit (i.e. the value is not encoded as 2's complement).
-    - The payload value 0 is automatically removed from the possible matches
-      because such an encoding would be interpreted as infinity.
+    - The absolute value of `payload` is encoded, with the sign going into the sign bit (i.e. the
+      value is not encoded as 2's complement).
+    - The payload value 0 is automatically removed from the possible matches because such an
+      encoding would be interpreted as infinity under the rules of ieee754.
     """;
 
 nzero(bit_count: uinteger): bits =
     """
-    Creates an expression that matches a big endian ieee754 binary negative 0 value
-    of size `bit_count`.
+    Creates an expression that matches a big endian ieee754 binary negative 0 value of size
+    `bit_count`.
+
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 
@@ -1802,7 +2109,11 @@ identifier_any         = name;
 identifier_restricted  = identifier_any ! reserved_identifiers;
 reserved_identifiers   = "sized"
                        | "aligned"
-                       | "swapped"
+                       | "reversed"
+                       | "ordered"
+                       | "byte_order"
+                       | "peek"
+                       | "offset"
                        | "var"
                        | "eod"
                        | "unicode"

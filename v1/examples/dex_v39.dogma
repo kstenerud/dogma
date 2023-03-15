@@ -1,0 +1,29 @@
+dogma_v1 utf-8
+- identifier          = dex_v39
+- description         = Dex file format, version 39
+- dogma_specification = https://github.com/kstenerud/dogma/blob/master/dogma_v1.md
+
+document    = peek(var(head, header))
+            & [
+                head.endian.tag = 0x12345678: byte_order(msb, doc_endian);
+                head.endian.tag = 0x78563412: byte_order(lsb, doc_endian);
+              ]
+            ;
+
+doc_endian  = header & body;
+
+header      = magic
+            & checksum
+            & signature
+            & file_size
+            & header_size
+            & var(endian, endianness)
+            & TODO UNFINISHED
+            ;
+
+magic       = "dex\[a]039\[0]";
+checksum    = uint(32,~);
+signature   = uint(8,~){20};
+file_size   = uint(32,~);
+header_size = uint(32,0x70);
+endianness  = uint(32, var(tag, 0x12345678 | 0x78563412));

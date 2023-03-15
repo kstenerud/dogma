@@ -13,7 +13,7 @@ Dogma follows the familiar patterns of [Backus-Naur Form](https://en.wikipedia.o
 Specification
 -------------
 
-[The Dogma Specification v1](dogma_v1.md)
+[The Dogma Specification v1](v1/dogma_v1.md)
 
 
 
@@ -30,7 +30,7 @@ Example
 
 To demonstrate the power of Dogma, here is an Ethernet IEEE 802.3 frame, layer 2 (image from [Wikipedia](https://en.wikipedia.org/wiki/IEEE_802.1Q)):
 
-![IEEE 802.3 frame](img/Wikipedia-TCPIP_802.1ad_DoubleTag.svg)
+![IEEE 802.3 frame](v1/img/Wikipedia-TCPIP_802.1ad_DoubleTag.svg)
 
 ```dogma
 dogma_v1 utf-8
@@ -43,9 +43,10 @@ frame             = preamble
                   & dst_address
                   & src_address
                   & var(etype, ether_type)
-                  & [etype.type = 0x8100: dot1q_frame;
-                     etype.type = 0x88a8: double_tag_frame;
-                                        : payload_by_type(etype.type, 46);
+                  & [
+                      etype.type = 0x8100: dot1q_frame;
+                      etype.type = 0x88a8: double_tag_frame;
+                                         : payload_by_type(etype.type, 46);
                     ]
                   & frame_check
                   ;
@@ -74,10 +75,11 @@ vlan_id           = uint(12, ~);
 service_tag       = tag_control_info;
 customer_tag      = tag_control_info;
 
-payload_by_type(type, min_size) = [type >= min_size & type <= 1500: generic_payload(type);
-                                   type = 0x0800                  : ipv4;
-                                   type = 0x86dd                  : ipv6;
-                                   # Other types omitted for brevity
+payload_by_type(type, min_size) = [
+                                    type >= min_size & type <= 1500: generic_payload(type);
+                                    type = 0x0800                  : ipv4;
+                                    type = 0x86dd                  : ipv6;
+                                    # Other types omitted for brevity
                                   ];
 generic_payload(length)         = uint(8,~){length};
 ipv4: bits                      = """https://somewhere/ipv4.dogma""";
@@ -86,7 +88,7 @@ ipv6: bits                      = """https://somewhere/ipv6.dogma""";
 
 ### Other Examples
 
-* [Examples in this repo](examples)
+* [Examples in this repo](v1/examples)
 * Concise Text Encoding: [cte.dogma](https://github.com/kstenerud/concise-encoding/blob/master/cte.dogma)
 * Concise Binary Encoding: [cbe.dogma](https://github.com/kstenerud/concise-encoding/blob/master/cbe.dogma)
 
