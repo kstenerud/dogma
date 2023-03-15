@@ -744,45 +744,27 @@ payload  = ...;
 
 Specifies the [Unicode category](https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153) when selecting from the Unicode character set:
 
-| Category | Description                |
-| -------- | -------------------------- |
-| L        | Letter                     |
-| Lu       | Letter, uppercase          |
-| Ll       | Letter, lowercase          |
-| Lt       | Letter, titlecase          |
-| Lm       | Letter, modifier           |
-| Lo       | Letter, other              |
-| M        | Mark                       |
-| Mn       | Mark, nonspacing           |
-| Mc       | Mark, spacing combining    |
-| Me       | Mark, enclosing            |
-| N        | Number                     |
-| Nd       | Number, decimal digit      |
-| Nl       | Number, letter             |
-| No       | Number, other              |
-| P        | Punctuation                |
-| Pc       | Punctuation, connector     |
-| Pd       | Punctuation, dash          |
-| Ps       | Punctuation, open          |
-| Pe       | Punctuation, close         |
-| Pi       | Punctuation, initial quote |
-| Pf       | Punctuation, final quote   |
-| Po       | Punctuation, other         |
-| S        | Symbol                     |
-| Sm       | Symbol, math               |
-| Sc       | Symbol, currency           |
-| Sk       | Symbol, modifier           |
-| So       | Symbol, other              |
-| Z        | Separator                  |
-| Zs       | Separator, space           |
-| Zl       | Separator, line            |
-| Zp       | Separator, paragraph       |
-| C        | Other                      |
-| Cc       | Other, control             |
-| Cf       | Other, format              |
-| Cs       | Other, surrogate           |
-| Co       | Other, private use         |
-| Cn       | Other, not assigned        |
+| Category | Description                | Category | Description                |
+| -------- | -------------------------- | -------- | -------------------------- |
+| L        | Letter                     | Pi       | Punctuation, initial quote |
+| Lu       | Letter, uppercase          | Pf       | Punctuation, final quote   |
+| Ll       | Letter, lowercase          | Po       | Punctuation, other         |
+| Lt       | Letter, titlecase          | S        | Symbol                     |
+| Lm       | Letter, modifier           | Sm       | Symbol, math               |
+| Lo       | Letter, other              | Sc       | Symbol, currency           |
+| M        | Mark                       | Sk       | Symbol, modifier           |
+| Mn       | Mark, nonspacing           | So       | Symbol, other              |
+| Mc       | Mark, spacing combining    | Z        | Separator                  |
+| Me       | Mark, enclosing            | Zs       | Separator, space           |
+| N        | Number                     | Zl       | Separator, line            |
+| Nd       | Number, decimal digit      | Zp       | Separator, paragraph       |
+| Nl       | Number, letter             | C        | Other                      |
+| No       | Number, other              | Cc       | Other, control             |
+| P        | Punctuation                | Cf       | Other, format              |
+| Pc       | Punctuation, connector     | Cs       | Other, surrogate           |
+| Pd       | Punctuation, dash          | Co       | Other, private use         |
+| Ps       | Punctuation, open          | Cn       | Other, not assigned        |
+| Pe       | Punctuation, close         |          |                            |
 
 **Examples**:
 
