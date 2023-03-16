@@ -989,7 +989,8 @@ switch_default = ':' & expression & ';';
 ```dogma
 file_descriptor  = filename
                  & var(ext, extension)
-                 & [ ext.type = 'B': format_basic;
+                 & [
+                     ext.type = 'B': format_basic;
                      ext.type = 'C': format_code;
                      ext.type = 'D': format_data;
                      ext.type = '#': format_print;
