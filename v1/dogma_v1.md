@@ -122,7 +122,6 @@ Contents
       - [Function Parameter and Return Types](#function-parameter-and-return-types)
       - [Variadic Functions](#variadic-functions)
     - [Expressions](#expressions)
-    - [Identifier](#identifier)
   - [Types](#types)
     - [Bits](#bits)
     - [Number](#number)
@@ -394,7 +393,15 @@ macro_rule    = macro & '=' & expression & ';';
 function_rule = function & '=' & prose & ';';
 ```
 
-The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their case-sensitive names share the same global namespace (i.e. they must be globally unique).
+The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their case-sensitive identifiers (names) share the same global [namespace](#namespaces) (i.e. they must be globally unique).
+
+```dogma
+identifier           = (identifier_firstchar & identifier_nextchar*) ! reserved_identifiers;
+identifier_firstchar = unicode(L,M);
+identifier_nextchar  = identifier_firstchar | unicode(N) | '_';
+```
+
+The general convention is to use all uppercase names for "background-y" things like whitespace and separators and other structural components, which makes them easier for a human to gloss over (see [the Dogma grammar document](#dogma-described-as-dogma) as an example).
 
 **Note**: Whitespace in a Dogma rule is only used to separate tokens and for visual layout purposes; it does not imply any semantic meaning.
 
@@ -573,23 +580,6 @@ expression = symbol
            | variable
            | grouped(expression)
            ;
-```
-
-
-### Identifier
-
-A unique identifier for [symbols](#symbols), [macros](#macros), and [functions](#functions) (which are all scoped globally), or [variables](#variables) (which are scoped locally).
-
-Identifiers are case sensitive, and must be unique to their scope. Locally scoped identifiers (i.e. variable names) must be unique to _both_ the local and global scope (name shadowing is not allowed).
-
-Identifiers start with a letter, and can contain letters, numbers and the underscore character. The [builtin function names](#builtin-functions) are reserved at the global scope.
-
-The general convention is to use all uppercase identifiers for "background-y" things like whitespace and separators and other structural components, which makes them easier for a human to gloss over (see [the Dogma grammar document](#dogma-described-as-dogma) as an example).
-
-```dogma
-identifier           = (identifier_firstchar & identifier_nextchar*) ! reserved_identifiers;
-identifier_firstchar = unicode(L,M);
-identifier_nextchar  = identifier_firstchar | unicode(N) | '_';
 ```
 
 
