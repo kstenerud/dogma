@@ -1699,6 +1699,9 @@ uint(bit_count: uinteger, values: uintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
     given values set as big endian unsigned integers of size `bit_count`.
+
+    If `bit_count` is a multiple of 8, this function returns the result of calling the `ordered`
+    function on the bits it produces.
     """;
 ```
 
@@ -1718,6 +1721,9 @@ sint(bit_count: uinteger, values: sintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
     given values set as big endian 2's complement signed integers of size `bit_count`.
+
+    If `bit_count` is a multiple of 8, this function returns the result of calling the `ordered`
+    function on the bits it produces.
     """;
 ```
 
@@ -1742,6 +1748,8 @@ float(bit_count: uinteger, values: numbers): bits =
     NaN values, or negative 0, for which there are specialized functions.
 
     `bit_count` must be a valid size according to ieee754 binary.
+
+    This function returns the result of calling the `ordered` function on the bits it produces.
     """;
 ```
 
@@ -1771,6 +1779,8 @@ inf(bit_count: uinteger, sign: numbers): bits =
     positive and negative values or not (0 counts as positive).
 
     `bit_count` must be a valid size according to ieee754 binary.
+
+    This function returns the result of calling the `ordered` function on the bits it produces.
     """;
 ```
 
@@ -1797,6 +1807,8 @@ nan(bit_count: uinteger, payload: sintegers): bits =
     a float of the given size (10 bits for float-16, 23 bits for float32, etc).
 
     `bit_count` must be a valid size according to ieee754 binary.
+
+    This function returns the result of calling the `ordered` function on the bits it produces.
 
     Notes:
     - The absolute value of `payload` is encoded, with the sign going into the sign bit (i.e. the
@@ -1826,6 +1838,8 @@ nzero(bit_count: uinteger): bits =
     `bit_count`.
 
     `bit_count` must be a valid size according to ieee754 binary.
+
+    This function returns the result of calling the `ordered` function on the bits it produces.
     """;
 ```
 
@@ -2066,12 +2080,18 @@ uint(bit_count: uinteger, values: uintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
     given values set as big endian unsigned integers of size `bit_count`.
+
+    If `bit_count` is a multiple of 8, this function returns the result of calling the `ordered`
+    function on the bits it produces.
     """;
 
 sint(bit_count: uinteger, values: sintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
     given values set as big endian 2's complement signed integers of size `bit_count`.
+
+    If `bit_count` is a multiple of 8, this function returns the result of calling the `ordered`
+    function on the bits it produces.
     """;
 
 float(bit_count: uinteger, values: numbers): bits =
@@ -2083,6 +2103,8 @@ float(bit_count: uinteger, values: numbers): bits =
     NaN values, or negative 0, for which there are specialized functions.
 
     `bit_count` must be a valid size according to ieee754 binary.
+
+    This function returns the result of calling the `ordered` function on the bits it produces.
     """;
 
 inf(bit_count: uinteger, sign: numbers): bits =
@@ -2093,6 +2115,8 @@ inf(bit_count: uinteger, sign: numbers): bits =
     positive and negative values or not (0 counts as positive).
 
     `bit_count` must be a valid size according to ieee754 binary.
+
+    This function returns the result of calling the `ordered` function on the bits it produces.
     """;
 
 nan(bit_count: uinteger, payload: sintegers): bits =
@@ -2104,6 +2128,8 @@ nan(bit_count: uinteger, payload: sintegers): bits =
     a float of the given size (10 bits for float-16, 23 bits for float32, etc).
 
     `bit_count` must be a valid size according to ieee754 binary.
+
+    This function returns the result of calling the `ordered` function on the bits it produces.
 
     Notes:
     - The absolute value of `payload` is encoded, with the sign going into the sign bit (i.e. the
@@ -2118,6 +2144,8 @@ nzero(bit_count: uinteger): bits =
     `bit_count`.
 
     `bit_count` must be a valid size according to ieee754 binary.
+
+    This function returns the result of calling the `ordered` function on the bits it produces.
     """;
 
 padding                = expression;
