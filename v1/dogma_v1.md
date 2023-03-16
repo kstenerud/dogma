@@ -1108,7 +1108,7 @@ identifier = "a"~"z"+ ! "fred";
 
 ### Repetition
 
-"Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Think of repetition as "this [bits](#bits) expression, [concatenated](#concatenation) together for a total of N occurrences".
+"Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Think of repetition as "this [bits](#bits) expression, [concatenated](#concatenation) together for a total of N occurrences" (for example, `"a"{3}` is the same as `"a" & "a" & "a"` or `"aaa"`).
 
 Repetition amounts are [unsigned integer sets](#numbers) placed between curly braces (e.g. `{10}`, `{1~5}`, `{1 | 3| 6~12}`). Each value in the repetition set produces an [alternative](#alternative) expression with that repetition amount applied, contributing to a final bits expression set (for example, `"a"{1~3}` is equivalent to `"a" | "aa" | "aaa"`).
 
