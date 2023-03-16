@@ -298,9 +298,11 @@ The initial byte ordering is `msb`, and can be changed for a subexpression using
 
 #### Codepoint Byte Ordering
 
-The byte ordering rules of the [character set](#character-set-support) always override the [byte order](#byte-ordering) setting. For example, `utf-16le` will always be interpreted "least significant byte first", even if the [byte order](#byte-ordering) is set to `msb`.
+The byte ordering rules of the [character set](#character-set-support) override the [byte order](#byte-ordering) setting. The byte order setting only takes effect for character sets without explicit byte orders such as `utf-16` and `utf-32`.
 
-Some Unicode character sets allow a [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark), which determines the endianness of the codepoints that follow. BOM support can be added like so (for example, UTF-16):
+For example, `utf-16le` will always be interpreted "least significant byte first", even if the [byte order](#byte-ordering) is set to `msb`. `utf-16`, however, will be interpreted according to the [byte order](#byte-ordering) setting (`lsb` or `msb`).
+
+Some Unicode character sets (`utf-16`, `utf-32`) allow an initial [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark) to signify the endianness of the codepoints that follow. BOM support must be added manually. For example (`utf-16`):
 
 ```dogma
 # If there's a UTF-16 BOM, use it to determine the correct byte order.
