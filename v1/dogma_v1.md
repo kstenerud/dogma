@@ -135,7 +135,6 @@ Contents
   - [Literals](#literals)
     - [Numeric Literals](#numeric-literals)
     - [Codepoints](#codepoints)
-      - [Strings and Byte Order Mark](#strings-and-byte-order-mark)
       - [String Literals](#string-literals)
     - [Escape Sequence](#escape-sequence)
       - [Codepoint Escape](#codepoint-escape)
@@ -301,14 +300,27 @@ The initial byte ordering is `msb`, and can be changed for a subexpression using
 
 The byte ordering rules of the [character set](#character-set-support) always override the [byte order](#byte-ordering) setting. For example, `utf-16le` will always be interpreted "least significant byte first", even if the [byte order](#byte-ordering) is set to `msb`.
 
-Some Unicode character sets allow a [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark), which determines the endianness of the codepoints that follow. The BOM (if present) is assumed be honored for setting the byte ordering when processing the current string. Note that a BOM only affects the _current_ string, not any subsequent strings.
+Some Unicode character sets allow a [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark), which determines the endianness of the codepoints that follow. BOM support can be added like so (for example, UTF-16):
+
+```dogma
+# If there's a UTF-16 BOM, use it to determine the correct byte order.
+document_bom = peek(uint(16, var(signature,~)))
+             & [
+                 # fffe = little endian, anything else = big endian.
+                 signature = 0xfffe: byte_order(lsb, document);
+                                   : document;
+               ]
+             ;
+
+document     = ...;
+```
 
 
 ### Namespaces
 
 All [symbols](#symbols), [macros](#macros), [functions](#functions) and [variables](#variables) have names that are part of a namespace. All names are case sensitive and must be unique to their namespace.
 
-The global namespace consists of all [rule](#rules) names, including the [built-in functions](#builtin-functions).
+The global namespace consists of all [rule](#rules) names, and the names of the [built-in functions](#builtin-functions).
 
 Each [rule](#rules) has a copy of the global namespace as a local namespace, and can bind [variables](#variables) to names in their local namespace so long as they don't clash with existing names. Variables are bound either via [macro arguments](#macros) or using the [`var` function](#var-function), and cannot be re-bound.
 
@@ -890,11 +902,6 @@ letter_a     = 'a';     # or "a"
 a_to_c       = 'a'~'c'; # or "a"~"c", or 'a' | 'b' | 'c', or "a" | "b" | "c"
 alphanumeric = unicode(L,N);
 ```
-
-#### Strings and Byte Order Mark
-
-Any sequence of two or more codepoints is considered a "string" for the purposes of [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark) processing. When the [character set](#character-set-support) supports a BOM, it must be honored. The BOM still counts as a character when determining length or counting codepoint [repetition](#repetition) expressions.
-
 
 #### String Literals
 
