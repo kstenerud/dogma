@@ -229,12 +229,14 @@ Versioning for the Dogma specification is done in the form `major`.`minor`:
 * Incrementing the major version signals a change in functionality (adding, removing, changing behavior).
 * Incrementing the minor version signals non-functional changes like clarifications or rewording or bug fixes.
 
+-------------------------------------------------------------------------------
 **Example**:
 
 * Version 1.0: First public release
 * Version 1.1: Clarification: z-ray is just as good as x-ray. In fact it's better; it's two more than x!
 * Version 1.2: Changed the wording of section 2.2 to make its intended use and limitations more clear.
 * Version 2.0: Added new type "y-ray" for the undecided.
+-------------------------------------------------------------------------------
 
 **In this repository**:
 
@@ -365,6 +367,7 @@ The following headers are officially recognized (all others are allowed, but are
 * `description`: A brief, one-line description of the grammar.
 * `dogma_specification`: A pointer to the Dogma specification as a courtesy to anyone reading the document.
 
+-------------------------------------------------------------------------------
 **Example**: A UTF-8 Dogma grammar called "mygrammar_v1".
 
 ```dogma
@@ -375,6 +378,7 @@ dogma_v1 utf-8
 
 document = "a"; # Yeah, this grammar doesn't do much...
 ```
+-------------------------------------------------------------------------------
 
 
 
@@ -427,6 +431,7 @@ name_nextchar         = name_firstchar | unicode(N) | '_';
 
 **Note**: Symbol names are not limited to ASCII.
 
+-------------------------------------------------------------------------------
 **Example**: A record consists of a company name (which must not contain two full-width colons in a row), followed by two full-width colons, followed by an employee count in full-width characters (possibly approximated to the nearest 10,000), and is terminated by a linefeed.
 
 ```dogma
@@ -449,6 +454,8 @@ LF             = '\[a]';
 
 `record`, `company_name`, `employee_count`, and `LF` are symbols.
 
+-------------------------------------------------------------------------------
+
 
 ### Macros
 
@@ -466,6 +473,7 @@ call       = identifier_any & PARENTHESIZED(call_param & (ARG_SEP & call_param)*
 call_param = condition | number | expression;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: The main section consists of three records: A type 1 record and two type 2 records. A record begins with a type byte, followed by a length byte, followed by that many bytes of data.
 
 ```dogma
@@ -503,6 +511,8 @@ payload_contents(protocol)   = [
                                  # ...
                                ];
 ```
+-------------------------------------------------------------------------------
+
 
 ### Functions
 
@@ -549,6 +559,7 @@ basic_type_name    = "expression"
 custom_type_name   = name;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: A function to convert an unsigned int to its unsigned little endian base 128 representation.
 
 ```dogma
@@ -563,7 +574,7 @@ iso8601: bits  = """https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_tim
 temperature    = digit+ & ('.' & digit+)?;
 digit          = '0'~'9';
 ```
-
+-------------------------------------------------------------------------------
 
 
 ### Expressions
@@ -612,6 +623,7 @@ Bits are produced by [codepoints](#codepoints), [strings](#string-literals), and
 
 The bits type is a set of bit patterns, and can therefore be composed using [alternatives](#alternative), [concatenation](#concatenation), [repetition](#repetition), and [exclusion](#exclusion).
 
+-------------------------------------------------------------------------------
 **Example**: Each UTC timestamp field is stored in its own bitfield, with the final constructed 64 bit value stored in big endian byte order:
 
 Bit fields (from high bit to low bit):
@@ -636,6 +648,8 @@ minute      = uint(6, 0~59);
 second      = uint(6, 0~60); # Mustn't forget leap seconds!
 microsecond = uint(20, 0~999999);
 ```
+-------------------------------------------------------------------------------
+
 
 ### Number
 
@@ -660,12 +674,15 @@ Number sets are produced using [ranges](#ranges), [alternatives](#alternative), 
 
 **Note**: Any value in a `numbers` set that breaks its invariant is silently removed from the set. For example `0~1.5` passed to a `sintegers` invariant will be reduced to the set of integer values 0 and 1. `0.5~0.6` passed to a `sintegers` invariant will be reduced to the empty set. `-5` passed to a `uintegers` invariant will be reduced to the empty set.
 
+-------------------------------------------------------------------------------
 **Examples**:
 
 * `1 | 5 | 30`: The set of numbers 1, 5, and 30.
 * `1~3`: All numbers from 1 to 3. If passed to an integer context, this would be equivalent to `1 | 2 | 3`.
 * `1~300 ! 15`: All numbers from 1 to 300, except for 15.
 * `(1~low | high~900) ! 200~600`: All numbers from 1 to the `low` variable or from the `high` variable to 900, except for anything from 200 to 600.
+-------------------------------------------------------------------------------
+
 
 ### Condition
 
@@ -717,12 +734,14 @@ logical_and        = condition & '&' & condition;
 logical_not        = '!' & condition;
 ```
 
+-------------------------------------------------------------------------------
 **Examples**:
 
 * `type = 2`
 * `(value >= 3 & value < 10) | value = 0`
 * `(x > 3 & y > 5) | x * y > 15`
 * `nextchar != 'a'`
+-------------------------------------------------------------------------------
 
 
 ### Enumerated Types
@@ -736,6 +755,7 @@ Specifies the [byte ordering](#byte-ordering) when processing expressions in cer
 * `msb` = Most significant byte first
 * `lsb` = Least significant byte first
 
+-------------------------------------------------------------------------------
 **Example**: The entire document is in little endian byte order.
 
 ```dogma
@@ -743,6 +763,7 @@ document = byte_order(lsb, header & payload);
 header   = ...;
 payload  = ...;
 ```
+-------------------------------------------------------------------------------
 
 #### Unicode Category
 
@@ -764,6 +785,7 @@ Specifies the [Unicode category](https://www.unicode.org/versions/Unicode15.0.0/
 | Nd       | Number, decimal digit   | Sc       | Symbol, currency           | Cn       | Other, not assigned  |
 | Nl       | Number, letter          |          |                            |          |                      |
 
+-------------------------------------------------------------------------------
 **Examples**:
 
 ```dogma
@@ -771,6 +793,7 @@ alphanumeric           = unicode(L,N);
 alphanumeric_uppercase = unicode(Lu,N);
 name_field             = unicode(L,M,N,P,S){1~100};
 ```
+-------------------------------------------------------------------------------
 
 
 
@@ -783,6 +806,7 @@ In some contexts, resolved data (data that has already been matched) or literal 
 
 When [making a variable](#var-function) of an [expression](#expressions) that already contains variable(s), that expression's bound variables are accessible from the outer scope using dot notation (`this_exp_bound_value.sub_exp_bound_value`).
 
+-------------------------------------------------------------------------------
 **Example**: An [RTP (version 2) packet](https://en.wikipedia.org/wiki/Real-time_Transport_Protocol) contains flags to determine if padding or an extension are present. It also contains a 4-bit count of the number of contributing sources that are present. If the padding flag is 1, then the last CSRC is actually 3 bytes of padding followed by a one-byte length field defining how many bytes of the trailing entries in the CSRC list are actually padding (including the last entry containing the byte count).  Padding bytes must contain all zero bits, except for the very last byte which is the padding length field.
 
 We make use of variables such as `has_padding`, `has_extension`, and `csrc_count` to decide how the rest of the packet is structured. We also pass some variables to [macros](#macros) to keep things cleaner.
@@ -830,6 +854,7 @@ extension           = custom_data
 custom_data         = uint(16,~);
 ext_payload(length) = uint(32,~){length};
 ```
+-------------------------------------------------------------------------------
 
 
 
@@ -860,6 +885,7 @@ int_literal_oct      = neg? & '0' & ('o' | 'O') & digit_oct+;
 neg                  = '-';
 ```
 
+-------------------------------------------------------------------------------
 **Examples**:
 
 ```dogma
@@ -867,6 +893,7 @@ header_signature = uint(5, 0b10111);
 ascii_char_8bit  = uint(8, 0x00~0x7f);
 tolerance        = float(32, -1.5~1.5);
 ```
+-------------------------------------------------------------------------------
 
 
 ### Codepoints
@@ -881,6 +908,7 @@ codepoint_literal = '"' & maybe_escaped(printable_ws ! '"'){1} & '"'
                   ;
 ```
 
+-------------------------------------------------------------------------------
 **Examples**:
 
 ```dogma
@@ -888,6 +916,7 @@ letter_a     = 'a';     # or "a"
 a_to_c       = 'a'~'c'; # or "a"~"c", or 'a' | 'b' | 'c', or "a" | "b" | "c"
 alphanumeric = unicode(L,N);
 ```
+-------------------------------------------------------------------------------
 
 #### String Literals
 
@@ -899,6 +928,7 @@ string_literal = '"' & maybe_escaped(printable_ws ! '"'){2~} & '"'
                ;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: The following are all equivalent:
 
 ```dogma
@@ -907,6 +937,7 @@ str_abc_2 = 'abc';
 str_abc_3 = "a" & "b" & "c";
 str_abc_4 = 'a' & 'b' & 'c';
 ```
+-------------------------------------------------------------------------------
 
 
 ### Escape Sequence
@@ -919,11 +950,13 @@ Escape sequences are initiated with the backslash (`\`) character. If the next c
 escape_sequence = '\\' & (printable ! '[') | codepoint_escape);
 ```
 
+-------------------------------------------------------------------------------
 **Example**: A string containing double quotes.
 
 ```dogma
 mystr = "This is a \"string\""; # or using single quotes: 'This is a "string"'
 ```
+-------------------------------------------------------------------------------
 
 #### Codepoint Escape
 
@@ -934,11 +967,13 @@ escape_sequence  = '\\' & (printable ! '[') | codepoint_escape);
 codepoint_escape = '[' & digit_hex+ & ']';
 ```
 
+-------------------------------------------------------------------------------
 **Example**: Emoji
 
 ```dogma
 mystr = "This is all just a bunch of \[1f415]ma!"; # "This is all just a bunch of 🐕ma!"
 ```
+-------------------------------------------------------------------------------
 
 ### Prose
 
@@ -950,6 +985,7 @@ prose = '"""' & (maybe_escaped(printable_wsl)+ ! '"""') & '"""'
       ;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: A record contains a date and temperature separated by `:`, followed by a newline, followed by a flowery description of any length in iambic pentameter (newlines allowed), terminated by `=====` on its own line.
 
 ```dogma
@@ -967,6 +1003,7 @@ Among the river sallows, borne aloft
 Or sinking as the light wind lives or dies.
 """;
 ```
+-------------------------------------------------------------------------------
 
 
 
@@ -984,6 +1021,7 @@ switch_entry   = condition & ':' & expression & ';';
 switch_default = ':' & expression & ';';
 ```
 
+-------------------------------------------------------------------------------
 **Example**: [TR-DOS](https://en.wikipedia.org/wiki/TR-DOS) file descriptors contain different payload formats based on the extension.
 
 ```dogma
@@ -1026,6 +1064,8 @@ print_length     = uint(16, 0~4096);
 format_generic   = uint(16,~) & generic_length;
 generic_length   = uint(16,~);
 ```
+-------------------------------------------------------------------------------
+
 
 
 Combinations
@@ -1051,6 +1091,7 @@ Only [bits](#bits) can be concatenated.
 concatenate = expression & '&' & expression;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: Assignment consists of an identifier, at least one space, an equals sign, at least one space, and then an integer value, followed by a linefeed.
 
 ```dogma
@@ -1062,6 +1103,7 @@ assignment = "a"~"z"+
            & "\[a]"
            ;
 ```
+-------------------------------------------------------------------------------
 
 
 ### Alternative
@@ -1076,6 +1118,7 @@ Alternatives are separated by a pipe (`|`) character. Only one of the alternativ
 alternate = expression & '|' & expression;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: Addition or subtraction consists of an identifier, at least one space, a plus or minus sign, at least one space, and then another identifier, followed by a linefeed.
 
 ```dogma
@@ -1087,6 +1130,7 @@ caculation = "a"~"z"+
            & "\[a]"
            ;
 ```
+-------------------------------------------------------------------------------
 
 
 ### Exclusion
@@ -1099,11 +1143,13 @@ Exclusion removes an expression from the set of expression alternatives.
 exclude = expression & '!' & expression;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: An identifier can be any lowercase ASCII string except "fred".
 
 ```dogma
 identifier = "a"~"z"+ ! "fred";
 ```
+-------------------------------------------------------------------------------
 
 
 ### Repetition
@@ -1128,6 +1174,7 @@ repeat_zero_or_more = expression & '*';
 repeat_one_or_more  = expression & '+';
 ```
 
+-------------------------------------------------------------------------------
 **Example**: An identifier is 5, 6, 7, or 8 characters long, and is made up of characters from 'a' to 'z'.
 
 ```dogma
@@ -1139,7 +1186,7 @@ identifier = 'a'~'z'{5~8};
 ```dogma
 identifier = 'A'~'Z'+ & 'a'~'z'* & '_'?;
 ```
-
+-------------------------------------------------------------------------------
 
 
 Grouping
@@ -1207,6 +1254,7 @@ calc_pow     = calc_pow_val & '^' & calc_neg_val;
 calc_neg     = '-' & calc_val;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: A [UDP packet](https://en.wikipedia.org/wiki/User_Datagram_Protocol) consists of a source port, a destination port, a length, a checksum, and a body. The length field refers to the size of the entire packet, not just the body.
 
 The variable `length` is captured and passed to the `body` [macro](#macros), which then uses that variable in a [repetition](#repetition) expression.
@@ -1225,6 +1273,7 @@ dst_port     = uint(16,~);
 checksum     = uint(16,~);
 body(length) = uint(8,~){length};
 ```
+-------------------------------------------------------------------------------
 
 
 
@@ -1256,6 +1305,7 @@ ranged(item)       = item? & '~' & item?;
 maybe_ranged(item) = item | ranged(item);
 ```
 
+-------------------------------------------------------------------------------
 **Example**: Codepoint range.
 
 ```dogma
@@ -1273,6 +1323,7 @@ name_field = unicode(L,M,N,P,S){1~100};
 ```dogma
 rpm = uint(16, ~1000); # A uinteger cannot be < 0, so it's implied 0~1000
 ```
+-------------------------------------------------------------------------------
 
 
 
@@ -1285,6 +1336,7 @@ A comment begins with a hash character (`#`) and continues to the end of the cur
 comment = '#' & (printable_ws ! LINE_END)* & LINE_END;
 ```
 
+-------------------------------------------------------------------------------
 **Example**:
 
 ```dogma
@@ -1299,6 +1351,7 @@ myrule # comment
  ; # comment
 # comment
 ```
+-------------------------------------------------------------------------------
 
 
 
@@ -1321,6 +1374,7 @@ sized(bit_count: uinteger, expr: bits): bits =
     """;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: A name field must contain exactly 200 bytes worth of character data, padded with spaces as needed.
 
 ```dogma
@@ -1342,6 +1396,8 @@ record             = byte(var(length,~)) & byte(~){length};
 zero_length_record = byte(0);
 byte(v)            = uint(8,v);
 ```
+-------------------------------------------------------------------------------
+
 
 ### `aligned` Function
 
@@ -1357,6 +1413,7 @@ aligned(bit_count: uinteger, expr: bits, padding: bits): bits =
     """;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: The "records" section can contain any number of length-delimited records, but must end on a 32-bit boundary. This section can be padded with 0 length records (which is a record with a length field of 0 and no payload - essentially a zero byte).
 
 ```dogma
@@ -1365,6 +1422,8 @@ record             = byte(var(length,~)) & byte(~){length};
 zero_length_record = byte(0);
 byte(v)            = uint(8, v);
 ```
+-------------------------------------------------------------------------------
+
 
 ### `reversed` Function
 
@@ -1386,12 +1445,14 @@ reversed(bit_granularity: uinteger, expr: bits): bits =
     """;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: [dsPIC bit reversed addressing](https://skills.microchip.com/dsp-features-of-the-microchip-dspic-dsc/694435) allows for efficient "butterflies" calculation in DFT algorithms by automatically reversing the four second-from-lowest bits of the address in hardware.
 
 ```dogma
 Wsrc  = uint(11,~) & uint(4,~)             & uint(1)
 Wdest = uint(11,~) & reversed(1, uint(4,~)) & uint(1)
 ```
+-------------------------------------------------------------------------------
 
 
 ### `ordered` function
@@ -1410,6 +1471,7 @@ ordered(expr: bits): bits =
 
 ```
 
+-------------------------------------------------------------------------------
 **Example**: The [MS-DOS date and time format](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-dosdatetimetofiletime) is made up of two 16-bit bitfields that are stored in little endian byte order.
 
 ```dogma
@@ -1425,6 +1487,7 @@ hour      = uint(5, 0~24);
 minute    = uint(6, 0~59);
 second    = uint(5, 0~29); # Must multiply by 2
 ```
+-------------------------------------------------------------------------------
 
 
 ### `byte_order` Function
@@ -1457,6 +1520,7 @@ peek(expr: bits): nothing
    """;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: The endianness of an [Android dex file](https://source.android.com/docs/core/runtime/dex-format) is determined by a 32-bit unsigned integer field, containing either the value 0x12345678 (big endian) or 0x78563412 (little endian).
 
 Since the endianness field is later in the dex file than some other fields that depend on it, we must first peek ahead in order to bind it to a variable before we can determine and apply byte endianness to the whole file.
@@ -1488,6 +1552,7 @@ header_size = uint(32,0x70);
 endianness  = uint(32, var(tag, 0x12345678 | 0x78563412));
 body        = ...;
 ```
+-------------------------------------------------------------------------------
 
 
 ### `offset` Function
@@ -1502,6 +1567,7 @@ offset(offset: uinteger, expr: bits): nothing
    """;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: In a [Microsoft ICO file](https://learn.microsoft.com/en-us/previous-versions/ms997538(v=msdn.10)), the location of each icon is determined by an offset field in each icon directory entry.
 
 ```dogma
@@ -1534,6 +1600,7 @@ bits_per_pixel = uint(16,~);
 
 image          = ...;
 ```
+-------------------------------------------------------------------------------
 
 
 ### `var` Function
@@ -1550,6 +1617,7 @@ var(variable_name: identifier, value: bits | numbers): bits | numbers =
     """;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: Match "abc/abc", "fred/fred" etc.
 
 ```dogma
@@ -1574,6 +1642,8 @@ record_contents(length) = byte(~){length};
 uint16(v)               = uint(16, v);
 byte(v)                 = uint(8, v);
 ```
+-------------------------------------------------------------------------------
+
 
 ### `eod` Function
 
@@ -1584,12 +1654,15 @@ eod: expression =
    """;
 ```
 
+-------------------------------------------------------------------------------
 **Exammple**: A document contains any number of length delimited records (1-100 bytes), continuing until the end of the file.
 
 ```dogma
 document = record* eod;
 record = uint(8,var(length, 1~100)) uint(8,~){length};
 ```
+-------------------------------------------------------------------------------
+
 
 ### `unicode` Function
 
@@ -1606,11 +1679,14 @@ unicode(categories: unicode_category...): bits =
     """;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: Allow letter, numeral, and space characters.
 
 ```dogma
 letter_digit_space = unicode(N,L,Zs);
 ```
+-------------------------------------------------------------------------------
+
 
 ### `uint` Function
 
@@ -1622,11 +1698,13 @@ uint(bit_count: uinteger, values: uintegers): bits =
     """;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: The length field is a 16-bit unsigned integer value.
 
 ```dogma
 length = uint(16, ~);
 ```
+-------------------------------------------------------------------------------
 
 
 ### `sint` Function
@@ -1639,11 +1717,13 @@ sint(bit_count: uinteger, values: sintegers): bits =
     """;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: The points field is a 16-bit signed integer value from -10000 to 10000.
 
 ```dogma
 points = sint(32, -10000~10000);
 ```
+-------------------------------------------------------------------------------
 
 
 ### `float` Function
@@ -1661,6 +1741,7 @@ float(bit_count: uinteger, values: numbers): bits =
     """;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: The temperature field is a 32-bit float value from -1000 to 1000.
 
 ```dogma
@@ -1672,6 +1753,7 @@ rpm = float(32, -1000~1000);
 ```dogma
 any_float64 = float(64,~) | inf(64,~) | nan(64,~) | nzero(64);
 ```
+-------------------------------------------------------------------------------
 
 
 ### `inf` Function
@@ -1688,6 +1770,7 @@ inf(bit_count: uinteger, sign: numbers): bits =
     """;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: Negative infinity used as a record terminator.
 
 ```dogma
@@ -1695,6 +1778,7 @@ record     = reading* terminator;
 reading    = float(32, ~) ! terminator;
 terminator = inf(32, -1);
 ```
+-------------------------------------------------------------------------------
 
 
 ### `nan` Function
@@ -1718,6 +1802,7 @@ nan(bit_count: uinteger, payload: sintegers): bits =
     """;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: Quiet NaN used to mark invalid readings.
 
 ```dogma
@@ -1725,6 +1810,7 @@ record  = reading{32};
 reading = float(32, ~) | invalid;
 invalid = nan(32, 0x400001);
 ```
+-------------------------------------------------------------------------------
 
 
 ### `nzero` Function
@@ -1739,6 +1825,7 @@ nzero(bit_count: uinteger): bits =
     """;
 ```
 
+-------------------------------------------------------------------------------
 **Example**: Negative zero used to mark invalid readings.
 
 ```dogma
@@ -1746,6 +1833,7 @@ record  = reading{32};
 reading = float(32, ~) | invalid;
 invalid = nzero(32);
 ```
+-------------------------------------------------------------------------------
 
 
 Dogma described as Dogma
