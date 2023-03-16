@@ -1,3 +1,6 @@
+<p align="center"><img width="400" alt="Dogma Logo" src="img/dogma-logo.svg"/><h3 align="center">
+
+
 The Dogma Metalanguage
 ======================
 
@@ -197,11 +200,12 @@ Binary grammars have different needs from textual grammars, and require special 
 * **Variables, Macros & Functions**: Binary formats often represent data in complex ways that can't be parsed without passing some context around.
 * **Conditionals & Logic**: Binary formats often include or exclude portions based on encoded values elsewhere. Evaluating these requires the use of conditionals and logic operators.
 * **Calculations**: Many binary field sizes are determined by data stored elsewhere in the document, and often they require calculations of some sort to determine the final field size.
+* **Non-Linear Parsing**: Many binary formats contain offset pointers to other parts of the file, and thus cannot be parsed linearly.
 * **Functions**: Binary data often undergoes transformations that are too complex for normal BNF-style rules to express (for example [LEB128](https://en.wikipedia.org/wiki/LEB128)). Functions offer a way to escape from the metalanguage syntax.
 
 ### Character set support
 
-Metalanguages tend to support only ASCII, with Unicode (encoded as UTF-8) generally added as an afterthought. This restricts the usefulness of the metalanguage, as any other character sets (many of which are still in use) have no support at all.
+Most metalanguages tend to support only ASCII, with Unicode (encoded as UTF-8) generally added as an afterthought. This restricts the usefulness of the metalanguage, as any other character sets (many of which are still in use) have no support at all.
 
 Dogma can be used with any [character set](https://www.iana.org/assignments/character-sets/character-sets.xhtml), and requires the character set to be specified as part of the grammar document header.
 
@@ -229,14 +233,12 @@ Versioning for the Dogma specification is done in the form `major`.`minor`:
 * Incrementing the major version signals a change in functionality (adding, removing, changing behavior).
 * Incrementing the minor version signals non-functional changes like clarifications or rewording or bug fixes.
 
--------------------------------------------------------------------------------
-**Example**:
+**For example**:
 
 * Version 1.0: First public release
-* Version 1.1: Clarification: z-ray is just as good as x-ray. In fact it's better; it's two more than x!
+* Version 1.1: Clarification: z-ray is just as good as x-ray vision. In fact it's better; it's two more than x!
 * Version 1.2: Changed the wording of section 2.2 to make its intended use and limitations more clear.
 * Version 2.0: Added new type "y-ray" for the undecided.
--------------------------------------------------------------------------------
 
 **In this repository**:
 
@@ -265,13 +267,13 @@ All [bits](#bits) matching is assumed to be non-greedy.
 For example, given the following grammar:
 
 ```dogma
-document  = record+ & '.';
+document  = record+ & '@';
 record    = letter+ & terminator;
 letter    = 'a'~'z';
 terminaor = "zzz";
 ```
 
-The document `azzzbzzzczzz.` contains 3 records (`a`, `b`, and `c`), not one record (`azzzbzzzc`).
+Given the document `azzzbzzzczzz@`, The above Dogma would match 3 records (`a`, `b`, and `c`), not one record (`azzzbzzzc`).
 
 
 ### Bit Ordering
@@ -293,9 +295,9 @@ Bit ordering can be manipulated on a smaller scale using the [`reversed` functio
 
 Because some data formats store endianness information in the data itself, byte ordering needs to be selectable while parsing.
 
-Byte ordering can be `msb` (most significant byte first) or `lsb` (least significant byte first), and only comes into effect for expressions passed to an [`ordered` function](#ordered-function) call (and by extension the [`uint`](#uint-function), [`sint`](#sint-function), and [`float`](#float-function) functions). Outside of this context, all non-codepoint multibyte data is assumed to be `msb` regardless of the byte order setting.
+Byte ordering can be `msb` (most significant byte first) or `lsb` (least significant byte first), and only comes into effect for expressions passed to an [`ordered` function](#ordered-function) call (and by extension the [`uint`](#uint-function), [`sint`](#sint-function), and [`float`](#float-function) functions, which call `ordered` internally). Outside of this context, all non-codepoint multibyte data is assumed to be `msb`.
 
-The initial byte ordering is `msb`, and can be changed for a subexpression using the [`byte_order` function](#byte_order-function).
+The global byte ordering is `msb`, and can be changed for the duration of a subexpression using the [`byte_order` function](#byte_order-function).
 
 #### Codepoint Byte Ordering
 
@@ -303,10 +305,10 @@ The byte ordering rules of the [character set](#character-set-support) override 
 
 For example, `utf-16le` will always be interpreted "least significant byte first", even if the [byte order](#byte-ordering) is set to `msb`. `utf-16`, however, will be interpreted according to the [byte order](#byte-ordering) setting (`lsb` or `msb`).
 
-Some Unicode character sets (`utf-16`, `utf-32`) allow an initial [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark) to signify the endianness of the codepoints that follow. BOM support must be added manually. For example (`utf-16`):
+Some Unicode character sets (`utf-16`, `utf-32`) allow an initial [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark) to signify the endianness of the codepoints that follow. BOM support can be added to a grammar like so (example for `utf-16`):
 
 ```dogma
-# If there's a UTF-16 BOM, use it to determine the correct byte order.
+# Peek ahead to see if there's a UTF-16 BOM, and use it to decide the byte order.
 document_bom = peek(uint(16, var(signature,~)))
              & [
                  # fffe = little endian, anything else = big endian.
@@ -374,7 +376,7 @@ The following headers are officially recognized (all others are allowed, but are
 dogma_v1 utf-8
 - identifier  = mygrammar_v1
 - description = My first grammar, version 1
-- dogma_specification = https://github.com/kstenerud/dogma/blob/master/dogma_v1.0.md
+- dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.0.md
 
 document = "a"; # Yeah, this grammar doesn't do much...
 ```
@@ -432,11 +434,11 @@ name_nextchar         = name_firstchar | unicode(N) | '_';
 **Note**: Symbol names are not limited to ASCII.
 
 -------------------------------------------------------------------------------
-**Example**: A record consists of a company name (which must not contain two full-width colons in a row), followed by two full-width colons, followed by an employee count in full-width characters (possibly approximated to the nearest 10,000), and is terminated by a linefeed.
+**Example**: A record consists of a company name, followed by two full-width colons, followed by an employee count in full-width characters (possibly approximated to the nearest 10,000), and is terminated by a linefeed.
 
 ```dogma
 記録		= 会社名 & "：：" & 従業員数 & LF;
-会社名		= unicode(L,M) & unicode(L,M,N,P,S,Zs)* ! "：：";
+会社名		= unicode(L,M) & unicode(L,M,N,P,S,Zs)*;
 従業員数		= '１'~'９' & '０'~'９'* & '万'?;
 LF		= '\[a]';
 ```
@@ -447,7 +449,7 @@ Or if you prefer, the same thing with English symbol names:
 
 ```dogma
 record         = company_name & "：：" & employee_count & LF;
-company_name   = unicode(L,M) & unicode(L,M,N,P,S,Zs)* ! "：：";
+company_name   = unicode(L,M) & unicode(L,M,N,P,S,Zs)*;
 employee_count = '１'~'９' & '０'~'９'* & '万'?;
 LF             = '\[a]';
 ```
@@ -459,7 +461,7 @@ LF             = '\[a]';
 
 ### Macros
 
-A macro is essentially a symbol that accepts parameters, which are bound to local [variables](#variables) for use within the macro. The macro's contents are written in the same manner as [symbol](#symbols) rules, but also have access to the injected local variables.
+A macro is essentially a symbol that accepts parameters, which are bound to local [variables](#variables) for use within the macro's [namespace](#namespaces). The macro's contents are written in the same manner as [symbol](#symbols) rules, but also have access to the injected local variables.
 
 ```dogma
 macro_rule = macro & '=' & expression & ';';
@@ -624,7 +626,7 @@ Bits are produced by [codepoints](#codepoints), [strings](#string-literals), and
 The bits type is a set of bit patterns, and can therefore be composed using [alternatives](#alternative), [concatenation](#concatenation), [repetition](#repetition), and [exclusion](#exclusion).
 
 -------------------------------------------------------------------------------
-**Example**: Each UTC timestamp field is stored in its own bitfield, with the final constructed 64 bit value stored in big endian byte order:
+**Example**: A timestamp is a 64-bit unsigned integer, with each time field stored as a separate bitfield.
 
 Bit fields (from high bit to low bit):
 
@@ -664,7 +666,7 @@ The two most common numeric invariants are supported natively as pseudo-types:
 
 These pseudo-types only place restrictions on the final realized value; they are still `number` types and behave like mathematical reals for all operations, with the destination invariant type (such as a [function](#functions) parameter's type) restricting what resulting values are allowed.
 
-**Note**: A value that breaks an invariant on a `number` (the singular `number` type, not the set `numbers` type) represents an erroneous condition. A value that breaks its `number` invariant (e.g. 0.5 passed to a `sinteger` or `uinteger` parameter) results in no match for anything that depends on it, and ideally should raise a diagnostic in any tool.
+**Note**: A value that breaks an invariant on a `number` (the singular `number` type, not the set [`numbers`](#numbers) type) represents an erroneous condition. A value that breaks its `number` invariant (e.g. 0.5 passed to a `sinteger` or `uinteger` parameter) results in no match for anything that depends on it, and ideally should raise a diagnostic in any tool.
 
 #### Numbers
 
@@ -672,7 +674,7 @@ The `numbers` type (and associated pseudo-type invariants `sintegers` and `uinte
 
 Number sets are produced using [ranges](#ranges), [alternatives](#alternative), and [exclusion](#exclusion).
 
-**Note**: Any value in a `numbers` set that breaks its invariant is silently removed from the set. For example `0~1.5` passed to a `sintegers` invariant will be reduced to the set of integer values 0 and 1. `0.5~0.6` passed to a `sintegers` invariant will be reduced to the empty set. `-5` passed to a `uintegers` invariant will be reduced to the empty set.
+**Note**: Any value in a `numbers` set that breaks its invariant is silently removed from the set (this is _not_ considered an error). For example `-1.5~1.5` passed to a `sintegers` invariant will be reduced to the set of integer values (-1, 0, 1). `0.5~0.6` passed to a `sintegers` invariant will be reduced to the empty set. `-5` passed to a `uintegers` invariant will be reduced to the empty set.
 
 -------------------------------------------------------------------------------
 **Examples**:
@@ -750,7 +752,7 @@ An Enumerated type is a type that is constrained to a predefined set of named va
 
 #### Ordering
 
-Specifies the [byte ordering](#byte-ordering) when processing expressions in certain contexts. This type supports two values:
+The `ordering` type specifies the [byte ordering](#byte-ordering) when processing expressions in certain contexts. This type supports two values:
 
 * `msb` = Most significant byte first
 * `lsb` = Least significant byte first
@@ -767,7 +769,7 @@ payload  = ...;
 
 #### Unicode Category
 
-Specifies the [Unicode category](https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153) when selecting from the Unicode character set:
+The `unicode_category` type specifies the [Unicode category](https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153) when selecting a set of codepoints from the Unicode character set:
 
 | Category | Description             | Category | Description                | Category | Description          |
 | -------- | ----------------------- | -------- | -------------------------- | -------- | -------------------- |
@@ -800,11 +802,11 @@ name_field             = unicode(L,M,N,P,S){1~100};
 Variables
 ---------
 
-In some contexts, resolved data (data that has already been matched) or literal values can be bound to a variable for use elsewhere. Variables are bound either manually using the [`var`](#var-function) builtin function, or automatically when passing parameters to a [macro](#macros). The variable's [type](#types) is inferred from its provenance and where it is ultimately used (a type mismatch indicates a malformed grammar).
+In some contexts, resolved data (data that has already been matched) or literal values can be bound to a variable for use in the current [namespace](#namespaces). Variables are bound either manually using the [`var`](#var-function) builtin function, or automatically when passing parameters to a [macro](#macros). The variable's [type](#types) is inferred from its provenance and where it is ultimately used (a type mismatch indicates a malformed grammar).
 
 **Note**: Variables cannot be re-bound.
 
-When [making a variable](#var-function) of an [expression](#expressions) that already contains variable(s), that expression's bound variables are accessible from the outer scope using dot notation (`this_exp_bound_value.sub_exp_bound_value`).
+When [making a variable](#var-function) of an [expression](#expressions) that already contains variable(s), that expression's bound variables are accessible from the outer scope using dot notation (`this_exp_variable.sub_exp_variable`).
 
 -------------------------------------------------------------------------------
 **Example**: An [RTP (version 2) packet](https://en.wikipedia.org/wiki/Real-time_Transport_Protocol) contains flags to determine if padding or an extension are present. It also contains a 4-bit count of the number of contributing sources that are present. If the padding flag is 1, then the last CSRC is actually 3 bytes of padding followed by a one-byte length field defining how many bytes of the trailing entries in the CSRC list are actually padding (including the last entry containing the byte count).  Padding bytes must contain all zero bits, except for the very last byte which is the padding length field.
@@ -837,15 +839,16 @@ ssrc         = uint(32,~);
 csrc         = uint(32,~);
 
 csrc_list(has_padding, count) = [
-                                  has_padding = 1: csrc{count - last.length/4}
-                                                 & padding{last.length - 4}
-                                                 & var(last,padding_last)
+                                  has_padding = 1: peek(uint(8,~){count*4-3} & uint(8,var(pad_length,4~)))
+                                                 & csrc{count - pad_length/4}
+                                                 & padding{pad_length-4}
+                                                 & padding_last(pad_length)
                                                  ;
                                                  : csrc{count};
                                 ];
 
-padding             = uint(8,0);
-padding_last        = padding{3} & uint(8,var(length,4~));
+padding              = uint(8,0);
+padding_last(length) = padding{3} & uint(8,length);
 
 extension           = custom_data
                     & uint(16,var(length,~))
@@ -892,6 +895,7 @@ neg                  = '-';
 header_signature = uint(5, 0b10111);
 ascii_char_8bit  = uint(8, 0x00~0x7f);
 tolerance        = float(32, -1.5~1.5);
+exact_float      = float(32, 0x5df1p-16);
 ```
 -------------------------------------------------------------------------------
 
@@ -920,7 +924,7 @@ alphanumeric = unicode(L,N);
 
 #### String Literals
 
-A string literal can be thought of as syntactic sugar for a series of specific [codepoints](#codepoints), [concatenated](#concatenation) together. String literals are placed between single or double quotes, same as for single codepoint literals.
+A string literal can be thought of as syntactic sugar for a series of specific [codepoints](#codepoints), [concatenated](#concatenation) together. String literals are placed between single or double quotes (the same as for single codepoint literals).
 
 ```dogma
 string_literal = '"' & maybe_escaped(printable_ws ! '"'){2~} & '"'
@@ -1119,7 +1123,7 @@ alternate = expression & '|' & expression;
 ```
 
 -------------------------------------------------------------------------------
-**Example**: Addition or subtraction consists of an identifier, at least one space, a plus or minus sign, at least one space, and then another identifier, followed by a linefeed.
+**Example**: Addition or subtraction consists of an identifier, at least one space, **a plus or minus sign**, at least one space, and then another identifier, followed by a linefeed.
 
 ```dogma
 caculation = "a"~"z"+
@@ -1156,7 +1160,7 @@ identifier = "a"~"z"+ ! "fred";
 
 "Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Think of repetition as "this [bits](#bits) expression, [concatenated](#concatenation) together for a total of N occurrences" (for example, `"a"{3}` is the same as `"a" & "a" & "a"` or `"aaa"`).
 
-Repetition amounts are [unsigned integer sets](#numbers) placed between curly braces (e.g. `{10}`, `{1~5}`, `{1 | 3| 6~12}`). Each value in the repetition set produces an [alternative](#alternative) expression with that repetition amount applied, contributing to a final bits expression set (for example, `"a"{1~3}` is equivalent to `"a" | "aa" | "aaa"`).
+Repetition amounts are [unsigned integer sets](#numbers) placed between curly braces (e.g. `{10}`, `{1~5}`, `{1 | 3| 6~12}`). Each value in the repetition set produces an [alternative](#alternative) expression with that repetition amount applied, contributing to a final bits expression set (for example, `"a"{1~3}` has a repetition [range](#ranges) from 1 to 3, and is therefore equivalent to `"a" | "aa" | "aaa"`).
 
 There are also shorthand notations for common cases:
 
@@ -1282,10 +1286,10 @@ Ranges
 
 A range builds a [set of numbers](#numbers) consisting of all reals in the range as a closed interval. Ranges can be defined in a number of ways:
 
-* A low value and a high value separated by a tilde (low ~ high), indicating a (closed interval) low and high bound.
-* A low value followed by a tilde (low ~), indicating a low bound only.
-* A tilde followed by a high value (~ high), indicating a high bound only.
-* A tilde by itself (~), indicating no bound (i.e. the range consists of the set of all reals).
+* A low value and a high value separated by a tilde (`low~high`), indicating a (closed interval) low and high bound.
+* A low value followed by a tilde (`low~`), indicating a low bound only.
+* A tilde followed by a high value (`~high`), indicating a high bound only.
+* A tilde by itself (`~`), indicating no bound (i.e. the range consists of the set of all reals).
 * A value with no tilde, restricting the "range" to only that one value.
 
 A [codepoint](#codepoints) range represents a set where each [`uinteger`](#number) contained in the range represents a codepoint [alternative](#alternative).
@@ -1449,7 +1453,7 @@ reversed(bit_granularity: uinteger, expr: bits): bits =
 **Example**: [dsPIC bit reversed addressing](https://skills.microchip.com/dsp-features-of-the-microchip-dspic-dsc/694435) allows for efficient "butterflies" calculation in DFT algorithms by automatically reversing the four second-from-lowest bits of the address in hardware.
 
 ```dogma
-Wsrc  = uint(11,~) & uint(4,~)             & uint(1)
+Wsrc  = uint(11,~) & uint(4,~)              & uint(1)
 Wdest = uint(11,~) & reversed(1, uint(4,~)) & uint(1)
 ```
 -------------------------------------------------------------------------------
@@ -1466,7 +1470,7 @@ ordered(expr: bits): bits =
    Every alternative in the set of `expr` must be a multiple of 8 bits wide, otherwise the
    grammar is malformed.
 
-   Note: This function has no effect on `expr` alternatives that are only 0 or 8 bits wide.
+   Note: This function effectively does nothing for `expr` alternatives that are only 0 or 8 bits wide.
    """;
 
 ```
@@ -1513,8 +1517,8 @@ byte_order(first: ordering, expr: bits): bits
 ```dogma
 peek(expr: bits): nothing
    """
-   Peeks ahead using expr without consuming any bits. The current position in the data is
-  unaffected after expr is evaluated.
+   Peeks ahead from the current position using expr without consuming any bits. The current
+   position in the data is unaffected after expr is evaluated.
 
    This is mainly useful for binding variables from later than the current position in the data.
    """;
@@ -1558,12 +1562,12 @@ body        = ...;
 ### `offset` Function
 
 ```dogma
-offset(offset: uinteger, expr: bits): nothing
+offset(bit_offset: uinteger, expr: bits): nothing
    """
-   Process expr on the contents of a specific offset from the beginning of the document.
+   Process expr starting at a specific bit offset from the beginning of the document.
 
    This function is useful for processing data that must be parsed in a non-linear fashion, such
-   as a file containing an index of offsets, and payload chunks.
+   as a file containing an index of offsets to payload chunks.
    """;
 ```
 
@@ -1590,7 +1594,7 @@ icon_dir_entry = width
                & bits_per_pixel
                & uint(32,var(byte_count,~))
                & uint(32,var(image_offset,~))
-               & offset(image_offset, image)
+               & offset(image_offset*8, image)
                ;
 width          = uint(8,~);
 height         = uint(8,~);
@@ -1608,7 +1612,7 @@ image          = ...;
 ```dogma
 var(variable_name: identifier, value: bits | numbers): bits | numbers =
     """
-    Binds `value` to a local variable for subsequent re-use in the current rule.
+    Binds `value` to a local variable for subsequent re-use in the current namespace.
 
     `var` transparently passes through the type and value of `value`, meaning that the context
     around the `var` call behaves as though only what the `var` function surrounded is present.
@@ -1764,7 +1768,7 @@ inf(bit_count: uinteger, sign: numbers): bits =
     Creates an expression that matches big endian ieee754 binary infinity values of size
     `bit_count` whose sign matches the `sign` values set. One or two matches will be made
     (positive infinity, negative infinity) depending on whether the `sign` values include both
-    positive and negative values or not.
+    positive and negative values or not (0 counts as positive).
 
     `bit_count` must be a valid size according to ieee754 binary.
     """;
@@ -1786,8 +1790,8 @@ terminator = inf(32, -1);
 ```dogma
 nan(bit_count: uinteger, payload: sintegers): bits =
     """
-    Creates an expression that matches every big endian ieee754 binary NaN value size `bit_count`
-    with the given payload values set.
+    Creates an expression that matches every big endian ieee754 binary NaN value of size
+    `bit_count` with the given payload values set.
 
     NaN payloads can be positive or negative, up to the min/max value allowed for a NaN payload in
     a float of the given size (10 bits for float-16, 23 bits for float32, etc).
@@ -1798,7 +1802,7 @@ nan(bit_count: uinteger, payload: sintegers): bits =
     - The absolute value of `payload` is encoded, with the sign going into the sign bit (i.e. the
       value is not encoded as 2's complement).
     - The payload value 0 is automatically removed from the possible matches because such an
-      encoding would be interpreted as infinity under the rules of ieee754.
+      encoding would be interpreted as infinity under the encoding rules of ieee754.
     """;
 ```
 
@@ -2002,7 +2006,7 @@ ordered(expr: bits): bits =
    Every alternative in the set of `expr` must be a multiple of 8 bits wide, otherwise the
    grammar is malformed.
 
-   Note: This function has no effect on `expr` alternatives that are only 0 or 8 bits wide.
+   Note: This function effectively does nothing for `expr` alternatives that are only 0 or 8 bits wide.
    """;
 
 byte_order(first: ordering, expr: bits): bits
@@ -2018,23 +2022,23 @@ byte_order(first: ordering, expr: bits): bits
 
 peek(expr: bits): nothing
    """
-   Peeks ahead using expr without consuming any bits. The current position in the data is
-  unaffected after expr is evaluated.
+   Peeks ahead from the current position using expr without consuming any bits. The current
+   position in the data is unaffected after expr is evaluated.
 
    This is mainly useful for binding variables from later than the current position in the data.
    """;
 
-offset(offset: uinteger, expr: bits): nothing
+offset(bit_offset: uinteger, expr: bits): nothing
    """
-   Process expr on the contents of a specific offset from the beginning of the document.
+   Process expr starting at a specific bit offset from the beginning of the document.
 
    This function is useful for processing data that must be parsed in a non-linear fashion, such
-   as a file containing an index of offsets, and payload chunks.
+   as a file containing an index of offsets to payload chunks.
    """;
 
 var(variable_name: identifier, value: bits | numbers): bits | numbers =
     """
-    Binds `value` to a local variable for subsequent re-use in the current rule.
+    Binds `value` to a local variable for subsequent re-use in the current namespace.
 
     `var` transparently passes through the type and value of `value`, meaning that the context
     around the `var` call behaves as though only what the `var` function surrounded is present.
@@ -2086,15 +2090,15 @@ inf(bit_count: uinteger, sign: numbers): bits =
     Creates an expression that matches big endian ieee754 binary infinity values of size
     `bit_count` whose sign matches the `sign` values set. One or two matches will be made
     (positive infinity, negative infinity) depending on whether the `sign` values include both
-    positive and negative values or not.
+    positive and negative values or not (0 counts as positive).
 
     `bit_count` must be a valid size according to ieee754 binary.
     """;
 
 nan(bit_count: uinteger, payload: sintegers): bits =
     """
-    Creates an expression that matches every big endian ieee754 binary NaN value size `bit_count`
-    with the given payload values set.
+    Creates an expression that matches every big endian ieee754 binary NaN value of size
+    `bit_count` with the given payload values set.
 
     NaN payloads can be positive or negative, up to the min/max value allowed for a NaN payload in
     a float of the given size (10 bits for float-16, 23 bits for float32, etc).
@@ -2105,7 +2109,7 @@ nan(bit_count: uinteger, payload: sintegers): bits =
     - The absolute value of `payload` is encoded, with the sign going into the sign bit (i.e. the
       value is not encoded as 2's complement).
     - The payload value 0 is automatically removed from the possible matches because such an
-      encoding would be interpreted as infinity under the rules of ieee754.
+      encoding would be interpreted as infinity under the encoding rules of ieee754.
     """;
 
 nzero(bit_count: uinteger): bits =

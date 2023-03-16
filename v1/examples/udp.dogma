@@ -1,7 +1,7 @@
 dogma_v1 utf-8
 - identifier          = udp
 - description         = User Datagram Protocol packet
-- dogma_specification = https://github.com/kstenerud/dogma/blob/master/dogma_v1.md
+- dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
 
 udp_packet   = src_port
              & dst_port

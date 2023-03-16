@@ -1,7 +1,7 @@
 dogma_v1 utf-8
 - identifier          = rtp_v2
 - description         = Real-time Transport Protocol packet, version 2
-- dogma_specification = https://github.com/kstenerud/dogma/blob/master/dogma_v1.md
+- dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
 
 rtp_packet   = version
              & uint(1,var(has_padding,~))
@@ -24,19 +24,20 @@ ssrc         = uint(32,~);
 csrc         = uint(32,~);
 
 csrc_list(has_padding, count) = [
-                                  has_padding = 1: csrc{count - last.length/4}
-                                                 & padding{last.length - 4}
-                                                 & var(last,padding_last)
+                                  has_padding = 1: peek(uint(8,~){count*4-3} & uint(8,var(pad_length,4~)))
+                                                 & csrc{count - pad_length/4}
+                                                 & padding{pad_length-4}
+                                                 & padding_last(pad_length)
                                                  ;
                                                  : csrc{count};
                                 ];
 
-padding             = uint(8,0);
-padding_last        = padding{3} & uint(8,var(length,4~));
+padding              = uint(8,0);
+padding_last(length) = padding{3} & uint(8,length);
 
-extension           = custom_data
-                    & uint(16,var(length,~))
-                    & extension_payload(length)
-                    ;
-custom_data         = uint(16,~);
-ext_payload(length) = uint(32,~){length};
+extension            = custom_data
+                     & uint(16,var(length,~))
+                     & extension_payload(length)
+                     ;
+custom_data          = uint(16,~);
+ext_payload(length)  = uint(32,~){length};

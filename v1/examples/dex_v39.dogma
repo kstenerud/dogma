@@ -1,7 +1,7 @@
 dogma_v1 utf-8
 - identifier          = dex_v39
 - description         = Dex file format, version 39
-- dogma_specification = https://github.com/kstenerud/dogma/blob/master/dogma_v1.md
+- dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
 
 document    = peek(var(head, header))
             & [

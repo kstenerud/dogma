@@ -97,7 +97,7 @@ ipv6: bits                      = """https://somewhere/ipv6.dogma""";
 Design Objectives
 -----------------
 
-Dogma is designed primarily for documentation purposes (although it is parser friendly). It's design objectives are:
+Dogma is designed primarily for documentation purposes (although it is also parser friendly). Its design objectives are:
 
 ### Human readability
 
@@ -122,11 +122,12 @@ Binary grammars have different needs from textual grammars, and require special 
 * **Variables, Macros & Functions**: Binary formats often represent data in complex ways that can't be parsed without passing some context around.
 * **Conditionals & Logic**: Binary formats often include or exclude portions based on encoded values elsewhere. Evaluating these requires the use of conditionals and logic operators.
 * **Calculations**: Many binary field sizes are determined by data stored elsewhere in the document, and often they require calculations of some sort to determine the final field size.
+* **Non-Linear Parsing**: Many binary formats contain offset pointers to other parts of the file, and thus cannot be parsed linearly.
 * **Functions**: Binary data often undergoes transformations that are too complex for normal BNF-style rules to express (for example [LEB128](https://en.wikipedia.org/wiki/LEB128)). Functions offer a way to escape from the metalanguage syntax.
 
 ### Character set support
 
-Metalanguages tend to support only ASCII, with Unicode (encoded as UTF-8) generally added as an afterthought. This restricts the usefulness of the metalanguage, as any other character sets (many of which are still in use) have no support at all.
+Most metalanguages tend to support only ASCII, with Unicode (encoded as UTF-8) generally added as an afterthought. This restricts the usefulness of the metalanguage, as any other character sets (many of which are still in use) have no support at all.
 
 Dogma can be used with any [character set](https://www.iana.org/assignments/character-sets/character-sets.xhtml), and requires the character set to be specified as part of the grammar document header.
 

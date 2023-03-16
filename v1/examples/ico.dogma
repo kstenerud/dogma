@@ -1,7 +1,7 @@
 dogma_v1 utf-8
 - identifier          = ico
 - description         = Microsoft ICO icon file format
-- dogma_specification = https://github.com/kstenerud/dogma/blob/master/dogma_v1.md
+- dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
 
 document       = byte_order(lsb, document_le);
 
@@ -22,7 +22,7 @@ icon_dir_entry = width
                & bits_per_pixel
                & uint(32,var(byte_count,~))
                & uint(32,var(image_offset,~))
-               & offset(image_offset, image)
+               & offset(image_offset*8, image)
                ;
 width          = uint(8,~);
 height         = uint(8,~);
