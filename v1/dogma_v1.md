@@ -157,6 +157,7 @@ Contents
     - [`reversed` Function](#reversed-function)
     - [`ordered` function](#ordered-function)
     - [`byte_order` Function](#byte_order-function)
+    - [`bom_ordered` Function](#bom_ordered-function)
     - [`peek` Function](#peek-function)
     - [`offset` Function](#offset-function)
     - [`var` Function](#var-function)
@@ -301,24 +302,9 @@ The global byte ordering is `msb`, and can be changed for the duration of a sube
 
 #### Codepoint Byte Ordering
 
-The byte ordering rules of the [character set](#character-set-support) override the [byte order](#byte-ordering) setting. The byte order setting only takes effect for character sets without explicit byte orders such as `utf-16` and `utf-32`.
+All [codepoints](#codepoints) follow the [character set's](#character-set-support) byte order rules and ignore the [byte order](#byte-ordering) setting. For example, `utf-16le` is always interpreted "least significant byte first", even when the [byte order](#byte-ordering) is set to `msb`. Similarly, `utf-16be` is always interpreted "most significant byte first".
 
-For example, `utf-16le` will always be interpreted "least significant byte first", even if the [byte order](#byte-ordering) is set to `msb`. `utf-16`, however, will be interpreted according to the [byte order](#byte-ordering) setting (`lsb` or `msb`).
-
-Some Unicode character sets (`utf-16`, `utf-32`) allow an initial [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark) to signify the endianness of the codepoints that follow. BOM support can be added to a grammar like so (example for `utf-16`):
-
-```dogma
-# Peek ahead to see if there's a UTF-16 BOM, and use it to decide the byte order.
-document_bom = peek(uint(16, var(signature,~)))
-             & [
-                 # fffe = little endian, anything else = big endian.
-                 signature = 0xfffe: byte_order(lsb, document);
-                                   : document;
-               ]
-             ;
-
-document     = ...;
-```
+**Note**: Dogma cannot make assumptions about where the "beginning" of a text stream is for [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark) purposes. If you wish to support BOM-based byte ordering, use the [`bom_ordered` function](#bom_ordered-function).
 
 
 ### Namespaces
@@ -1512,6 +1498,33 @@ byte_order(first: ordering, expr: bits): bits
 **Example**: See the [`peek` function](#peek-function) example.
 
 
+### `bom_ordered` Function
+
+```dogma
+bom_ordered(expr: bits): bits =
+   """
+   Assumes that the first codepoint in `expr` is the beginning of a text stream and looks for a
+   byte order mark (BOM) according to the character set's rules. All codepoints in `expr` are then
+   interpreted according to the decided byte order.
+
+   For example in UTF-16 and UTF-32: If the first codepoint is an LSB-first BOM, all codepoints in
+   `expr` are interpreted LSB-first. Otherwise, all codepoints are interpreted MSB-first.
+   """;
+```
+
+-------------------------------------------------------------------------------
+**Example**: An archive file contains a series of 64-bit length-delimited utf-16 documents.
+
+```dogma
+dogma_v1 utf-16
+
+archive          = record* eod;
+record           = uint(64,var(length,~)) & document(length);
+document(length) = sized(length*8, bom_ordered(unicode(L,M,N,P,S,Z,C)*));
+```
+-------------------------------------------------------------------------------
+
+
 ### `peek` Function
 
 ```dogma
@@ -1963,6 +1976,7 @@ builtin_functions      = sized
                        | reversed
                        | ordered
                        | byte_order
+                       | bom_ordered
                        | peek
                        | offset
                        | var
@@ -2032,6 +2046,16 @@ byte_order(first: ordering, expr: bits): bits
 
    Note that this function does not modify `expr` in any way; it only sets the byte ordering for
    any calls to `ordered`, (and by extension `uint`, `sint`, and `float`) made within `expr`.
+   """;
+
+bom_ordered(expr: bits): bits =
+   """
+   Assumes that the first codepoint in `expr` is the beginning of a text stream and looks for a
+   byte order mark (BOM) according to the character set's rules. All codepoints in `expr` are then
+   interpreted according to the decided byte order.
+
+   For example in UTF-16 and UTF-32: If the first codepoint is an LSB-first BOM, all codepoints in
+   `expr` are interpreted LSB-first. Otherwise, all codepoints are interpreted MSB-first.
    """;
 
 peek(expr: bits): nothing
@@ -2208,6 +2232,7 @@ reserved_identifiers   = "sized"
                        | "reversed"
                        | "ordered"
                        | "byte_order"
+                       | "bom_ordered"
                        | "peek"
                        | "offset"
                        | "var"
