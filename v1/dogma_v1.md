@@ -1,6 +1,5 @@
 <p align="center"><img width="400" alt="Dogma Logo" src="img/dogma-logo.svg"/><h3 align="center">
 
-
 The Dogma Metalanguage
 ======================
 
@@ -296,7 +295,7 @@ Bit ordering can be manipulated on a smaller scale using the [`reversed` functio
 
 Because some data formats store endianness information in the data itself, byte ordering needs to be selectable while parsing.
 
-Byte ordering can be `msb` (most significant byte first) or `lsb` (least significant byte first), and only comes into effect for expressions passed to an [`ordered` function](#ordered-function) call (and by extension the [`uint`](#uint-function), [`sint`](#sint-function), and [`float`](#float-function) functions, which call `ordered` internally). Outside of this context, all non-codepoint multibyte data is assumed to be `msb`.
+Byte ordering can be `msb` (most significant byte first) or `lsb` (least significant byte first), and only comes into effect for expressions passed to an [`ordered` function](#ordered-function) call. Outside of this context, all non-codepoint multibyte data is assumed to be `msb`.
 
 The global byte ordering is `msb`, and can be changed for the duration of a subexpression using the [`byte_order` function](#byte_order-function).
 
@@ -744,12 +743,23 @@ The `ordering` type specifies the [byte ordering](#byte-ordering) when processin
 * `lsb` = Least significant byte first
 
 -------------------------------------------------------------------------------
-**Example**: The entire document is in little endian byte order.
+**Example**: A document consists of a header containing length fields and a media type, followed by an opaque payload (a series of bytes) containing media of that type. Byte order in the header is little endian.
+
+The [`byte_order` function](#byte_order-function) sets the byte ordering to `lsb` (little endian) for the `header` and `payload` expressions.
+
+The `u16` and `u32` macros call the [`ordered` function](#ordered-function), which arranges the byte order according to the current setting (`lsb`, passed down via the `document` rule). Note that this has no effect on the media type bytes because it doesn't call `ordered`.
 
 ```dogma
-document = byte_order(lsb, header & payload);
-header   = ...;
-payload  = ...;
+document        = byte_order(lsb, header) & payload;
+header          = u16(var(header_length, 2~))
+                & u32(var(payload_length, 2~))
+                & u8(var(media_type_length, ~))
+                & var(media_type, uint(8,~){media_type_length})
+                ;
+payload(length) = u8(~){length};
+u8(values)      = uint(8,values);
+u16(values)     = ordered(uint(16,values));
+u32(values)     = ordered(uint(32,values));
 ```
 -------------------------------------------------------------------------------
 
@@ -1491,11 +1501,11 @@ byte_order(first: ordering, expr: bits): bits
    whether the most or least significant byte comes first in any call to the `ordered` function.
 
    Note that this function does not modify `expr` in any way; it only sets the byte ordering for
-   any calls to `ordered`, (and by extension `uint`, `sint`, and `float`) made within `expr`.
+   any calls to `ordered` made within `expr`.
    """;
 ```
 
-**Example**: See the [`peek` function](#peek-function) example.
+**Example**: See the [`ordered` function](#ordered-function) example.
 
 
 ### `bom_ordered` Function
@@ -1542,6 +1552,8 @@ peek(expr: bits): nothing
 
 Since the endianness field is later in the dex file than some other fields that depend on it, we must first peek ahead in order to bind it to a variable before we can determine and apply byte endianness to the whole file.
 
+**Note**: The initial [`peek`](#peek-function) is done using the default [byte ordering](#byte-ordering) (`msb`).
+
 ```dogma
 document    = peek(var(head, header))
             & [
@@ -1562,12 +1574,15 @@ header      = magic
             ;
 
 magic       = "dex\[a]039\[0]";
-checksum    = uint(32,~);
-signature   = uint(8,~){20};
-file_size   = uint(32,~);
-header_size = uint(32,0x70);
-endianness  = uint(32, var(tag, 0x12345678 | 0x78563412));
+checksum    = u32(~);
+signature   = u8(~){20};
+file_size   = u32(~);
+header_size = u32(0x70);
+endianness  = u32(var(tag, 0x12345678 | 0x78563412));
 body        = ...;
+
+u8(values)  = uint(8,values);
+u32(values) = ordered(uint(32,values));
 ```
 -------------------------------------------------------------------------------
 
@@ -1594,28 +1609,32 @@ document_le    = var(head,header)
                & icon_dir_entry{head.count}
                ;
 
-header         = uint(16,0)
-               & uint(16,1)
-               & uint(16,var(count,~))
+header         = u16(0)
+               & u16(1)
+               & u16(var(count,~))
                ;
 
 icon_dir_entry = width
                & height
                & color_count
-               & uint(8,0)
+               & u8(0)
                & color_planes
                & bits_per_pixel
-               & uint(32,var(byte_count,~))
-               & uint(32,var(image_offset,~))
+               & u32(var(byte_count,~))
+               & u32(var(image_offset,~))
                & offset(image_offset*8, image)
                ;
-width          = uint(8,~);
-height         = uint(8,~);
-color_count    = uint(8,~);
-color_planes   = uint(16,~);
-bits_per_pixel = uint(16,~);
+width          = u8(~);
+height         = u8(~);
+color_count    = u8(~);
+color_planes   = u16(~);
+bits_per_pixel = u16(~);
 
 image          = ...;
+
+u8(values)     = uint(8,values);
+u16(values)    = ordered(uint(16,values));
+u32(values)    = ordered(uint(32,values));
 ```
 -------------------------------------------------------------------------------
 
@@ -1712,9 +1731,6 @@ uint(bit_count: uinteger, values: uintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
     given values set as big endian unsigned integers of size `bit_count`.
-
-    If `bit_count` is a multiple of 8, this function returns the result of calling the `ordered`
-    function on the bits it produces.
     """;
 ```
 
@@ -1734,9 +1750,6 @@ sint(bit_count: uinteger, values: sintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
     given values set as big endian 2's complement signed integers of size `bit_count`.
-
-    If `bit_count` is a multiple of 8, this function returns the result of calling the `ordered`
-    function on the bits it produces.
     """;
 ```
 
@@ -1761,8 +1774,6 @@ float(bit_count: uinteger, values: numbers): bits =
     NaN values, or negative 0, for which there are specialized functions.
 
     `bit_count` must be a valid size according to ieee754 binary.
-
-    This function returns the result of calling the `ordered` function on the bits it produces.
     """;
 ```
 
@@ -1792,8 +1803,6 @@ inf(bit_count: uinteger, sign: numbers): bits =
     positive and negative values or not (0 counts as positive).
 
     `bit_count` must be a valid size according to ieee754 binary.
-
-    This function returns the result of calling the `ordered` function on the bits it produces.
     """;
 ```
 
@@ -1820,8 +1829,6 @@ nan(bit_count: uinteger, payload: sintegers): bits =
     a float of the given size (10 bits for float-16, 23 bits for float32, etc).
 
     `bit_count` must be a valid size according to ieee754 binary.
-
-    This function returns the result of calling the `ordered` function on the bits it produces.
 
     Notes:
     - The absolute value of `payload` is encoded, with the sign going into the sign bit (i.e. the
@@ -1851,8 +1858,6 @@ nzero(bit_count: uinteger): bits =
     `bit_count`.
 
     `bit_count` must be a valid size according to ieee754 binary.
-
-    This function returns the result of calling the `ordered` function on the bits it produces.
     """;
 ```
 
@@ -2045,7 +2050,7 @@ byte_order(first: ordering, expr: bits): bits
    whether the most or least significant byte comes first in any call to the `ordered` function.
 
    Note that this function does not modify `expr` in any way; it only sets the byte ordering for
-   any calls to `ordered`, (and by extension `uint`, `sint`, and `float`) made within `expr`.
+   any calls to `ordered` made within `expr`.
    """;
 
 bom_ordered(expr: bits): bits =
@@ -2104,18 +2109,12 @@ uint(bit_count: uinteger, values: uintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
     given values set as big endian unsigned integers of size `bit_count`.
-
-    If `bit_count` is a multiple of 8, this function returns the result of calling the `ordered`
-    function on the bits it produces.
     """;
 
 sint(bit_count: uinteger, values: sintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
     given values set as big endian 2's complement signed integers of size `bit_count`.
-
-    If `bit_count` is a multiple of 8, this function returns the result of calling the `ordered`
-    function on the bits it produces.
     """;
 
 float(bit_count: uinteger, values: numbers): bits =
@@ -2127,8 +2126,6 @@ float(bit_count: uinteger, values: numbers): bits =
     NaN values, or negative 0, for which there are specialized functions.
 
     `bit_count` must be a valid size according to ieee754 binary.
-
-    This function returns the result of calling the `ordered` function on the bits it produces.
     """;
 
 inf(bit_count: uinteger, sign: numbers): bits =
@@ -2139,8 +2136,6 @@ inf(bit_count: uinteger, sign: numbers): bits =
     positive and negative values or not (0 counts as positive).
 
     `bit_count` must be a valid size according to ieee754 binary.
-
-    This function returns the result of calling the `ordered` function on the bits it produces.
     """;
 
 nan(bit_count: uinteger, payload: sintegers): bits =
@@ -2152,8 +2147,6 @@ nan(bit_count: uinteger, payload: sintegers): bits =
     a float of the given size (10 bits for float-16, 23 bits for float32, etc).
 
     `bit_count` must be a valid size according to ieee754 binary.
-
-    This function returns the result of calling the `ordered` function on the bits it produces.
 
     Notes:
     - The absolute value of `payload` is encoded, with the sign going into the sign bit (i.e. the
@@ -2168,8 +2161,6 @@ nzero(bit_count: uinteger): bits =
     `bit_count`.
 
     `bit_count` must be a valid size according to ieee754 binary.
-
-    This function returns the result of calling the `ordered` function on the bits it produces.
     """;
 
 padding                = expression;

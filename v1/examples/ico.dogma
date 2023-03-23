@@ -9,26 +9,26 @@ document_le    = var(head,header)
                & icon_dir_entry{head.count}
                ;
 
-header         = uint(16,0)
-               & uint(16,1)
-               & uint(16,var(count,~))
+header         = u16(0)
+               & u16(1)
+               & u16(var(count,~))
                ;
 
 icon_dir_entry = width
                & height
                & color_count
-               & uint(8,0)
+               & u8(0)
                & color_planes
                & bits_per_pixel
-               & uint(32,var(byte_count,~))
-               & uint(32,var(image_offset,~))
+               & u32(var(byte_count,~))
+               & u32(var(image_offset,~))
                & offset(image_offset*8, image)
                ;
-width          = uint(8,~);
-height         = uint(8,~);
-color_count    = uint(8,~);
-color_planes   = uint(16,~);
-bits_per_pixel = uint(16,~);
+width          = u8(~);
+height         = u8(~);
+color_count    = u8(~);
+color_planes   = u16(~);
+bits_per_pixel = u16(~);
 
 image          = var(info, bitmap_info)
                & [
@@ -40,27 +40,32 @@ image          = var(info, bitmap_info)
                & and_data(info.width, info.height/2)
                ;
 
-bitmap_info    = uint(32,var(size,~))
-               & uint(32,var(width,~))
-               & sint(32,var(height,~)) # Note: Can be negative!
-               & uint(16,var(planes,~))
-               & uint(16,var(bit_count, 1 | 4 | 8 | 16 | 24 | 32))
-               & uint(32,0) # biCompression
-               & uint(32,var(size_image,~))
-               & uint(32,0) # biXPelsPerMeter
-               & uint(32,0) # biYPelsPerMeter
-               & uint(32,0) # biClrUsed
-               & uint(32,0) # biClrImportant
+bitmap_info    = u32(var(size,~))
+               & u32(var(width,~))
+               & s32(var(height,~)) # Note: Can be negative!
+               & u16(var(planes,~))
+               & u16(var(bit_count, 1 | 4 | 8 | 16 | 24 | 32))
+               & u32(0) # biCompression
+               & u32(var(size_image,~))
+               & u32(0) # biXPelsPerMeter
+               & u32(0) # biYPelsPerMeter
+               & u32(0) # biClrUsed
+               & u32(0) # biClrImportant
                ;
 
 rgb_quad       = blue
                & green
                & red
-               & uint(8,0)
+               & u8(0)
                ;
-blue           = uint(8,~);
-green          = uint(8,~);
-red            = uint(8,~);
+blue           = u8(~);
+green          = u8(~);
+red            = u8(~);
+
+u8(values)     = uint(8,values);
+u16(values)    = ordered(uint(16,values);
+u32(values)    = ordered(uint(32,values);
+s32(values)    = ordered(sint(32,values);
 
 xor_data(width, height, bpp) = uint(bpp,~){width*height};
 and_data(width, height)      = uint(1,~){width*height};

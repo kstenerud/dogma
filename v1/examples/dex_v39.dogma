@@ -10,20 +10,329 @@ document    = peek(var(head, header))
               ]
             ;
 
-doc_endian  = header & body;
+doc_endian  = var(head,header)
+            & offset(head.sect.link_off,       u8(~){head.sect.link_size})
+            & offset(head.sect.map_off,        map_list(head.sect))
+            & offset(head.sect.string_ids_off, string_id_item{head.sect.string_ids_size})
+            & offset(head.sect.type_ids_off,   type_id_item(head.sect){head.sect.type_ids_size})
+            & offset(head.sect.proto_ids_off,  proto_id_item(head.sect){head.sect.proto_ids_size})
+            & offset(head.sect.field_ids_off,  field_id_item(head.sect){head.sect.field_ids_size})
+            & offset(head.sect.method_ids_off, method_id_item(head.sect){head.sect.method_ids_size})
+            & offset(head.sect.class_defs_off, class_def_item(head.sect){head.sect.class_defs_size})
+            & offset(head.sect.data_off,       u8(~){head.sect.data_size})
+            ;
 
 header      = magic
             & checksum
             & signature
             & file_size
             & header_size
-            & var(endian, endianness)
-            & TODO UNFINISHED
+            & var(endian, endian_tag)
+            & var(sect,sections)
+            ;
+magic       = "dex\[a]039\[0]";
+checksum    = u32(~);
+signature   = u8(~){20};
+file_size   = u32(~);
+header_size = u32(0x70);
+endian_tag  = u32(var(tag, 0x12345678 | 0x78563412));
+sections    = u32(var(link_size,~))
+            & u32(var(link_off,~))
+            & u32(var(map_off,1~))
+            & u32(var(string_ids_size,~))
+            & u32(var(string_ids_off,~))
+            & u32(var(type_ids_size,~65535))
+            & u32(var(type_ids_off,~))
+            & u32(var(proto_ids_size,~65535))
+            & u32(var(proto_ids_off,~))
+            & u32(var(field_ids_size,~))
+            & u32(var(field_ids_off,~))
+            & u32(var(method_ids_size,~))
+            & u32(var(method_ids_off,~))
+            & u32(var(class_defs_size,~))
+            & u32(var(class_defs_off,~))
+            & u32(var(data_size,~))
+            & u32(var(data_off,~))
             ;
 
-magic       = "dex\[a]039\[0]";
-checksum    = uint(32,~);
-signature   = uint(8,~){20};
-file_size   = uint(32,~);
-header_size = uint(32,0x70);
-endianness  = uint(32, var(tag, 0x12345678 | 0x78563412));
+offs_string_item(sect,index)    = offset(sect.string_ids_off*8 + index*32, string_id_item);
+offs_type_id_item(sect,index)   = offset(sect.type_ids_off*8 + index*32,   type_id_item(sect));
+offs_proto_id_item(sect,index)  = offset(sect.proto_ids_off*8 + index*32,  proto_id_item(sect));
+offs_field_id_item(sect,index)  = offset(sect.field_ids_off*8 + index*32,  field_id_item(sect));
+offs_method_id_item(sect,index) = offset(sect.method_ids_off*8 + index*32, method_id_item(sect));
+
+
+string_id_item        = u32(var(file_off,~)) & offset(file_off*8, string_data_item);
+string_data_item      = utf16_size & mutf8_data;
+utf16_size            = uleb128(~);
+mutf8_data            = u8(1~)* & u8(0);
+
+type_id_item(sect) = u32(var(index,~)) & offs_string_item(sect,index);
+
+proto_id_item(sect) = u32(var(shorty_idx,~))
+                    & u32(var(return_type_idx,~))
+                    & u32(var(parameters_off,~))
+                    & offs_proto_short_form_desc(sect,shorty_idx)
+                    & offs_return_type(sect,return_type_idx)
+                    & [parameters_off > 0: offset(parameters_off,type_list(sect));]
+                    ;
+offs_proto_short_form_desc(sect,index) = offs_string_item(sect,index);
+offs_return_type(sect,index)           = offs_type_id_item(sect,index);
+
+field_id_item(sect) = u32(var(class_idx,~))
+                    & u32(var(type_idx,~))
+                    & u32(var(name_idx,~))
+                    & offs_type_id_item(sect,class_idx)
+                    & offs_type_id_item(sect,type_idx)
+                    & offs_string_item(sect,name_idx)
+                    ;
+
+method_id_item(sect) = u32(var(class_idx,~))
+                     & u32(var(proto_idx,~))
+                     & u32(var(name_idx,~))
+                     & offs_type_id_item(sect,class_idx)
+                     & offs_proto_id_item(sect,proto_idx)
+                     & offs_string_item(sect,name_idx)
+                     ;
+
+class_def_item(sect) = u32(var(class_idx,~))
+                     & access_flags
+                     & u32(var(superclass_idx,~))
+                     & u32(var(interfaces_off,~))
+                     & u32(var(source_file_idx,~))
+                     & u32(var(annotations_off,~))
+                     & u32(var(class_data_off,~))
+                     & u32(var(static_values_off,~))
+                     & offs_type_id_item(sect,class_idx)
+                     & [superclass_idx != NO_INDEX: offs_type_id_item(sect,superclass_idx);]
+                     & [interfaces_off != 0: offset(interfaces_off,type_list(sect));]
+                     & offs_string_item(sect,source_file_idx)
+                     & [annotations_off != 0: offset(annotations_off,annotations_directory_item(sect));]
+                     & [class_data_off != 0: offset(class_data_off,class_data_item(sect));]
+                     & [static_values_off != 0: offset(static_values_off,encoded_array_item(sect));]
+                     ;
+
+annotations_directory_item(sect) = u32(var(class_annotations_off,~))
+                                 & u32(var(fields_size,~))
+                                 & u32(var(methods_size,~))
+                                 & u32(var(parameters_size,~))
+                                 & field_annotation(sect){fields_size}
+                                 & method_annotation(sect){methods_size}
+                                 & parameter_annotation(sect){parameters_size}
+                                 & [class_annotations_off != 0: annotation_set_item(sect);]
+                                 ;
+
+annotation_set_item(sect) = u32(var(size,~))
+                          & annotation_off_item(sect){size}
+                          ;
+
+annotation_off_item(sect) = u32(var(annotation_off,~))
+                          & offset(annotation_off, annotation_item(sect))
+                          ;
+
+annotation_item(sect) = u8(visibility)
+                      & encoded_annotation(sect)
+                      ;
+
+encoded_annotation(sect) = uleb128(var(type_idx,~))
+                         & uleb128(var(size,~))
+                         & annotation_element(sect){size}
+                         & offs_type_id_item(sect,type_idx)
+                         ;
+
+annotation_element(sect) = uleb128(var(name_idx,~))
+                         & encoded_value(sect)
+                         & offs_string_item(name_idx)
+                         ;
+
+encoded_value(sect) = TODO;
+
+class_data_item(sect) = uleb128(var(static_fields_size,~))
+                      & uleb128(var(instance_fields_size,~))
+                      & uleb128(var(direct_methods_size,~))
+                      & uleb128(var(virtual_methods_size,~))
+                      & static_field(sect){static_fields_size}
+                      & instance_field(sect){instance_fields_size}
+                      & direct_method(sect){direct_methods_size}
+                      & virtual_method(sect){virtual_methods_size}
+                      ;
+static_field(sect)    = encoded_field(sect);
+instance_field(sect)  = encoded_field(sect);
+direct_method(sect)   = encoded_method(sect);
+virtual_method(sect)  = encoded_method(sect);
+
+encoded_field(sect) = uleb128(var(field_idx_diff,~))
+                    & uleb128bits(var(access,access_flags))
+                    ;
+
+encoded_method(sect) = uleb128(var(method_idx_diff,~))
+                     & uleb128bits(var(access,access_flags))
+                     & uleb128(var(method_code_off,~))
+                     [method_code_off > 0: offset(method_code_off*8, code_item);]
+                     ;
+
+
+encoded_array_item(sect) = TODO;
+annotation_set_ref_list(sect) = TODO;
+code_item(sect) = TODO;
+debug_info_item(sect) = TODO;
+hiddenapi_class_data_item(sect) = TODO;
+
+call_site_id_item = u32(var(file_off,~)) & offset(file_off*8, call_site_item);
+call_site_item = TODO;
+
+type_list(sect) = u32(var(count,~)) & type_item(sect){count};
+type_item(sect) = u16(var(index,~)) & offs_type_id_item(sect,index);
+
+
+method_handle_item(sect) = u16(method_handle_type)
+                             & u16(0)
+                             & u16(index)
+                             & u16(0)
+                             & [
+                                   method_handle_type = METHOD_HANDLE_TYPE_STATIC_PUT
+                                 | method_handle_type = METHOD_HANDLE_TYPE_STATIC_GET
+                                 | method_handle_type = METHOD_HANDLE_TYPE_INSTANCE_PUT
+                                 | method_handle_type = METHOD_HANDLE_TYPE_INSTANCE_GET
+                                 : offs_field_id_item(sect,index);
+                                 : offs_method_id_item(sect,index);
+                               ]
+                             ;
+
+map_list(sect) = u32(var(entry_count,~)) & map_item(sect){entry_count};
+map_item(sect) = u16(var(item_type,type)
+               & u16(~) # Unused
+               & u32(var(item_count,~))
+               & u32(var(file_off,~))
+               & offset(file_off*8,
+                   [
+                     item_type = TYPE_HEADER_ITEM                : header{item_count};
+                     item_type = TYPE_STRING_ID_ITEM             : string_id_item{item_count};
+                     item_type = TYPE_TYPE_ID_ITEM               : type_id_item(sect){item_count};
+                     item_type = TYPE_PROTO_ID_ITEM              : proto_id_item(sect){item_count};
+                     item_type = TYPE_FIELD_ID_ITEM              : field_id_item(sect){item_count};
+                     item_type = TYPE_METHOD_ID_ITEM             : method_id_item(sect){item_count};
+                     item_type = TYPE_CLASS_DEF_ITEM             : class_def_item(sect){item_count};
+                     item_type = TYPE_CALL_SITE_ID_ITEM          : call_site_id_item(sect){item_count};]
+                     item_type = TYPE_METHOD_HANDLE_ITEM         : method_handle_item(sect){item_count};]
+                     item_type = TYPE_MAP_LIST                   : map_list(sect){item_count};]
+                     item_type = TYPE_TYPE_LIST                  : type_list(sect){item_count};]
+                     item_type = TYPE_ANNOTATION_SET_REF_LIST    : annotation_set_ref_list(sect){item_count};]
+                     item_type = TYPE_ANNOTATION_SET_ITEM        : annotation_set_item(sect){item_count};]
+                     item_type = TYPE_CLASS_DATA_ITEM            : class_data_item(sect){item_count};]
+                     item_type = TYPE_CODE_ITEM                  : code_item(sect){item_count};]
+                     item_type = TYPE_STRING_DATA_ITEM           : string_data_item(sect){item_count};]
+                     item_type = TYPE_DEBUG_INFO_ITEM            : debug_info_item(sect){item_count};]
+                     item_type = TYPE_ANNOTATION_ITEM            : annotation_item(sect){item_count};]
+                     item_type = TYPE_ENCODED_ARRAY_ITEM         : encoded_array_item(sect){item_count};]
+                     item_type = TYPE_ANNOTATIONS_DIRECTORY_ITEM : annotations_directory_item(sect){item_count};]
+                     item_type = TYPE_HIDDENAPI_CLASS_DATA_ITEM  : hiddenapi_class_data_item(sect){item_count};]
+                   ])
+               ;
+
+access_flags = ordered(
+                   uint(14,0)
+                 & u1(var(declared_synchronized,~))
+                 & u1(var(constructor,~))
+                 & u1(0)
+                 & u1(var(enum,~))
+                 & u1(var(annotation,~))
+                 & u1(var(synthetic,~))
+                 & u1(var(strict,~))
+                 & u1(var(abstract,~))
+                 & u1(var(interface,~))
+                 & u1(var(native,~))
+                 & u1(var(transient_or_varargs,~))
+                 & u1(var(volatile_or_bridge,~))
+                 & u1(var(synchronized,~))
+                 & u1(var(final,~))
+                 & u1(var(static,~))
+                 & u1(var(protected,~))
+                 & u1(var(private,~))
+                 & u1(var(public,~))
+             );
+
+uleb128p1(values: sintegers): bits = """https://source.android.com/docs/core/runtime/dex-format#leb128""";
+uleb128(values: uintegers): bits   = """https://source.android.com/docs/core/runtime/dex-format#leb128""";
+uleb128bits(expr: bits): bits      = """https://source.android.com/docs/core/runtime/dex-format#leb128""";
+
+u1(values)  = uint(1,values);
+u3(values)  = uint(3,values);
+u5(values)  = uint(5,values);
+u8(values)  = uint(8,values);
+u16(values) = ordered(uint(16,values));
+u32(values) = ordered(uint(32,values));
+
+NO_INDEX = 0xffffffff;
+
+visibility = VISIBILITY_BUILD
+           | VISIBILITY_RUNTIME
+           | VISIBILITY_SYSTEM
+           ;
+VISIBILITY_BUILD   = 0;
+VISIBILITY_RUNTIME = 1;
+VISIBILITY_SYSTEM  = 2;
+
+method_handle_type = METHOD_HANDLE_TYPE_STATIC_PUT
+                   | METHOD_HANDLE_TYPE_STATIC_GET
+                   | METHOD_HANDLE_TYPE_INSTANCE_PUT
+                   | METHOD_HANDLE_TYPE_INSTANCE_GET
+                   | METHOD_HANDLE_TYPE_INVOKE_STATIC
+                   | METHOD_HANDLE_TYPE_INVOKE_INSTANCE
+                   | METHOD_HANDLE_TYPE_INVOKE_CONSTRUCTOR
+                   | METHOD_HANDLE_TYPE_INVOKE_DIRECT
+                   | METHOD_HANDLE_TYPE_INVOKE_INTERFACE
+                   ;
+METHOD_HANDLE_TYPE_STATIC_PUT         = 0;
+METHOD_HANDLE_TYPE_STATIC_GET         = 1;
+METHOD_HANDLE_TYPE_INSTANCE_PUT       = 2;
+METHOD_HANDLE_TYPE_INSTANCE_GET       = 3;
+METHOD_HANDLE_TYPE_INVOKE_STATIC      = 4;
+METHOD_HANDLE_TYPE_INVOKE_INSTANCE    = 5;
+METHOD_HANDLE_TYPE_INVOKE_CONSTRUCTOR = 6;
+METHOD_HANDLE_TYPE_INVOKE_DIRECT      = 7;
+METHOD_HANDLE_TYPE_INVOKE_INTERFACE   = 8;
+
+type = TYPE_HEADER_ITEM
+     | TYPE_STRING_ID_ITEM
+     | TYPE_TYPE_ID_ITEM
+     | TYPE_PROTO_ID_ITEM
+     | TYPE_FIELD_ID_ITEM
+     | TYPE_METHOD_ID_ITEM
+     | TYPE_CLASS_DEF_ITEM
+     | TYPE_CALL_SITE_ID_ITEM
+     | TYPE_METHOD_HANDLE_ITEM
+     | TYPE_MAP_LIST
+     | TYPE_TYPE_LIST
+     | TYPE_ANNOTATION_SET_REF_LIST
+     | TYPE_ANNOTATION_SET_ITEM
+     | TYPE_CLASS_DATA_ITEM
+     | TYPE_CODE_ITEM
+     | TYPE_STRING_DATA_ITEM
+     | TYPE_DEBUG_INFO_ITEM
+     | TYPE_ANNOTATION_ITEM
+     | TYPE_ENCODED_ARRAY_ITEM
+     | TYPE_ANNOTATIONS_DIRECTORY_ITEM
+     | TYPE_HIDDENAPI_CLASS_DATA_ITEM
+     ;
+TYPE_HEADER_ITEM                = 0;
+TYPE_STRING_ID_ITEM             = 1;
+TYPE_TYPE_ID_ITEM               = 2;
+TYPE_PROTO_ID_ITEM              = 3;
+TYPE_FIELD_ID_ITEM              = 4;
+TYPE_METHOD_ID_ITEM             = 5;
+TYPE_CLASS_DEF_ITEM             = 6;
+TYPE_CALL_SITE_ID_ITEM          = 7;
+TYPE_METHOD_HANDLE_ITEM         = 8;
+TYPE_MAP_LIST                   = 0x1000;
+TYPE_TYPE_LIST                  = 0x1001;
+TYPE_ANNOTATION_SET_REF_LIST    = 0x1002;
+TYPE_ANNOTATION_SET_ITEM        = 0x1003;
+TYPE_CLASS_DATA_ITEM            = 0x2000;
+TYPE_CODE_ITEM                  = 0x2001;
+TYPE_STRING_DATA_ITEM           = 0x2002;
+TYPE_DEBUG_INFO_ITEM            = 0x2003;
+TYPE_ANNOTATION_ITEM            = 0x2004;
+TYPE_ENCODED_ARRAY_ITEM         = 0x2005;
+TYPE_ANNOTATIONS_DIRECTORY_ITEM = 0x2006;
+TYPE_HIDDENAPI_CLASS_DATA_ITEM  = 0xf000;

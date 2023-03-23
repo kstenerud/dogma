@@ -1,0 +1,526 @@
+dogma_v1 utf-8
+- identifier          = mdmp
+- description         = Microsoft Minidump
+- dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
+
+document = byte_order(lsb,
+               var(head,header)
+             & xyz
+           );
+
+header = "MDMP"
+       & u16(0xa793) # MDMP Version
+       & u16(var(impl_version,~))
+       & u32(var(NumberOfStreams,~))
+       & u32(var(StreamDirectoryRva,~))
+       & u32(var(CheckSum,~))
+       & u32(var(TimeDateStamp,~))
+       & var(flags,header_flags)
+       & offset(StreamDirectoryRva*8, directory{NumberOfStreams})
+       ;
+
+header_flags = ordered(
+                   uint(40,0)
+                 & u1(var(ScanInaccessiblePartialPages,~))
+                 & u1(var(WithIptTrace,~))
+                 & u1(var(WithAvxXStateContext,~))
+                 & u1(var(FilterTriage,~))
+                 & u1(var(WithModuleHeaders,~))
+                 & u1(var(WithTokenInformation,~))
+                 & u1(var(IgnoreInaccessibleMemory,~))
+                 & u1(var(WithPrivateWriteCopyMemory,~))
+                 & u1(var(WithFullAuxiliaryState,~))
+                 & u1(var(WithoutAuxiliaryState,~))
+                 & u1(var(WithCodeSegs,~))
+                 & u1(var(WithThreadInfo,~))
+                 & u1(var(WithFullMemoryInfo,~))
+                 & u1(var(WithoutOptionalData,~))
+                 & u1(var(WithPrivateReadWriteMemory,~))
+                 & u1(var(WithProcessThreadData,~))
+                 & u1(var(FilterModulePaths,~))
+                 & u1(var(WithIndirectlyReferencedMemory,~))
+                 & u1(var(WithUnloadedModules,~))
+                 & u1(var(ScanMemory,~))
+                 & u1(var(FilterMemory,~))
+                 & u1(var(WithHandleData,~))
+                 & u1(var(WithFullMemory,~))
+                 & u1(var(WithDataSegs,~))
+               );
+
+directory = u32(var(type,StreamType))
+          & var(loc,location_descriptor)
+          & offset(loc.rva, [
+              type = TypeThreadListStream          : thread_list_stream;
+              type = TypeModuleListStream          : module_list_stream;
+              type = TypeMemoryListStream          : memory_list_stream;
+              type = TypeExceptionStream           : exception_stream;
+              type = TypeSystemInfoStream          : system_info_stream;
+              type = TypeThreadExListStream        : thread_ex_list;
+              type = TypeMemory64ListStream        : memory64_list;
+              type = TypeCommentStreamA            : ansi_string(loc.size);
+              type = TypeCommentStreamW            : unicode_string(loc.size);
+              type = TypeHandleDataStream          : handle_data_stream;
+              type = TypeUnloadedModuleListStream  : unloaded_module_list_stream;
+              type = TypeMiscInfoStream            : TODO;
+              type = TypeMemoryInfoListStream      : TODO;
+              type = TypeThreadInfoListStream      : TODO;
+              type = TypeHandleOperationListStream : TODO;
+                                                   : u8(~){loc.size};
+            ]
+          ;
+
+unloaded_module_list_stream = u32(var(SizeOfHeader))
+                            & u32(var(SizeOfEntry))
+                            & u32(var(NumberOfEntries))
+                            ;
+
+
+ansi_string(count) = u8(~){count};
+unicode_string(count) = u16(~){count/2};
+
+sizeof_handle_descriptor = 32;
+sizeof_handle_descriptor_2 = 36;
+
+handle_data_stream = u32(var(SizeOfHeader,~))
+                   & u32(var(SizeOfDescriptor,~))
+                   & u32(var(NumberOfDescriptors,~))
+                   & u32(0)
+                   & [
+                       SizeOfDescriptor = sizeof_handle_descriptor: handle_descriptor;
+                       SizeOfDescriptor = sizeof_handle_descriptor_2: handle_descriptor_2;
+                     ]{NumberOfDescriptors}
+                   ;
+
+handle_descriptor = u64(var(Handle,~))
+                  & u32(var(TypeNameRva,~))
+                  & u32(var(ObjectNameRva,~))
+                  & u32(var(Attributes,~))
+                  & u32(var(GrantedAccess,~))
+                  & u32(var(HandleCount,~))
+                  & u32(var(PointerCount,~))
+                  & offset(TypeNameRva, string)
+                  & offset(ObjectNameRva, string)
+                  ;
+
+handle_descriptor_2 = u64(var(Handle,~))
+                    & u32(var(TypeNameRva,~))
+                    & u32(var(ObjectNameRva,~))
+                    & u32(var(Attributes,~))
+                    & u32(var(GrantedAccess,~))
+                    & u32(var(HandleCount,~))
+                    & u32(var(PointerCount,~))
+                    & u32(var(ObjectInfoRva,~))
+                    & u32(0)
+                    & offset(TypeNameRva, string)
+                    & offset(ObjectNameRva, string)
+                    & offset(ObjectInfoRva, handle_object_info)
+                    ;
+
+handle_object_info = u32(var(NextInfoRva,~))
+                   & u32(var(InfoType,object_info_type))
+                   & u32(var(SizeOfInfo,~))
+                   & u8(~){SizeOfInfo}
+                   ;
+
+object_info_type = MiniHandleObjectInformationNone
+                 | MiniThreadInformation1
+                 | MiniMutantInformation1
+                 | MiniMutantInformation2
+                 | MiniProcessInformation1
+                 | MiniProcessInformation2
+                 | MiniEventInformation1
+                 | MiniSectionInformation1
+                 | MiniSemaphoreInformation1
+                 ;
+
+MiniHandleObjectInformationNone = 0;
+MiniThreadInformation1          = 1;
+MiniMutantInformation1          = 2;
+MiniMutantInformation2          = 3;
+MiniProcessInformation1         = 4;
+MiniProcessInformation2         = 5;
+MiniEventInformation1           = 6;
+MiniSectionInformation1         = 7;
+MiniSemaphoreInformation1       = 8;
+
+thread_ex_list = u32(var(NumberOfThreads,~))
+               & thread_ex{NumberOfThreads}
+               ;
+
+thread_ex = u32(var(ThreadId,~))
+          & u32(var(SuspendCount,~))
+          & u32(var(PriorityClass,~))
+          & u32(var(Priority,~))
+          & u64(var(Teb,~))
+          & var(Stack,memory_descriptor)
+          & var(ThreadContext,location_descriptor)
+          & var(BackingStore,memory_descriptor)
+          ;
+
+system_info_stream = u16(var(ProcessorArchitecture,processor_architecture))
+                   & u16(var(ProcessorLevel, [
+                         ProcessorArchitecture = PROCESSOR_ARCHITECTURE_INTEL: PROCESSOR_LEVEL_386
+                                                                             | PROCESSOR_LEVEL_486
+                                                                             | PROCESSOR_LEVEL_PENTIUM
+                                                                             | PROCESSOR_LEVEL_PENTIUM_2
+                                                                             ;
+                         ProcessorArchitecture = PROCESSOR_ARCHITECTURE_IA64 : PROCESSOR_LEVEL_IA64;
+                                                                             : 0;
+                       ]))
+                   & u16(var(ProcessorRevision,~))
+                   & u8(var(NumberOfProcessors,~))
+                   & u8(var(ProductType,product_type))
+                   & u32(var(MajorVersion,~))
+                   & u32(var(MinorVersion,~))
+                   & u32(var(BuildNumber,~))
+                   & u32(var(PlatformId,2))
+                   & u32(var(CSDVersionRva,~))
+                   & var(SuiteMask,suite_mask)
+                   & u16(0)
+                   & var(Cpu,cpu_information)
+                   & offset(CSDVersionRva,string)
+                   ;
+
+cpu_information = TODO;
+
+suite_mask = ordered(u1(0)
+             & u1(var(ComputeServer,~))
+             & u1(var(StorageServer,~))
+             & u1(0)
+             & u1(0)
+             & u1(var(Blade,~))
+             & u1(var(Personal,~))
+             & u1(var(SingleUserTS,~))
+             & u1(var(DataCenter,~))
+             & u1(var(EmbeddedNT,~))
+             & u1(var(SmallBusinessRestricted,~))
+             & u1(var(Terminal,~))
+             & u1(0)
+             & u1(var(BackOffice,~))
+             & u1(var(Enterprise,~))
+             & u1(var(SmallBusiness,~))
+           );
+
+product_type = VER_NT_WORKSTATION
+             | VER_NT_DOMAIN_CONTROLLER
+             | VER_NT_SERVER
+             ;
+VER_NT_WORKSTATION = 1;
+VER_NT_DOMAIN_CONTROLLER = 2;
+VER_NT_SERVER = 3;
+
+PROCESSOR_LEVEL_IA64 = 1;
+PROCESSOR_LEVEL_386 = 3;
+PROCESSOR_LEVEL_486 = 4;
+PROCESSOR_LEVEL_PENTIUM = 5;
+PROCESSOR_LEVEL_PENTIUM_2 = 6;
+
+
+processor_architecture = PROCESSOR_ARCHITECTURE_INTEL
+                       | PROCESSOR_ARCHITECTURE_ARM
+                       | PROCESSOR_ARCHITECTURE_IA64
+                       | PROCESSOR_ARCHITECTURE_AMD64
+                       | PROCESSOR_ARCHITECTURE_UNKNOWN
+                       ;
+PROCESSOR_ARCHITECTURE_INTEL   = 0;
+PROCESSOR_ARCHITECTURE_ARM     = 5;
+PROCESSOR_ARCHITECTURE_IA64    = 6;
+PROCESSOR_ARCHITECTURE_AMD64   = 9;
+PROCESSOR_ARCHITECTURE_UNKNOWN = 0xffff;
+
+exception_stream = u32(var(ThreadId,~))
+                 & u32(var(Alignment,~))
+                 & var(ExceptionRecord,exception)
+                 & var(ThreadContext,location_descriptor)
+                 ;
+
+exception = u32(var(ExceptionCode,exception_code))
+          & var(ExceptionFlags,exception_flags)
+          & u64(var(ExeptionRecord,~))
+          & u64(var(ExeptionAddress,~))
+          & u32(var(NumberParameters,~))
+          & u32(var(unusedAlignment,~))
+          & var(ExceptionInformation,u64(~){NumberParameters})
+          & [ExceptionRecord != 0: offset(ExceptionRecord,exception);]
+          ;
+
+exception_flags = uint(31,0)
+                & u1(var(noncontinuable,~))
+                ;
+
+location_descriptor = u32(var(size,~))
+                    & u32(var(rva,~))
+                    ;
+
+memory_list_stream = u32(var(count,~))
+                   & memory_descriptor{count}
+                   ;
+
+memory64_list = u64(var(count,~))
+              & u64(var(BaseRva,~))
+              & memory64_descriptor{count}
+              ;
+
+thread_list_stream = u32(var(count,~))
+                   & thread{count}
+                   ;
+
+thread = u32(var(ThreadId,~))
+       & u32(var(SuspendCount,~))
+       & u32(var(PriorityClass,~))
+       & u32(var(Priority,~))
+       & u64(var(Teb,~))
+       & var(Stack,memory_descriptor)
+       & var(ThreadContext,location_descriptor)
+       ;
+
+memory_descriptor = u64(var(StartOfMemoryRange,~))
+                  & var(Memory,location_descriptor)
+                  ;
+
+memory64_descriptor = u64(var(StartOfMemoryRange,~))
+                    & u64(var(DataSize,~))
+                    ;
+
+module_list_stream = u32(var(count,~))
+            & module{count}
+            ;
+
+module = u64(var(BaseOfImage,~))
+       & u32(var(SizeOfImage,~))
+       & u32(var(CheckSum,~))
+       & u32(var(TimeDateStamp,~))
+       & u32(var(ModuleNameRva,~))
+       & var(VersionInfo,fixed_file_info)
+       & var(CvRecord,location_descriptor)
+       & var(MiscRecord,location_descriptor)
+       & u64(0)
+       & u64(0)
+       & offset(ModuleNameRva,string)
+       ;
+
+string = u32(var(length,~))
+       & utf16le(~){length}
+       ;
+
+fixed_file_info = u32(0xFEEF04BD)
+                & u32(var(StrucVersion,~))
+                & u32(var(FileVersionMS,~))
+                & u32(var(FileVersionLS,~))
+                & u32(var(ProductVersionMS,~))
+                & u32(var(ProductVersionLS,~))
+                & u32(var(FileFlagsMask,~))
+                & var(FileFlags,fixed_file_flags)
+                & var(FileOS,os_flags)
+                & u32(var(FileType,file_type))
+                & u32(var(FileSubtype,[
+                      FileType = FileTypeFont: font_subtype;
+                                             : file_subtype;
+                    ]))
+                & u32(var(FileDateMS,~))
+                & u32(var(FileDateLS,~))
+                ;
+
+fixed_file_flags = ordered(uint(26,0)
+                   & u1(var(SpecialBuild,~))
+                   & u1(var(InfoInferred,~))
+                   & u1(var(PrivateBuild,~))
+                   & u1(var(Patched,~))
+                   & u1(var(Prerelease,~))
+                   & u1(var(Debug,~))
+                 );
+
+os_flags = ordered(uint(13,0)
+           & u1(var(NT))
+           & u1(var(OS2))
+           & u1(var(DOS))
+           & uint(13,0)
+           & u1(var(WIN32))
+           & u1(var(PM))
+           & u1(var(WIN16))
+         );
+
+exception_code = EXCEPTION_ACCESS_VIOLATION
+               | EXCEPTION_ARRAY_BOUNDS_EXCEEDED
+               | EXCEPTION_BREAKPOINT
+               | EXCEPTION_DATATYPE_MISALIGNMENT
+               | EXCEPTION_FLT_DENORMAL_OPERAND
+               | EXCEPTION_FLT_DIVIDE_BY_ZERO
+               | EXCEPTION_FLT_INEXACT_RESULT
+               | EXCEPTION_FLT_INVALID_OPERATION
+               | EXCEPTION_FLT_OVERFLOW
+               | EXCEPTION_FLT_STACK_CHECK
+               | EXCEPTION_FLT_UNDERFLOW
+               | EXCEPTION_GUARD_PAGE
+               | EXCEPTION_ILLEGAL_INSTRUCTION
+               | EXCEPTION_IN_PAGE_ERROR
+               | EXCEPTION_INT_DIVIDE_BY_ZERO
+               | EXCEPTION_INT_OVERFLOW
+               | EXCEPTION_INVALID_DISPOSITION
+               | EXCEPTION_INVALID_HANDLE
+               | EXCEPTION_NONCONTINUABLE_EXCEPTION
+               | EXCEPTION_PRIV_INSTRUCTION
+               | EXCEPTION_SINGLE_STEP
+               | EXCEPTION_STACK_OVERFLOW
+               ;
+EXCEPTION_ACCESS_VIOLATION         = 0xC0000005;
+EXCEPTION_ARRAY_BOUNDS_EXCEEDED    = 0xC000008C;
+EXCEPTION_BREAKPOINT               = 0x80000003;
+EXCEPTION_DATATYPE_MISALIGNMENT    = 0x80000002;
+EXCEPTION_FLT_DENORMAL_OPERAND     = 0xC000008D;
+EXCEPTION_FLT_DIVIDE_BY_ZERO       = 0xC000008E;
+EXCEPTION_FLT_INEXACT_RESULT       = 0xC000008F;
+EXCEPTION_FLT_INVALID_OPERATION    = 0xC0000090;
+EXCEPTION_FLT_OVERFLOW             = 0xC0000091;
+EXCEPTION_FLT_STACK_CHECK          = 0xC0000092;
+EXCEPTION_FLT_UNDERFLOW            = 0xC0000093;
+EXCEPTION_GUARD_PAGE               = 0x80000001;
+EXCEPTION_ILLEGAL_INSTRUCTION      = 0xC000001D;
+EXCEPTION_IN_PAGE_ERROR            = 0xC0000006;
+EXCEPTION_INT_DIVIDE_BY_ZERO       = 0xC0000094;
+EXCEPTION_INT_OVERFLOW             = 0xC0000095;
+EXCEPTION_INVALID_DISPOSITION      = 0xC0000026;
+EXCEPTION_INVALID_HANDLE           = 0xC0000008;
+EXCEPTION_NONCONTINUABLE_EXCEPTION = 0xC0000025;
+EXCEPTION_PRIV_INSTRUCTION         = 0xC0000096;
+EXCEPTION_SINGLE_STEP              = 0x80000004;
+EXCEPTION_STACK_OVERFLOW           = 0xC00000FD;
+
+file_type = FileTypeUnknown
+          | FileTypeApp
+          | FileTypeDLL
+          | FileTypeDriver
+          | FileTypeFont
+          | FileTypeVirtualDevice
+          | FileTypeStaticLib
+          ;
+FileTypeUnknown       = 0;
+FileTypeApp           = 1;
+FileTypeDLL           = 2;
+FileTypeDriver        = 3;
+FileTypeFont          = 4;
+FileTypeVirtualDevice = 5;
+FileTypeStaticLib     = 7;
+
+file_subtype = FileSubtypeUnknown
+             | FileSubtypePrinterDriver
+             | FileSubtypeKeyboardDriver
+             | FileSubtypeLanguageDriver
+             | FileSubtypeDisplayDriver
+             | FileSubtypeMouseDriver
+             | FileSubtypeNetworkDriver
+             | FileSubtypeSystemDriver
+             | FileSubtypeInstallableDriver
+             | FileSubtypeSoundDriver
+             | FileSubtypeCommDriver
+             | FileSubtypeVersionedPrinterDriver
+             ;
+FileSubtypeUnknown                = 0;
+FileSubtypePrinterDriver          = 1;
+FileSubtypeKeyboardDriver         = 2;
+FileSubtypeLanguageDriver         = 3;
+FileSubtypeDisplayDriver          = 4;
+FileSubtypeMouseDriver            = 5;
+FileSubtypeNetworkDriver          = 6;
+FileSubtypeSystemDriver           = 7;
+FileSubtypeInstallableDriver      = 8;
+FileSubtypeSoundDriver            = 9;
+FileSubtypeCommDriver             = 10;
+FileSubtypeVersionedPrinterDriver = 12;
+
+font_subtype = FontSubtypeUnknown
+             | FontsubtypeRaster
+             | FontSubtypeVector
+             | FontSubtypeTrueType
+             ;
+FontSubtypeUnknown = 0;
+FontsubtypeRaster = 1;
+FontSubtypeVector = 2;
+FontSubtypeTrueType = 3;
+
+StreamType = TypeUnusedStream
+           | TypeReservedStream0
+           | TypeReservedStream1
+           | TypeThreadListStream
+           | TypeModuleListStream
+           | TypeMemoryListStream
+           | TypeExceptionStream
+           | TypeSystemInfoStream
+           | TypeThreadExListStream
+           | TypeMemory64ListStream
+           | TypeCommentStreamA
+           | TypeCommentStreamW
+           | TypeHandleDataStream
+           | TypeFunctionTableStream
+           | TypeUnloadedModuleListStream
+           | TypeMiscInfoStream
+           | TypeMemoryInfoListStream
+           | TypeThreadInfoListStream
+           | TypeHandleOperationListStream
+           | TypeTokenStream
+           | TypeJavaScriptDataStream
+           | TypeSystemMemoryInfoStream
+           | TypeProcessVmCountersStream
+           | TypeIptTraceStream
+           | TypeThreadNamesStream
+           | TypeCEStreamNull
+           | TypeCEStreamSystemInfo
+           | TypeCEStreamException
+           | TypeCEStreamModuleList
+           | TypeCEStreamProcessList
+           | TypeCEStreamThreadList
+           | TypeCEStreamThreadContextList
+           | TypeCEStreamThreadCallStackList
+           | TypeCEStreamMemoryVirtualList
+           | TypeCEStreamMemoryPhysicalList
+           | TypeCEStreamBucketParameters
+           | TypeCEStreamProcessModuleMap
+           | TypeCEStreamDiagnosisList
+           | TypeLastReservedStream
+           ;
+TypeUnusedStream                = 0;
+TypeReservedStream0             = 1;
+TypeReservedStream1             = 2;
+TypeThreadListStream            = 3;
+TypeModuleListStream            = 4;
+TypeMemoryListStream            = 5;
+TypeExceptionStream             = 6;
+TypeSystemInfoStream            = 7;
+TypeThreadExListStream          = 8;
+TypeMemory64ListStream          = 9;
+TypeCommentStreamA              = 10;
+TypeCommentStreamW              = 11;
+TypeHandleDataStream            = 12;
+TypeFunctionTableStream         = 13;
+TypeUnloadedModuleListStream    = 14;
+TypeMiscInfoStream              = 15;
+TypeMemoryInfoListStream        = 16;
+TypeThreadInfoListStream        = 17;
+TypeHandleOperationListStream   = 18;
+TypeTokenStream                 = 19;
+TypeJavaScriptDataStream        = 20;
+TypeSystemMemoryInfoStream      = 21;
+TypeProcessVmCountersStream     = 22;
+TypeIptTraceStream              = 23;
+TypeThreadNamesStream           = 24;
+TypeCEStreamNull                = 0x8000;
+TypeCEStreamSystemInfo          = 0x8001;
+TypeCEStreamException           = 0x8002;
+TypeCEStreamModuleList          = 0x8003;
+TypeCEStreamProcessList         = 0x8004;
+TypeCEStreamThreadList          = 0x8005;
+TypeCEStreamThreadContextList   = 0x8006;
+TypeCEStreamThreadCallStackList = 0x8007;
+TypeCEStreamMemoryVirtualList   = 0x8008;
+TypeCEStreamMemoryPhysicalList  = 0x8009;
+TypeCEStreamBucketParameters    = 0x800A;
+TypeCEStreamProcessModuleMap    = 0x800B;
+TypeCEStreamDiagnosisList       = 0x800C;
+TypeLastReservedStream          = 0xffff;
+
+u1(values)  = uint(1,values);
+u8(values)  = uint(8,values);
+u16(values) = ordered(uint(16,values));
+u32(values) = ordered(uint(32,values));
+u64(values) = ordered(uint(64,values));
+utf16le(xyz) = TODO;
