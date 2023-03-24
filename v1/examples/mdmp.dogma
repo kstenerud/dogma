@@ -5,6 +5,7 @@ dogma_v1 utf-8
 
 document = byte_order(lsb, header);
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_header
 header = "MDMP"
        & u16(0xa793) # MDMP Version
        & u16(var(impl_version,~))
@@ -16,6 +17,7 @@ header = "MDMP"
        & offset(StreamDirectoryRva*8, directory{NumberOfStreams})
        ;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ne-minidumpapiset-minidump_type
 header_flags = ordered(
                    uint(40,0)
                  & u1(var(ScanInaccessiblePartialPages,~))
