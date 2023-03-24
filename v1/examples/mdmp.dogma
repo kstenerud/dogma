@@ -47,21 +47,29 @@ header_flags = ordered(
                  & u1(var(WithDataSegs,~))
                );
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_directory
 directory = u32(var(type,StreamType))
           & var(loc,location_descriptor)
           & offset(loc.rva, [
-              type = TypeThreadListStream          : thread_list_stream;
-              type = TypeModuleListStream          : module_list_stream;
-              type = TypeMemoryListStream          : memory_list_stream;
+              # https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ne-minidumpapiset-minidump_stream_type
+              type = TypeThreadListStream          : thread_list;
+              type = TypeModuleListStream          : module_list;
+              type = TypeMemoryListStream          : memory_list;
               type = TypeExceptionStream           : exception_stream;
-              type = TypeSystemInfoStream          : system_info_stream;
+              type = TypeSystemInfoStream          : system_info;
               type = TypeThreadExListStream        : thread_ex_list;
               type = TypeMemory64ListStream        : memory64_list;
               type = TypeCommentStreamA            : ansi_string(loc.size);
-              type = TypeCommentStreamW            : unicode_string(loc.size);
+              type = TypeCommentStreamW            : wide_string(loc.size/2);
               type = TypeHandleDataStream          : handle_data_stream;
-              type = TypeUnloadedModuleListStream  : unloaded_module_list_stream;
-              type = TypeMiscInfoStream            : TODO;
+              type = FunctionTableStream           : function_table_stream;
+              type = TypeUnloadedModuleListStream  : unloaded_module_list;
+              type = TypeMiscInfoStream            : peek(u32(var(info_size,~)))
+                                                   & [
+                                                       info_size = 24: misc_info;
+                                                       info_size = 44: misc_info_2;
+                                                     ]
+                                                   ;
               type = TypeMemoryInfoListStream      : TODO;
               type = TypeThreadInfoListStream      : TODO;
               type = TypeHandleOperationListStream : TODO;
@@ -69,18 +77,95 @@ directory = u32(var(type,StreamType))
             ]
           ;
 
-unloaded_module_list_stream = u32(var(SizeOfHeader))
-                            & u32(var(SizeOfEntry))
-                            & u32(var(NumberOfEntries))
-                            ;
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_misc_info
+misc_info = u32(var(SizeOfHeader))
+          & var(Flags1,misc_info_flags)
+          & u32(var(ProcessId))
+          & u32(var(ProcessCreateTime))
+          & u32(var(ProcessUserTime))
+          & u32(var(ProcessKernelTime))
+          ;
 
+misc_info_flags = ordered(
+                      uint(30,0)
+                    & u1(var(process_times))
+                    & u1(var(process_id))
+                  )
+                ;
+
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_misc_info_2
+misc_info_2 = u32(var(SizeOfHeader))
+            & var(Flags1,misc_info_2_flags)
+            & u32(var(ProcessId))
+            & u32(var(ProcessCreateTime))
+            & u32(var(ProcessUserTime))
+            & u32(var(ProcessKernelTime))
+            & u32(var(ProcessorMaxMhz))
+            & u32(var(ProcessorCurrentMhz))
+            & u32(var(ProcessorMhzLimit))
+            & u32(var(ProcessorMaxIdleState))
+            & u32(var(ProcessorCurrentIdleState))
+            ;
+
+misc_info_2_flags = ordered(
+                        uint(29,0)
+                      & u1(var(processor_power_info))
+                      & u1(var(process_times))
+                      & u1(var(process_id))
+                    )
+                  ;
+
+
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_function_table_stream
+function_table_stream = u32(var(SizeOfHeader))
+                      & u32(var(SizeOfDescriptor))
+                      & u32(var(SizeOfNativeDescriptor))
+                      & u32(var(SizeOfFunctionEntry))
+                      & u32(var(NumberOfDescriptors))
+                      & u32(var(SizeOfAlignPad))
+                      & (
+                            function_table_descriptor(SizeOfNativeDescriptor,SizeOfFunctionEntry)
+                          & u8(0){SizeOfAlignPad}
+                        ){NumberOfDescriptors}
+                      ;
+
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_function_table_descriptor
+function_table_descriptor(desc_size, func_size)
+                                 = u64(var(MinimumAddress,~))
+                                 & u64(var(MaximumAddress,~))
+                                 & u64(var(BaseAddress,~))
+                                 & u32(var(EntryCount))
+                                 & u32(var(SizeOfAlignPad))
+                                 & u8(~){desc_size}
+                                 & (
+                                     u8(~){func_size}
+                                     u8(0){SizeOfAlignPad}
+                                   ){EntryCount}
+                                 ;
+
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_unloaded_module_list
+unloaded_module_list = u32(var(SizeOfHeader))
+                     & u32(var(SizeOfEntry))
+                     & u32(var(NumberOfEntries))
+                     & unloaded_module{NumberOfEntries}
+                     ;
+
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_unloaded_module
+unloaded_module = u64(var(BaseOfImage,~))
+                & u32(var(SizeOfImage))
+                & u32(var(CheckSum))
+                & u32(var(TimeDateStamp))
+                & u32(var(ModuleNameRva))
+                & offset(ModuleNameRva, string)
+                ;
 
 ansi_string(count) = u8(~){count};
-unicode_string(count) = u16(~){count/2};
+wide_string(count) = u16(~){count};
 
 sizeof_handle_descriptor = 32;
 sizeof_handle_descriptor_2 = 36;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_handle_data_stream
 handle_data_stream = u32(var(SizeOfHeader,~))
                    & u32(var(SizeOfDescriptor,~))
                    & u32(var(NumberOfDescriptors,~))
@@ -91,6 +176,7 @@ handle_data_stream = u32(var(SizeOfHeader,~))
                      ]{NumberOfDescriptors}
                    ;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_handle_descriptor
 handle_descriptor = u64(var(Handle,~))
                   & u32(var(TypeNameRva,~))
                   & u32(var(ObjectNameRva,~))
@@ -102,6 +188,7 @@ handle_descriptor = u64(var(Handle,~))
                   & offset(ObjectNameRva, string)
                   ;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_handle_descriptor_2
 handle_descriptor_2 = u64(var(Handle,~))
                     & u32(var(TypeNameRva,~))
                     & u32(var(ObjectNameRva,~))
@@ -116,12 +203,14 @@ handle_descriptor_2 = u64(var(Handle,~))
                     & offset(ObjectInfoRva, handle_object_info)
                     ;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_handle_object_information
 handle_object_info = u32(var(NextInfoRva,~))
                    & u32(var(InfoType,object_info_type))
                    & u32(var(SizeOfInfo,~))
                    & u8(~){SizeOfInfo}
                    ;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ne-minidumpapiset-minidump_handle_object_information_type
 object_info_type = MiniHandleObjectInformationNone
                  | MiniThreadInformation1
                  | MiniMutantInformation1
@@ -143,10 +232,12 @@ MiniEventInformation1           = 6;
 MiniSectionInformation1         = 7;
 MiniSemaphoreInformation1       = 8;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_thread_ex_list
 thread_ex_list = u32(var(NumberOfThreads,~))
                & thread_ex{NumberOfThreads}
                ;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_thread_ex
 thread_ex = u32(var(ThreadId,~))
           & u32(var(SuspendCount,~))
           & u32(var(PriorityClass,~))
@@ -157,29 +248,30 @@ thread_ex = u32(var(ThreadId,~))
           & var(BackingStore,memory_descriptor)
           ;
 
-system_info_stream = u16(var(ProcessorArchitecture,processor_architecture))
-                   & u16(var(ProcessorLevel, [
-                         ProcessorArchitecture = PROCESSOR_ARCHITECTURE_INTEL: PROCESSOR_LEVEL_386
-                                                                             | PROCESSOR_LEVEL_486
-                                                                             | PROCESSOR_LEVEL_PENTIUM
-                                                                             | PROCESSOR_LEVEL_PENTIUM_2
-                                                                             ;
-                         ProcessorArchitecture = PROCESSOR_ARCHITECTURE_IA64 : PROCESSOR_LEVEL_IA64;
-                                                                             : 0;
-                       ]))
-                   & u16(var(ProcessorRevision,~))
-                   & u8(var(NumberOfProcessors,~))
-                   & u8(var(ProductType,product_type))
-                   & u32(var(MajorVersion,~))
-                   & u32(var(MinorVersion,~))
-                   & u32(var(BuildNumber,~))
-                   & u32(var(PlatformId,2))
-                   & u32(var(CSDVersionRva,~))
-                   & var(SuiteMask,suite_mask)
-                   & u16(0)
-                   & var(Cpu,cpu_information)
-                   & offset(CSDVersionRva,string)
-                   ;
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_system_info
+system_info = u16(var(ProcessorArchitecture,processor_architecture))
+            & u16(var(ProcessorLevel, [
+                  ProcessorArchitecture = PROCESSOR_ARCHITECTURE_INTEL: PROCESSOR_LEVEL_386
+                                                                      | PROCESSOR_LEVEL_486
+                                                                      | PROCESSOR_LEVEL_PENTIUM
+                                                                      | PROCESSOR_LEVEL_PENTIUM_2
+                                                                      ;
+                  ProcessorArchitecture = PROCESSOR_ARCHITECTURE_IA64 : PROCESSOR_LEVEL_IA64;
+                                                                      : 0;
+                ]))
+            & u16(var(ProcessorRevision,~))
+            & u8(var(NumberOfProcessors,~))
+            & u8(var(ProductType,product_type))
+            & u32(var(MajorVersion,~))
+            & u32(var(MinorVersion,~))
+            & u32(var(BuildNumber,~))
+            & u32(var(PlatformId,2))
+            & u32(var(CSDVersionRva,~))
+            & var(SuiteMask,suite_mask)
+            & u16(0)
+            & var(Cpu,cpu_information)
+            & offset(CSDVersionRva,string)
+            ;
 
 cpu_information = TODO;
 
@@ -228,12 +320,14 @@ PROCESSOR_ARCHITECTURE_IA64    = 6;
 PROCESSOR_ARCHITECTURE_AMD64   = 9;
 PROCESSOR_ARCHITECTURE_UNKNOWN = 0xffff;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_exception_stream
 exception_stream = u32(var(ThreadId,~))
                  & u32(var(Alignment,~))
                  & var(ExceptionRecord,exception)
                  & var(ThreadContext,location_descriptor)
                  ;
 
+https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_exception
 exception = u32(var(ExceptionCode,exception_code))
           & var(ExceptionFlags,exception_flags)
           & u64(var(ExeptionRecord,~))
@@ -248,23 +342,28 @@ exception_flags = uint(31,0)
                 & u1(var(noncontinuable,~))
                 ;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_location_descriptor
 location_descriptor = u32(var(size,~))
                     & u32(var(rva,~))
                     ;
 
-memory_list_stream = u32(var(count,~))
-                   & memory_descriptor{count}
-                   ;
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_memory_list
+memory_list = u32(var(count,~))
+            & memory_descriptor{count}
+            ;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_memory_list
 memory64_list = u64(var(count,~))
               & u64(var(BaseRva,~))
               & memory64_descriptor{count}
               ;
 
-thread_list_stream = u32(var(count,~))
-                   & thread{count}
-                   ;
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_thread_list
+thread_list = u32(var(count,~))
+            & thread{count}
+            ;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_thread
 thread = u32(var(ThreadId,~))
        & u32(var(SuspendCount,~))
        & u32(var(PriorityClass,~))
@@ -274,18 +373,22 @@ thread = u32(var(ThreadId,~))
        & var(ThreadContext,location_descriptor)
        ;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_memory_descriptor
 memory_descriptor = u64(var(StartOfMemoryRange,~))
                   & var(Memory,location_descriptor)
                   ;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_memory_descriptor
 memory64_descriptor = u64(var(StartOfMemoryRange,~))
                     & u64(var(DataSize,~))
                     ;
 
-module_list_stream = u32(var(count,~))
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_module_list
+module_list = u32(var(count,~))
             & module{count}
             ;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_module
 module = u64(var(BaseOfImage,~))
        & u32(var(SizeOfImage,~))
        & u32(var(CheckSum,~))
@@ -299,10 +402,12 @@ module = u64(var(BaseOfImage,~))
        & offset(ModuleNameRva,string)
        ;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_string
 string = u32(var(length,~))
        & utf16le(~){length}
        ;
 
+# https://learn.microsoft.com/en-us/windows/win32/api/verrsrc/ns-verrsrc-vs_fixedfileinfo
 fixed_file_info = u32(0xFEEF04BD)
                 & u32(var(StrucVersion,~))
                 & u32(var(FileVersionMS,~))
