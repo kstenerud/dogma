@@ -21,7 +21,7 @@ member      = string & ':' & element;
 array       = '[' & element & (',' & element)* & ']';
 
 string      = WS & '"' (character | escape)* '"' & WS;
-character   = unicode(L,M,N,P,S,Z,Cf,Co,Cn) ! ('"' | '\\');
+character   = (unicode(L,M,N,P,S,Z,Cf,Co,Cn) | '\[9]') ! ('"' | '\\');
 escape      = '\\'
             & (
                   '"'
