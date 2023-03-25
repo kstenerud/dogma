@@ -5,14 +5,19 @@ The Dogma Metalanguage
 
 _Describing how things should be_
 
-**Version**: 1.0-beta4
+**Version**: 1.0-beta5
 
 
 ## WORK IN PROGRESS
 
-Current status: 1.0-beta4 (Mar 8, 2023).
+Current status: 1.0-beta5 (Mar 25, 2023).
 
-Beta4 contains only minor fixes. If no significant issues are discovered, version 1 will be released.
+Notable changes:
+
+- Cleaner byte ordering support with new [`byte_order`](#byte_order-function), [`ordered`](#ordered-function), and [`bom_ordered`](#bom_ordered-function) functions
+- New [`peek`](#peek-function) and [`offset`](#offset-function) functions
+- Renamed `swapped` function to [`reversed`](#reversed-function)
+- More examples in the [examples](examples) dir
 
 
 
