@@ -745,7 +745,7 @@ The `ordering` type specifies the [byte ordering](#byte-ordering) when processin
 -------------------------------------------------------------------------------
 **Example**: A document consists of a header containing length fields and a media type, followed by an opaque payload (a series of bytes) containing media of that type. Byte order in the header is little endian.
 
-The [`byte_order` function](#byte_order-function) sets the byte ordering to `lsb` (little endian) for the `header` and `payload` expressions.
+The [`byte_order` function](#byte_order-function) sets the byte ordering to `lsb` (little endian) for the `header` expression.
 
 The `u16` and `u32` macros call the [`ordered` function](#ordered-function), which arranges the byte order according to the current setting (`lsb`, passed down via the `document` rule). Note that this has no effect on the media type bytes because it doesn't call `ordered`.
 
@@ -1108,7 +1108,7 @@ assignment = "a"~"z"+
 
 ### Alternative
 
-Alternative produces an expression that can match either the expression on the left or the expression on the right (essentially a set of two possibilities).
+Alternative produces an expression that can match either the expression on the left or the expression on the right (essentially a set of possibilities).
 
 Alternatives are separated by a pipe (`|`) character. Only one of the alternative branches will be taken. If more than one alternative can match at the same time, the grammar is ambiguous.
 

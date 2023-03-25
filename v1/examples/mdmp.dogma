@@ -58,7 +58,7 @@ header_flags = ordered(
 # https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_directory
 directory = u32(var(type,stream_type))
           & var(loc,location_descriptor)
-          & offset(loc.rva, [
+          & offset(loc.rva*8, [
               # https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ne-minidumpapiset-minidump_stream_type
               type = TypeCommentStreamA            : ansi_string(loc.size);
               type = TypeCommentStreamW            : wide_string(loc.size/2);
@@ -185,7 +185,7 @@ exception = u32(var(ExceptionCode,exception_code))
           & u32(var(NumberParameters,~))
           & u32(var(unusedAlignment,~))
           & var(ExceptionInformation,u64(~){NumberParameters})
-          & [ExceptionRecord != 0: offset(ExceptionRecord,exception);]
+          & [ExceptionRecord != 0: offset(ExceptionRecord*8,exception);]
           ;
 
 exception_flags = uint(31,0)
@@ -294,8 +294,8 @@ handle_descriptor = u64(var(Handle,~))
                   & u32(var(GrantedAccess,~))
                   & u32(var(HandleCount,~))
                   & u32(var(PointerCount,~))
-                  & offset(TypeNameRva, string)
-                  & offset(ObjectNameRva, string)
+                  & offset(TypeNameRva*8, string)
+                  & offset(ObjectNameRva*8, string)
                   ;
 
 # https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_handle_descriptor_2
@@ -308,9 +308,9 @@ handle_descriptor_2 = u64(var(Handle,~))
                     & u32(var(PointerCount,~))
                     & u32(var(ObjectInfoRva,~))
                     & u32(0)
-                    & offset(TypeNameRva, string)
-                    & offset(ObjectNameRva, string)
-                    & offset(ObjectInfoRva, handle_object_info)
+                    & offset(TypeNameRva*8, string)
+                    & offset(ObjectNameRva*8, string)
+                    & offset(ObjectInfoRva*8, handle_object_info)
                     ;
 
 # https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_handle_object_information
@@ -506,7 +506,7 @@ module = u64(var(BaseOfImage,~))
        & var(MiscRecord,location_descriptor)
        & u64(0)
        & u64(0)
-       & offset(ModuleNameRva,string)
+       & offset(ModuleNameRva*8,string)
        ;
 
 # https://learn.microsoft.com/en-us/windows/win32/api/verrsrc/ns-verrsrc-vs_fixedfileinfo
@@ -627,7 +627,7 @@ system_info = u16(var(ProcessorArchitecture,processor_architecture))
             & var(SuiteMask,suite_mask)
             & u16(0)
             & var(Cpu,cpu_information)
-            & offset(CSDVersionRva,string)
+            & offset(CSDVersionRva*8,string)
             ;
 
 cpu_information = TODO;
@@ -766,7 +766,7 @@ unloaded_module = u64(var(BaseOfImage,~))
                 & u32(var(CheckSum,~))
                 & u32(var(TimeDateStamp,~))
                 & u32(var(ModuleNameRva,~))
-                & offset(ModuleNameRva, string)
+                & offset(ModuleNameRva*8, string)
                 ;
 
 

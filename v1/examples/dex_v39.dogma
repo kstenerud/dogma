@@ -11,15 +11,15 @@ document    = peek(var(head, header))
             ;
 
 doc_endian  = var(head,header)
-            & offset(head.sect.link_off,       u8(~){head.sect.link_size})
-            & offset(head.sect.map_off,        map_list(head.sect))
-            & offset(head.sect.string_ids_off, string_id_item{head.sect.string_ids_size})
-            & offset(head.sect.type_ids_off,   type_id_item(head.sect){head.sect.type_ids_size})
-            & offset(head.sect.proto_ids_off,  proto_id_item(head.sect){head.sect.proto_ids_size})
-            & offset(head.sect.field_ids_off,  field_id_item(head.sect){head.sect.field_ids_size})
-            & offset(head.sect.method_ids_off, method_id_item(head.sect){head.sect.method_ids_size})
-            & offset(head.sect.class_defs_off, class_def_item(head.sect){head.sect.class_defs_size})
-            & offset(head.sect.data_off,       u8(~){head.sect.data_size})
+            & offset(head.sect.link_off*8,       u8(~){head.sect.link_size})
+            & offset(head.sect.map_off*8,        map_list(head.sect))
+            & offset(head.sect.string_ids_off*8, string_id_item{head.sect.string_ids_size})
+            & offset(head.sect.type_ids_off*8,   type_id_item(head.sect){head.sect.type_ids_size})
+            & offset(head.sect.proto_ids_off*8,  proto_id_item(head.sect){head.sect.proto_ids_size})
+            & offset(head.sect.field_ids_off*8,  field_id_item(head.sect){head.sect.field_ids_size})
+            & offset(head.sect.method_ids_off*8, method_id_item(head.sect){head.sect.method_ids_size})
+            & offset(head.sect.class_defs_off*8, class_def_item(head.sect){head.sect.class_defs_size})
+            & offset(head.sect.data_off*8,       u8(~){head.sect.data_size})
             ;
 
 header      = magic
@@ -74,7 +74,7 @@ proto_id_item(sect) = u32(var(shorty_idx,~))
                     & u32(var(parameters_off,~))
                     & offs_proto_short_form_desc(sect,shorty_idx)
                     & offs_return_type(sect,return_type_idx)
-                    & [parameters_off > 0: offset(parameters_off,type_list(sect));]
+                    & [parameters_off > 0: offset(parameters_off*8,type_list(sect));]
                     ;
 offs_proto_short_form_desc(sect,index) = offs_string_item(sect,index);
 offs_return_type(sect,index)           = offs_type_id_item(sect,index);
@@ -105,11 +105,11 @@ class_def_item(sect) = u32(var(class_idx,~))
                      & u32(var(static_values_off,~))
                      & offs_type_id_item(sect,class_idx)
                      & [superclass_idx != NO_INDEX: offs_type_id_item(sect,superclass_idx);]
-                     & [interfaces_off != 0: offset(interfaces_off,type_list(sect));]
+                     & [interfaces_off != 0: offset(interfaces_off*8,type_list(sect));]
                      & offs_string_item(sect,source_file_idx)
-                     & [annotations_off != 0: offset(annotations_off,annotations_directory_item(sect));]
-                     & [class_data_off != 0: offset(class_data_off,class_data_item(sect));]
-                     & [static_values_off != 0: offset(static_values_off,encoded_array_item(sect));]
+                     & [annotations_off != 0: offset(annotations_off*8,annotations_directory_item(sect));]
+                     & [class_data_off != 0: offset(class_data_off*8,class_data_item(sect));]
+                     & [static_values_off != 0: offset(static_values_off*8,encoded_array_item(sect));]
                      ;
 
 annotations_directory_item(sect) = u32(var(class_annotations_off,~))
@@ -127,7 +127,7 @@ annotation_set_item(sect) = u32(var(size,~))
                           ;
 
 annotation_off_item(sect) = u32(var(annotation_off,~))
-                          & offset(annotation_off, annotation_item(sect))
+                          & offset(annotation_off*8, annotation_item(sect))
                           ;
 
 annotation_item(sect) = u8(visibility)
