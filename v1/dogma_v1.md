@@ -7,6 +7,10 @@ _Describing how things should be_
 
 **Version**: 1.0-beta5
 
+Dogma is a human-friendly metalanguage for describing data formats (text or binary) in documentation.
+
+Dogma follows the familiar patterns of [Backus-Naur Form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form), with a number of innovations that make it also suitable for describing binary data.
+
 
 ## WORK IN PROGRESS
 
@@ -21,15 +25,8 @@ Notable changes:
 
 
 
-Introduction
-------------
-
-Dogma is a human-friendly metalanguage for describing data formats (text or binary) in documentation.
-
-Dogma follows the familiar patterns of [Backus-Naur Form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form), with a number of innovations that make it also suitable for describing binary data.
-
-
-### Introductory Example
+Introductory Example
+--------------------
 
 To demonstrate the power of Dogma, here is an Ethernet IEEE 802.3 frame, layer 2 (image from [Wikipedia](https://en.wikipedia.org/wiki/IEEE_802.1Q)):
 
@@ -98,8 +95,7 @@ Contents
 
 - [The Dogma Metalanguage](#the-dogma-metalanguage)
   - [WORK IN PROGRESS](#work-in-progress)
-  - [Introduction](#introduction)
-    - [Introductory Example](#introductory-example)
+  - [Introductory Example](#introductory-example)
   - [Contents](#contents)
   - [Design Objectives](#design-objectives)
     - [Human readability](#human-readability)
