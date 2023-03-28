@@ -1732,10 +1732,10 @@ letter_digit_space = unicode(N,L,Zs);
 ### `uint` Function
 
 ```dogma
-uint(bit_count: uinteger, values: uintegers): bits =
+uint(bit_count: uintegers, values: uintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
-    given values set as big endian unsigned integers of size `bit_count`.
+    given values set as big endian unsigned integers of sizes in `bit_count`.
     """;
 ```
 
@@ -1751,10 +1751,10 @@ length = uint(16, ~);
 ### `sint` Function
 
 ```dogma
-sint(bit_count: uinteger, values: sintegers): bits =
+sint(bit_count: uintegers, values: sintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
-    given values set as big endian 2's complement signed integers of size `bit_count`.
+    given values set as big endian 2's complement signed integers of sizes in `bit_count`.
     """;
 ```
 
@@ -1770,15 +1770,15 @@ points = sint(32, -10000~10000);
 ### `float` Function
 
 ```dogma
-float(bit_count: uinteger, values: numbers): bits =
+float(bit_count: uintegers, values: numbers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
-    given values set as big endian ieee754 binary floating point values of size `bit_count`.
+    given values set as big endian ieee754 binary floating point values of sizes in `bit_count`.
 
     Note: expressions produced by this function will never include the special infinity values,
     NaN values, or negative 0, for which there are specialized functions.
 
-    `bit_count` must be a valid size according to ieee754 binary.
+    `bit_count` must contain only valid sizes according to ieee754 binary.
     """;
 ```
 
@@ -1800,14 +1800,14 @@ any_float64 = float(64,~) | inf(64,~) | nan(64,~) | nzero(64);
 ### `inf` Function
 
 ```dogma
-inf(bit_count: uinteger, sign: numbers): bits =
+inf(bit_count: uintegers, sign: numbers): bits =
     """
-    Creates an expression that matches big endian ieee754 binary infinity values of size
+    Creates an expression that matches big endian ieee754 binary infinity values of sizes in
     `bit_count` whose sign matches the `sign` values set. One or two matches will be made
     (positive infinity, negative infinity) depending on whether the `sign` values include both
     positive and negative values or not (0 counts as positive).
 
-    `bit_count` must be a valid size according to ieee754 binary.
+    `bit_count` must contain only valid sizes according to ieee754 binary.
     """;
 ```
 
@@ -1825,15 +1825,15 @@ terminator = inf(32, -1);
 ### `nan` Function
 
 ```dogma
-nan(bit_count: uinteger, payload: sintegers): bits =
+nan(bit_count: uintegers, payload: sintegers): bits =
     """
-    Creates an expression that matches every big endian ieee754 binary NaN value of size
+    Creates an expression that matches every big endian ieee754 binary NaN value of sizes in
     `bit_count` with the given payload values set.
 
     NaN payloads can be positive or negative, up to the min/max value allowed for a NaN payload in
     a float of the given size (10 bits for float-16, 23 bits for float32, etc).
 
-    `bit_count` must be a valid size according to ieee754 binary.
+    `bit_count` must contain only valid sizes according to ieee754 binary.
 
     Notes:
     - The absolute value of `payload` is encoded, with the sign going into the sign bit (i.e. the
@@ -1857,12 +1857,12 @@ invalid = nan(32, 0x400001);
 ### `nzero` Function
 
 ```dogma
-nzero(bit_count: uinteger): bits =
+nzero(bit_count: uintegers): bits =
     """
-    Creates an expression that matches a big endian ieee754 binary negative 0 value of size
+    Creates an expression that matches a big endian ieee754 binary negative 0 value of sizes in
     `bit_count`.
 
-    `bit_count` must be a valid size according to ieee754 binary.
+    `bit_count` must contain only valid sizes according to ieee754 binary.
     """;
 ```
 
@@ -2110,48 +2110,48 @@ unicode(categories: unicode_category...): bits =
     Example: all letters and space separators: unicode(L,Zs)
     """;
 
-uint(bit_count: uinteger, values: uintegers): bits =
+uint(bit_count: uintegers, values: uintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
-    given values set as big endian unsigned integers of size `bit_count`.
+    given values set as big endian unsigned integers of sizes in `bit_count`.
     """;
 
-sint(bit_count: uinteger, values: sintegers): bits =
+sint(bit_count: uintegers, values: sintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
-    given values set as big endian 2's complement signed integers of size `bit_count`.
+    given values set as big endian 2's complement signed integers of sizes in `bit_count`.
     """;
 
-float(bit_count: uinteger, values: numbers): bits =
+float(bit_count: uintegers, values: numbers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
-    given values set as big endian ieee754 binary floating point values of size `bit_count`.
+    given values set as big endian ieee754 binary floating point values of sizes in `bit_count`.
 
     Note: expressions produced by this function will never include the special infinity values,
     NaN values, or negative 0, for which there are specialized functions.
 
-    `bit_count` must be a valid size according to ieee754 binary.
+    `bit_count` must contain only valid sizes according to ieee754 binary.
     """;
 
-inf(bit_count: uinteger, sign: numbers): bits =
+inf(bit_count: uintegers, sign: numbers): bits =
     """
-    Creates an expression that matches big endian ieee754 binary infinity values of size
+    Creates an expression that matches big endian ieee754 binary infinity values of sizes in
     `bit_count` whose sign matches the `sign` values set. One or two matches will be made
     (positive infinity, negative infinity) depending on whether the `sign` values include both
     positive and negative values or not (0 counts as positive).
 
-    `bit_count` must be a valid size according to ieee754 binary.
+    `bit_count` must contain only valid sizes according to ieee754 binary.
     """;
 
-nan(bit_count: uinteger, payload: sintegers): bits =
+nan(bit_count: uintegers, payload: sintegers): bits =
     """
-    Creates an expression that matches every big endian ieee754 binary NaN value of size
+    Creates an expression that matches every big endian ieee754 binary NaN value of sizes in
     `bit_count` with the given payload values set.
 
     NaN payloads can be positive or negative, up to the min/max value allowed for a NaN payload in
     a float of the given size (10 bits for float-16, 23 bits for float32, etc).
 
-    `bit_count` must be a valid size according to ieee754 binary.
+    `bit_count` must contain only valid sizes according to ieee754 binary.
 
     Notes:
     - The absolute value of `payload` is encoded, with the sign going into the sign bit (i.e. the
@@ -2160,12 +2160,12 @@ nan(bit_count: uinteger, payload: sintegers): bits =
       encoding would be interpreted as infinity under the encoding rules of ieee754.
     """;
 
-nzero(bit_count: uinteger): bits =
+nzero(bit_count: uintegers): bits =
     """
-    Creates an expression that matches a big endian ieee754 binary negative 0 value of size
+    Creates an expression that matches a big endian ieee754 binary negative 0 value of sizes in
     `bit_count`.
 
-    `bit_count` must be a valid size according to ieee754 binary.
+    `bit_count` must contain only valid sizes according to ieee754 binary.
     """;
 
 padding                = expression;
