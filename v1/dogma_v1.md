@@ -302,7 +302,7 @@ Because some data formats store endianness information in the data itself, byte 
 
 Byte ordering can be `msb` (most significant byte first) or `lsb` (least significant byte first), and only comes into effect for expressions passed to an [`ordered` function](#ordered-function) call. Outside of this context, all non-codepoint multibyte data is assumed to be `msb`.
 
-The global byte ordering is `msb`, and can be changed for the duration of a subexpression using the [`byte_order` function](#byte_order-function).
+The global byte ordering is `msb`, and can be changed for the duration of a subexpression passed to the [`byte_order` function](#byte_order-function).
 
 #### Codepoint Byte Ordering
 
