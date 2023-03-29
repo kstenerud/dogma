@@ -1774,7 +1774,7 @@ float(bit_counts: uintegers, values: numbers): bits =
     Note: expressions produced by this function will never include the special infinity values,
     NaN values, or negative 0, for which there are specialized functions.
 
-    `bit_counts` must contain only valid sizes according to ieee754 binary.
+    Any values in `bit_counts` that are not valid ieee754 binary sizes will be ignored.
     """;
 ```
 
@@ -1803,7 +1803,7 @@ inf(bit_counts: uintegers, sign: numbers): bits =
     (positive infinity, negative infinity) depending on whether the `sign` values include both
     positive and negative values or not (0 counts as positive).
 
-    `bit_counts` must contain only valid sizes according to ieee754 binary.
+    Any values in `bit_counts` that are not valid ieee754 binary sizes will be ignored.
     """;
 ```
 
@@ -1829,7 +1829,7 @@ nan(bit_counts: uintegers, payload: sintegers): bits =
     NaN payloads can be positive or negative, up to the min/max value allowed for a NaN payload in
     a float of the given size (10 bits for float-16, 23 bits for float32, etc).
 
-    `bit_counts` must contain only valid sizes according to ieee754 binary.
+    Any values in `bit_counts` that are not valid ieee754 binary sizes will be ignored.
 
     Notes:
     - The absolute value of `payload` is encoded, with the sign going into the sign bit (i.e. the
@@ -1858,7 +1858,7 @@ nzero(bit_counts: uintegers): bits =
     Creates an expression that matches a big endian ieee754 binary negative 0 value of sizes in
     `bit_counts`.
 
-    `bit_counts` must contain only valid sizes according to ieee754 binary.
+    Any values in `bit_counts` that are not valid ieee754 binary sizes will be ignored.
     """;
 ```
 
@@ -2126,7 +2126,7 @@ float(bit_counts: uintegers, values: numbers): bits =
     Note: expressions produced by this function will never include the special infinity values,
     NaN values, or negative 0, for which there are specialized functions.
 
-    `bit_counts` must contain only valid sizes according to ieee754 binary.
+    Any values in `bit_counts` that are not valid ieee754 binary sizes will be ignored.
     """;
 
 inf(bit_counts: uintegers, sign: numbers): bits =
@@ -2136,7 +2136,7 @@ inf(bit_counts: uintegers, sign: numbers): bits =
     (positive infinity, negative infinity) depending on whether the `sign` values include both
     positive and negative values or not (0 counts as positive).
 
-    `bit_counts` must contain only valid sizes according to ieee754 binary.
+    Any values in `bit_counts` that are not valid ieee754 binary sizes will be ignored.
     """;
 
 nan(bit_counts: uintegers, payload: sintegers): bits =
@@ -2147,7 +2147,7 @@ nan(bit_counts: uintegers, payload: sintegers): bits =
     NaN payloads can be positive or negative, up to the min/max value allowed for a NaN payload in
     a float of the given size (10 bits for float-16, 23 bits for float32, etc).
 
-    `bit_counts` must contain only valid sizes according to ieee754 binary.
+    Any values in `bit_counts` that are not valid ieee754 binary sizes will be ignored.
 
     Notes:
     - The absolute value of `payload` is encoded, with the sign going into the sign bit (i.e. the
@@ -2161,7 +2161,7 @@ nzero(bit_counts: uintegers): bits =
     Creates an expression that matches a big endian ieee754 binary negative 0 value of sizes in
     `bit_counts`.
 
-    `bit_counts` must contain only valid sizes according to ieee754 binary.
+    Any values in `bit_counts` that are not valid ieee754 binary sizes will be ignored.
     """;
 
 variable               = local_id | variable & '.' & local_id;
