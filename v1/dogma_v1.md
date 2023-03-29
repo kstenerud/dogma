@@ -317,7 +317,9 @@ All [symbols](#symbols), [macros](#macros), [functions](#functions) and [variabl
 
 The global namespace consists of all [rule](#rules) names, and the names of the [built-in functions](#builtin-functions).
 
-Each [rule](#rules) has a copy of the global namespace as a local namespace, and can bind [variables](#variables) to names in their local namespace so long as they don't clash with existing names. Variables are bound either via [macro arguments](#macros) or using the [`var` function](#var-function), and cannot be re-bound.
+Each [rule](#rules) has a local namespace that supercedes the global namespace (i.e. the local namespace is searched first, then the global namespace - meaning that a local variable name can shadow a global name). [Variables](#variables) can be bound to the local namespace either via [macro arguments](#macros) or using the [`var` function](#var-function).
+
+**Note**: Names cannot be re-bound.
 
 
 
@@ -389,7 +391,7 @@ macro_rule    = macro & '=' & expression & ';';
 function_rule = function & '=' & prose & ';';
 ```
 
-The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their case-sensitive identifiers (names) share the same global [namespace](#namespaces) (i.e. they must be globally unique).
+The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their case-sensitive identifiers (names) share the same global [namespace](#namespaces).
 
 ```dogma
 identifier           = (identifier_firstchar & identifier_nextchar*) ! reserved_identifiers;
@@ -1649,7 +1651,7 @@ u32(values)    = ordered(uint(32,values));
 ```dogma
 var(variable_name: identifier, value: bits | numbers): bits | numbers =
     """
-    Binds `value` to a local variable for subsequent re-use in the current namespace.
+    Binds `value` to a local variable for subsequent re-use in the local namespace.
 
     `var` transparently passes through the type and value of `value`, meaning that the context
     around the `var` call behaves as though only what the `var` function surrounded is present.
@@ -2086,7 +2088,7 @@ offset(bit_offset: uinteger, expr: bits): nothing
 
 var(variable_name: identifier, value: bits | numbers): bits | numbers =
     """
-    Binds `value` to a local variable for subsequent re-use in the current namespace.
+    Binds `value` to a local variable for subsequent re-use in the local namespace.
 
     `var` transparently passes through the type and value of `value`, meaning that the context
     around the `var` call behaves as though only what the `var` function surrounded is present.
