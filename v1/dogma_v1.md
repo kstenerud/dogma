@@ -7,9 +7,13 @@ _Describing how things should be_
 
 **Version**: 1.0-beta5
 
+---------------------------------------------------------------------------------------------------
+
 Dogma is a human-friendly metalanguage for describing data formats (text or binary) in documentation.
 
 Dogma follows the familiar patterns of [Backus-Naur Form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form), with a number of innovations that make it also suitable for describing binary data.
+
+---------------------------------------------------------------------------------------------------
 
 
 ## WORK IN PROGRESS
