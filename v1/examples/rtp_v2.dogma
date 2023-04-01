@@ -1,6 +1,7 @@
 dogma_v1 utf-8
 - identifier          = rtp_v2
 - description         = Real-time Transport Protocol packet, version 2
+- reference           = https://www.rfc-editor.org/rfc/rfc3550
 - dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
 
 rtp_packet   = version

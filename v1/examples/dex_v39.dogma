@@ -1,6 +1,7 @@
 dogma_v1 utf-8
 - identifier          = dex_v39
 - description         = Dex file format, version 39
+- reference           = https://source.android.com/docs/core/runtime/dex-format
 - dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
 
 document    = peek(var(head, header))
@@ -168,7 +169,7 @@ encoded_field(sect) = uleb128(var(field_idx_diff,~))
 encoded_method(sect) = uleb128(var(method_idx_diff,~))
                      & uleb128bits(var(access,access_flags))
                      & uleb128(var(method_code_off,~))
-                     [method_code_off > 0: offset(method_code_off*8, code_item);]
+                     & [method_code_off > 0: offset(method_code_off*8, code_item);]
                      ;
 
 
@@ -213,20 +214,20 @@ map_item(sect) = u16(var(item_type,type)
                      item_type = TYPE_FIELD_ID_ITEM              : field_id_item(sect){item_count};
                      item_type = TYPE_METHOD_ID_ITEM             : method_id_item(sect){item_count};
                      item_type = TYPE_CLASS_DEF_ITEM             : class_def_item(sect){item_count};
-                     item_type = TYPE_CALL_SITE_ID_ITEM          : call_site_id_item(sect){item_count};]
-                     item_type = TYPE_METHOD_HANDLE_ITEM         : method_handle_item(sect){item_count};]
-                     item_type = TYPE_MAP_LIST                   : map_list(sect){item_count};]
-                     item_type = TYPE_TYPE_LIST                  : type_list(sect){item_count};]
-                     item_type = TYPE_ANNOTATION_SET_REF_LIST    : annotation_set_ref_list(sect){item_count};]
-                     item_type = TYPE_ANNOTATION_SET_ITEM        : annotation_set_item(sect){item_count};]
-                     item_type = TYPE_CLASS_DATA_ITEM            : class_data_item(sect){item_count};]
-                     item_type = TYPE_CODE_ITEM                  : code_item(sect){item_count};]
-                     item_type = TYPE_STRING_DATA_ITEM           : string_data_item(sect){item_count};]
-                     item_type = TYPE_DEBUG_INFO_ITEM            : debug_info_item(sect){item_count};]
-                     item_type = TYPE_ANNOTATION_ITEM            : annotation_item(sect){item_count};]
-                     item_type = TYPE_ENCODED_ARRAY_ITEM         : encoded_array_item(sect){item_count};]
-                     item_type = TYPE_ANNOTATIONS_DIRECTORY_ITEM : annotations_directory_item(sect){item_count};]
-                     item_type = TYPE_HIDDENAPI_CLASS_DATA_ITEM  : hiddenapi_class_data_item(sect){item_count};]
+                     item_type = TYPE_CALL_SITE_ID_ITEM          : call_site_id_item(sect){item_count};
+                     item_type = TYPE_METHOD_HANDLE_ITEM         : method_handle_item(sect){item_count};
+                     item_type = TYPE_MAP_LIST                   : map_list(sect){item_count};
+                     item_type = TYPE_TYPE_LIST                  : type_list(sect){item_count};
+                     item_type = TYPE_ANNOTATION_SET_REF_LIST    : annotation_set_ref_list(sect){item_count};
+                     item_type = TYPE_ANNOTATION_SET_ITEM        : annotation_set_item(sect){item_count};
+                     item_type = TYPE_CLASS_DATA_ITEM            : class_data_item(sect){item_count};
+                     item_type = TYPE_CODE_ITEM                  : code_item(sect){item_count};
+                     item_type = TYPE_STRING_DATA_ITEM           : string_data_item(sect){item_count};
+                     item_type = TYPE_DEBUG_INFO_ITEM            : debug_info_item(sect){item_count};
+                     item_type = TYPE_ANNOTATION_ITEM            : annotation_item(sect){item_count};
+                     item_type = TYPE_ENCODED_ARRAY_ITEM         : encoded_array_item(sect){item_count};
+                     item_type = TYPE_ANNOTATIONS_DIRECTORY_ITEM : annotations_directory_item(sect){item_count};
+                     item_type = TYPE_HIDDENAPI_CLASS_DATA_ITEM  : hiddenapi_class_data_item(sect){item_count};
                    ])
                ;
 

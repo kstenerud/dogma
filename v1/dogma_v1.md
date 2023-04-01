@@ -343,12 +343,12 @@ The document header identifies the file format as Dogma, and contains the follow
 Optionally, it may also include header lines. An empty line terminates the document header section.
 
 ```dogma
-document_header    = "dogma_v" & dogma_major_version & SOME_WS
-                   & character_encoding & LINE_END
-                   & header_line* & LINE_END
+document_header    = "dogma_v" & dogma_major_version & SOME_WS & character_encoding & LINE_END
+                   & (header_line & LINE_END)*
+                   & LINE_END
                    ;
 character_encoding = ('a'~'z' | 'A'~'Z' | '0'~'9' | '_' | '-' | '.' | ':' | '+' | '(' | ')')+;
-header_line        = '-' & SOME_WS & header_name & '=' & header_value & LINE_END;
+header_line        = '-' & SOME_WS & header_name & '=' & header_value;
 header_name        = (printable ! '=')+;
 header_value       = printable_ws+;
 ```
@@ -359,6 +359,7 @@ The following headers are officially recognized (all others are allowed, but are
 
 * `identifier`: A unique identifier for the grammar being described. It's customary to append a version number to the identifier.
 * `description`: A brief, one-line description of the grammar.
+* `reference`: A pointer to the official specification for the data format being described.
 * `dogma_specification`: A pointer to the Dogma specification as a courtesy to anyone reading the document.
 
 -------------------------------------------------------------------------------
@@ -366,11 +367,12 @@ The following headers are officially recognized (all others are allowed, but are
 
 ```dogma
 dogma_v1 utf-8
-- identifier  = mygrammar_v1
-- description = My first grammar, version 1
+- identifier  = myformat_v1
+- description = Grammar for myformat, version 1
+- reference   = https://myformat.org/specification
 - dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.0.md
 
-document = "a"; # Yeah, this grammar doesn't do much...
+document = "a"; # It's a very simple format ;-)
 ```
 -------------------------------------------------------------------------------
 
