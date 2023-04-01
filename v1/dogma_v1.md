@@ -338,7 +338,7 @@ document = document_header & start_rule & rule*;
 The document header identifies the file format as Dogma, and contains the following mandatory information:
 
 * The major version of the Dogma specification that the document adheres to.
-* The case-insensitive name of the character encoding used for all codepoint related expressions (use the [IANA preferred MIME name](https://www.iana.org/assignments/character-sets/character-sets.xhtml) whenever possible).
+* The case-insensitive name of the character encoding that the Dogma document is written in (use the [IANA preferred MIME name](https://www.iana.org/assignments/character-sets/character-sets.xhtml) whenever possible).
 
 Optionally, it may also include header lines. An empty line terminates the document header section.
 
@@ -352,6 +352,8 @@ header_line        = '-' & SOME_WS & header_name & '=' & header_value;
 header_name        = (printable ! '=')+;
 header_value       = printable_ws+;
 ```
+
+**Note**: The character encoding only determines how to decode [codepoint](#codepoints) values from the Dogma document itself. It is assumed by default that any data encoded in the format being described is also using the same character encoding as the Dogma document iself, but this doesn't necessarily have to be so.
 
 #### Standard Headers
 
@@ -1893,15 +1895,15 @@ document               = document_header & MAYBE_WSLC & start_rule & (MAYBE_WSLC
 
 dogma_major_version    = '1';
 
-document_header        = "dogma_v" & dogma_major_version & SOME_WS
-                       & character_encoding & LINE_END
-                       & header_line* & LINE_END
+document_header        = "dogma_v" & dogma_major_version & SOME_WS & character_encoding & LINE_END
+                       & (header_line & LINE_END)*
+                       & LINE_END
                        ;
 character_encoding     = ('a'~'z' | 'A'~'Z' | '0'~'9' | '_' | '-' | '.' | ':' | '+' | '(' | ')')+;
 header_line            = '-' & SOME_WS
                        & header_name & MAYBE_WS
                        & '=' & MAYBE_WS
-                       & header_value & LINE_END
+                       & header_value
                        ;
 header_name            = (printable ! '=')+;
 header_value           = printable_ws+;
