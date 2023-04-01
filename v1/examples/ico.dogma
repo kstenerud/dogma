@@ -1,8 +1,8 @@
 dogma_v1 utf-8
-- identifier          = ico
-- description         = Microsoft ICO icon file format
-- reference           = https://learn.microsoft.com/en-us/previous-versions/ms997538(v=msdn.10)
-- dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
+- identifier  = ico
+- description = Microsoft ICO icon file format
+- reference   = https://learn.microsoft.com/en-us/previous-versions/ms997538(v=msdn.10)
+- dogma       = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
 
 document       = byte_order(lsb, document_le);
 

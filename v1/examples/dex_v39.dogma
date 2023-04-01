@@ -1,8 +1,8 @@
 dogma_v1 utf-8
-- identifier          = dex_v39
-- description         = Dex file format, version 39
-- reference           = https://source.android.com/docs/core/runtime/dex-format
-- dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
+- identifier  = dex_v39
+- description = Dex file format, version 39
+- reference   = https://source.android.com/docs/core/runtime/dex-format
+- dogma       = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
 
 document    = peek(var(head, header))
             & [

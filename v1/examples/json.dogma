@@ -1,8 +1,8 @@
 dogma_v1 utf-8
-- identifier          = json
-- description         = Javascript Object Notation
-- reference           = https://www.json.org/json-en.html
-- dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
+- identifier  = json
+- description = Javascript Object Notation
+- reference   = https://www.json.org/json-en.html
+- dogma       = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
 
 document    = element;
 

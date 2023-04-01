@@ -360,7 +360,7 @@ The following headers are officially recognized (all others are allowed, but are
 * `identifier`: A unique identifier for the grammar being described. It's customary to append a version number to the identifier.
 * `description`: A brief, one-line description of the grammar.
 * `reference`: A pointer to the official specification for the data format being described.
-* `dogma_specification`: A pointer to the Dogma specification as a courtesy to anyone reading the document.
+* `dogma`: A pointer to the Dogma specification as a courtesy to anyone reading the document.
 
 -------------------------------------------------------------------------------
 **Example**: A UTF-8 Dogma grammar called "mygrammar_v1".
@@ -370,7 +370,7 @@ dogma_v1 utf-8
 - identifier  = myformat_v1
 - description = Grammar for myformat, version 1
 - reference   = https://myformat.org/specification
-- dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.0.md
+- dogma       = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.0.md
 
 document = "a"; # It's a very simple format ;-)
 ```

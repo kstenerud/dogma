@@ -1,8 +1,8 @@
 dogma_v1 utf-8
-- identifier          = mdmp
-- description         = Microsoft Minidump
-- reference           = https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_header
-- dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
+- identifier  = mdmp
+- description = Microsoft Minidump
+- reference   = https://learn.microsoft.com/en-us/windows/win32/api/minidumpapiset/ns-minidumpapiset-minidump_header
+- dogma       = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
 
 document = byte_order(lsb, header);
 

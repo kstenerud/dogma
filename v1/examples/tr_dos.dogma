@@ -1,7 +1,7 @@
 dogma_v1 utf-8
-- identifier          = trdos_filedesc
-- description         = TR-DOS file descriptor
-- dogma_specification = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
+- identifier  = trdos_filedesc
+- description = TR-DOS file descriptor
+- dogma       = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
 
 file_descriptor  = filename
                  & var(ext, extension)
