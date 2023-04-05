@@ -114,6 +114,7 @@ Contents
     - [Unicode Equivalence and Normalization](#unicode-equivalence-and-normalization)
   - [Concepts](#concepts)
     - [Non-Greedy Matching](#non-greedy-matching)
+    - [Character Sets](#character-sets)
     - [Bit Ordering](#bit-ordering)
     - [Byte Ordering](#byte-ordering)
       - [Codepoint Byte Ordering](#codepoint-byte-ordering)
@@ -212,7 +213,7 @@ Binary grammars have different needs from textual grammars, and require special 
 
 Most metalanguages tend to support only ASCII, with Unicode (encoded as UTF-8) generally added as an afterthought. This restricts the usefulness of the metalanguage, as any other character sets (many of which are still in use) have no support at all.
 
-Dogma can be used with any [character set](https://www.iana.org/assignments/character-sets/character-sets.xhtml), and requires the character set to be specified as part of the grammar document header.
+[Dogma can be used with any character set](#character-sets).
 
 ### Codepoints as first-class citizens
 
@@ -281,6 +282,17 @@ terminaor = "zzz";
 Given the document `azzzbzzzczzz@`, The above Dogma would match 3 records (`a`, `b`, and `c`), not one record (`azzzbzzzc`).
 
 
+### Character Sets
+
+Dogma can be used with any [character set](https://www.iana.org/assignments/character-sets/character-sets.xhtml).
+
+By default, it is assumed that the format being described by a dogma document uses the same character set as [the Dogma document is written in](#document-header). However, if the [`charsets` header line](#standard-headers) is provided, then only the character sets listed in that header line are valid (how a particular character set is chosen from that list must be specified elsewhere, and is beyond the scope of this specification).
+
+If allowed characters in a grammar cannot be 1:1 converted between the [document character set](#document-header) and the character sets listed in the [`charsets` header line](#standard-headers), then the conversion method(s) must be specified elsewhere (which is beyond the scope of this specification).
+
+**Note**: When listing character sets, it's customary to use all lowercase.
+
+
 ### Bit Ordering
 
 Bit ordering is assumed to be "most significant bit first" since it is almost always abstracted that way by the hardware, and ordering generally only comes into play when actually transmitting data serially (which is outside of the scope of Dogma).
@@ -306,7 +318,7 @@ The global byte ordering is `msb`, and can be changed for the duration of a sube
 
 #### Codepoint Byte Ordering
 
-All [codepoints](#codepoints) follow the [character set's](#character-set-support) byte order rules and ignore the [byte order](#byte-ordering) setting. For example, `utf-16le` is always interpreted "least significant byte first", even when the [byte order](#byte-ordering) is set to `msb`. Similarly, `utf-16be` is always interpreted "most significant byte first".
+All [codepoints](#codepoints) follow the [character set's](#character-sets) byte order rules and ignore the [byte order](#byte-ordering) setting. For example, `utf-16le` is always interpreted "least significant byte first", even when the [byte order](#byte-ordering) is set to `msb`. Similarly, `utf-16be` is always interpreted "most significant byte first".
 
 **Note**: Dogma cannot make assumptions about where the "beginning" of a text stream is for [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark) purposes. If you wish to support BOM-based byte ordering, use the [`bom_ordered` function](#bom_ordered-function).
 
@@ -338,9 +350,9 @@ document = document_header & start_rule & rule*;
 The document header identifies the file format as Dogma, and contains the following mandatory information:
 
 * The major version of the Dogma specification that the document adheres to.
-* The case-insensitive name of the character encoding that the Dogma document is written in (use the [IANA preferred MIME name](https://www.iana.org/assignments/character-sets/character-sets.xhtml) whenever possible).
+* The case-insensitive name of the [character encoding](https://www.iana.org/assignments/character-sets/character-sets.xhtml) that the Dogma document is written in.
 
-Optionally, it may also include header lines. An empty line terminates the document header section.
+Optionally, the header section may also include header lines. An empty line terminates the document header section.
 
 ```dogma
 document_header    = "dogma_v" & dogma_major_version & SOME_WS & character_encoding & LINE_END
@@ -353,16 +365,15 @@ header_name        = (printable ! '=')+;
 header_value       = printable_ws+;
 ```
 
-**Note**: The character encoding only determines how to decode [codepoint](#codepoints) values from the Dogma document itself. It is assumed by default that any data encoded in the format being described is also using the same character encoding as the Dogma document iself, but this doesn't necessarily have to be so.
-
 #### Standard Headers
 
 The following headers are officially recognized (all others are allowed, but are not standardized):
 
-* `identifier`: A unique identifier for the grammar being described. It's customary to append a version number to the identifier.
+* `charsets`: A case-insensitive comma (plus possible whitespace) separated list of the [character sets](#character-sets) that are supported by the format being described.
 * `description`: A brief, one-line description of the grammar.
-* `reference`: A pointer to the official specification for the data format being described.
 * `dogma`: A pointer to the Dogma specification as a courtesy to anyone reading the document.
+* `identifier`: A unique identifier for the grammar being described. It's customary to append a version number to the identifier.
+* `reference`: A pointer to the official specification for the data format being described.
 
 -------------------------------------------------------------------------------
 **Example**: A UTF-8 Dogma grammar called "mygrammar_v1".
@@ -971,7 +982,7 @@ mystr = "This is a \"string\""; # or using single quotes: 'This is a "string"'
 
 #### Codepoint Escape
 
-A codepoint escape interprets the hex digits between the sequence `\[` and `]` as the hexadecimal numeric value of the codepoint being referred to. What actual [bits](#bits) result from the codepoint escape depends on the [character set](https://www.iana.org/assignments/character-sets/character-sets.xhtml) being used.
+A codepoint escape interprets the hex digits between the sequence `\[` and `]` as the hexadecimal numeric value of the codepoint being referred to. What actual [bits](#bits) result from the codepoint escape depends on the [character set](#character-sets) being used.
 
 ```dogma
 escape_sequence  = '\\' & (printable ! '[') | codepoint_escape);
@@ -1890,6 +1901,8 @@ Dogma described as Dogma
 dogma_v1 utf-8
 - identifier  = dogma_v1
 - description = Dogma metalanguage, version 1
+- dogma       = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
+- reference   = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
 
 document               = document_header & MAYBE_WSLC & start_rule & (MAYBE_WSLC & rule)*;
 
@@ -1905,8 +1918,14 @@ header_line            = '-' & SOME_WS
                        & '=' & MAYBE_WS
                        & header_value
                        ;
-header_name            = (printable ! '=')+;
+header_name            = standard_header_names | (printable ! '=')+;
 header_value           = printable_ws+;
+standard_header_names  = "charsets"
+                       | "description"
+                       | "dogma"
+                       | "identifier"
+                       | "reference"
+                       ;
 
 rule                   = symbol_rule | macro_rule | function_rule;
 start_rule             = symbol_rule;

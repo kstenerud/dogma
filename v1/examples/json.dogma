@@ -1,6 +1,7 @@
 dogma_v1 utf-8
 - identifier  = json
 - description = Javascript Object Notation
+- charsets    = utf-8, utf-16, utf-16be, utf-16le, utf-32, utf-32be, utf-32le
 - reference   = https://www.json.org/json-en.html
 - dogma       = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
 
