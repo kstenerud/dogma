@@ -537,7 +537,7 @@ Since functions are opaque, their parameter and return [types](#types) cannot be
 
 #### Variadic Functions
 
-The last parameter in a function can be made [variadic](https://en.wikipedia.org/wiki/Variadic_function) by appending `...` (for an example, see the [unicode function](#unicode-function)).
+The last parameter in a function can be made [variadic](https://en.wikipedia.org/wiki/Variadic_function) by appending `...` to the parameter's type.
 
 ```dogma
 function_rule      = function & '=' & prose & ';';
@@ -583,6 +583,16 @@ iso8601: bits  = """https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_tim
 temperature    = digit+ & ('.' & digit+)?;
 digit          = '0'~'9';
 ```
+
+**Example**: The [unicode function](#unicode-function) can accept any number of Unicode categories.
+
+```dogma
+unicode(categories: unicode_category...): bits =
+    """
+    Creates an expression containing the alternatives set of all Unicode codepoints that have any
+    of the given Unicode categories.
+    """
+```
 -------------------------------------------------------------------------------
 
 
@@ -617,8 +627,8 @@ Dogma has the following types:
 * [Enumerated types](#enumerated-types)
   - [`ordering`](#ordering): Byte ordering (whether the least or most significant byte comes first).
   - [`unicode_category`](#unicode-category): A [Unicode major or minor category](https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153).
-* `expression`: Used for special situations such as the [`eod` function](#eod-function).
-* `nothing`: Used to specify that a function doesn't return anything. This is used for functions that look or process elsewhere in the data.
+* `expression`: Used for special-case matching situations such as the [`eod` function](#eod-function).
+* `nothing`: Specifies that a function doesn't produce anything to match at the current location. Returned by functions that peek or process data elsewhere in the document (such as the [`peek` function](#peek-function) and [`offset` function](#offset-function)).
 
 Types become relevant in certain contexts, particularly when calling [functions](#functions) (which have restrictions on what types they accept and return).
 
@@ -673,7 +683,7 @@ The two most common numeric invariants are supported natively as pseudo-types:
 
 These pseudo-types only place restrictions on the final realized value; they are still `number` types and behave like mathematical reals for all operations, with the destination invariant type (such as a [function](#functions) parameter's type) restricting what resulting values are allowed.
 
-**Note**: A value that breaks an invariant on a `number` (the singular `number` type, not the set [`numbers`](#numbers) type) represents an erroneous condition. A value that breaks its `number` invariant (e.g. 0.5 passed to a `sinteger` or `uinteger` parameter) results in no match for anything that depends on it, and ideally should raise a diagnostic in any tool.
+**Note**: A value that breaks an invariant on a `number` (the singular `number` type, not the set [`numbers`](#numbers) type) indicates a malformed document or grammar.
 
 #### Numbers
 
@@ -681,7 +691,7 @@ The `numbers` type (and associated pseudo-type invariants `sintegers` and `uinte
 
 Number sets are produced using [ranges](#ranges), [alternatives](#alternative), and [exclusion](#exclusion).
 
-**Note**: Any value in a `numbers` set that breaks its invariant is silently removed from the set (this is _not_ considered an error). For example `-1.5~1.5` passed to a `sintegers` invariant will be reduced to the set of integer values (-1, 0, 1). `0.5~0.6` passed to a `sintegers` invariant will be reduced to the empty set. `-5` passed to a `uintegers` invariant will be reduced to the empty set.
+**Note**: Any value in a `numbers` set that breaks an invariant is silently removed from the set (this is _not_ considered an error). For example `-1.5~1.5` passed to a `sintegers` invariant will be reduced to the set of integer values (-1, 0, 1). `0.5~0.6` passed to a `sintegers` invariant will be reduced to the empty set. `-5` passed to a `uintegers` invariant will be reduced to the empty set.
 
 -------------------------------------------------------------------------------
 **Examples**:
