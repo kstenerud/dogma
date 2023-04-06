@@ -932,9 +932,11 @@ exact_float      = float(32, 0x5df1p-16);
 
 ### Codepoints
 
-A codepoint is the [bits](#bits) representation of a character in a particular [encoding](https://en.wikipedia.org/wiki/Character_encoding). Codepoints can be represented as literals, [ranges](#ranges), and [category sets](#unicode-function). Codepoint literals are placed between single or double quotes.
+A codepoint is the [bits](#bits) representation of a character in a particular [encoding](https://en.wikipedia.org/wiki/Character_encoding). Codepoints can be represented as literals, [ranges](#ranges), and [category sets](#unicode-function).
 
 Expressing codepoint literals as a [range](#ranges) causes every codepoint in the range to be added as an [alternative](#alternative).
+
+Codepoint literals are placed between single or double quotes.
 
 ```dogma
 codepoint_literal = '"' & maybe_escaped(printable_ws ! '"'){1} & '"'
@@ -954,7 +956,9 @@ alphanumeric = unicode(L,N);
 
 #### String Literals
 
-A string literal can be thought of as syntactic sugar for a series of specific [codepoints](#codepoints), [concatenated](#concatenation) together. String literals are placed between single or double quotes (the same as for single codepoint literals).
+A string literal can be thought of as syntactic sugar for a series of specific [codepoints](#codepoints), [concatenated](#concatenation) together.
+
+String literals are placed between single or double quotes (the same as for single codepoint literals).
 
 ```dogma
 string_literal = '"' & maybe_escaped(printable_ws ! '"'){2~} & '"'
