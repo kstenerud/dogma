@@ -787,7 +787,7 @@ u32(values)     = ordered(uint(32,values));
 
 #### Unicode Category
 
-The `unicode_category` type specifies the [Unicode category](https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153) when selecting a set of codepoints from the Unicode character set:
+The `unicode_category` type specifies the [Unicode category](https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153) when selecting a set of codepoints from the Unicode character set (see the [`unicode` function](#unicode-function)):
 
 | Category | Description             | Category | Description                | Category | Description          |
 | -------- | ----------------------- | -------- | -------------------------- | -------- | -------------------- |
