@@ -899,9 +899,11 @@ Numeric literals can be expressed in many ways:
 * Integers can be expressed in binary, octal, decimal, or hexadecimal notation.
 * Reals can be expressed in decimal or hexadecimal notation.
 
-**Note**: Decimal real notation translates more cleanly to decimal float encodings such as [ieee754 decimal](https://en.wikipedia.org/wiki/Decimal64_floating-point_format), and hexadecimal real notation translates more cleanly to binary float encodings such as [ieee754 binary](https://en.wikipedia.org/wiki/Double-precision_floating-point_format).
+**Notes**:
 
-Conversions from literal reals to floating point encodings that differ in base are assumed to follow the generally accepted algorithms for such conversions (e.g. `Grisu`, `std::strtod`).
+* Decimal real notation translates more cleanly to decimal float encodings such as [ieee754 decimal](https://en.wikipedia.org/wiki/Decimal64_floating-point_format).
+* Hexadecimal real notation translates more cleanly to binary float encodings such as [ieee754 binary](https://en.wikipedia.org/wiki/Double-precision_floating-point_format).
+* Conversions from literal reals to floating point encodings that differ in base are assumed to follow the generally accepted algorithms for such conversions (e.g. `Grisu`, `std::strtod`).
 
 ```dogma
 number_literal       = int_literal_bin | int_literal_oct | int_real_literal_dec | int_real_literal_hex;
