@@ -290,7 +290,7 @@ By default, it is assumed that the format being described by a dogma document us
 
 If allowed characters in a grammar cannot be 1:1 converted between the [document character set](#document-header) and the character sets listed in the [`charsets` header line](#standard-headers), then the conversion method(s) must be specified elsewhere (which is beyond the scope of this specification).
 
-**Note**: When listing character sets, it's customary to use all lowercase.
+**Note**: [Character set names](https://www.iana.org/assignments/character-sets/character-sets.xhtml) are case-insensitive, but it's customary to use all lowercase.
 
 
 ### Bit Ordering
