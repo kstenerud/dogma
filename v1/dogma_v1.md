@@ -1017,6 +1017,8 @@ mystr = "This is all just a bunch of \[1f415]ma!"; # "This is all just a bunch o
 
 Prose describes a [function's](#functions) invariants and implementation in natural language, or it may contain a URL pointing to another document.
 
+Prose is placed between sets of three double or single quotes.
+
 ```dogma
 prose = '"""' & (maybe_escaped(printable_wsl)+ ! '"""') & '"""'
       | "'''" & (maybe_escaped(printable_wsl)+ ! "'''") & "'''"
@@ -1050,7 +1052,7 @@ Switch
 
 A switch statement chooses one expression from a set of possibilities based on condition matching.
 
-* When no conditions match, the default expression (if any) is used.
+* When no conditions match, the default expression (if any) is used. If no default expression exists in this case, then no action is taken.
 * If more than one condition can match at the same time, the grammar is ambiguous.
 
 ```dogma
