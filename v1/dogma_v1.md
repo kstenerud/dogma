@@ -632,8 +632,6 @@ Dogma has the following types:
 
 Types become relevant in certain contexts, particularly when calling [functions](#functions) (which have restrictions on what types they accept and return).
 
-Custom types may be invented (or further invariants defined) when the standard types are insufficient (such as in the [unicode function](#unicode-function)), provided their textual representation doesn't cause parsing ambiguities with the Dogma grammar.
-
 ### Bits
 
 The bits type represents the set of possible bit sequences that can be matched at a particular point.
