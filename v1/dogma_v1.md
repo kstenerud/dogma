@@ -326,7 +326,7 @@ All [codepoints](#codepoints) follow the [character set's](#character-sets) byte
 
 All [symbols](#symbols), [macros](#macros), [functions](#functions) and [variables](#variables) have names that are part of a namespace. All names are case sensitive and must be unique to their namespace.
 
-The global namespace consists of all [rule](#rules) names, and the names of the [built-in functions](#builtin-functions).
+The global namespace consists of all [rule](#rules) names, [enumerated type](#enumerated-types) names, and the names of the [built-in functions](#builtin-functions).
 
 Each [rule](#rules) has a local namespace that supercedes the global namespace (i.e. the local namespace is searched first, then the global namespace - meaning that a local variable name can shadow a global name). [Variables](#variables) can be bound to the local namespace either via [macro arguments](#macros) or using the [`var` function](#var-function).
 
