@@ -544,8 +544,7 @@ function_with_args = identifier_restricted
                    ;
 function_param     = param_name & type_specifier;
 type_specifier     = ':' & type_name;
-type_name          = basic_type_name | custom_type_name;
-basic_type_name    = "expression"
+type_name          = "expression"
                    | "bits"
                    | "condition"
                    | "number"
@@ -558,7 +557,6 @@ basic_type_name    = "expression"
                    | "unicode_categories"
                    | "nothing"
                    ;
-custom_type_name   = name;
 ```
 
 -------------------------------------------------------------------------------
@@ -1961,7 +1959,7 @@ expression             = symbol
 
 symbol                 = identifier_restricted;
 macro                  = identifier_restricted & PARENTHESIZED(param_name & (ARG_SEP & param_name)*);
-param_name             = identifier_restricted;
+param_name             = identifier_any;
 function               = function_no_args | function_with_args;
 function_no_args       = identifier_restricted & TOKEN_SEP & type_specifier;
 function_with_args     = identifier_restricted
@@ -1970,8 +1968,7 @@ function_with_args     = identifier_restricted
                        ;
 function_param         = param_name & TOKEN_SEP & type_specifier;
 type_specifier         = ':' & TOKEN_SEP & type_name;
-type_name              = basic_type_name | custom_type_name;
-basic_type_name        = "expression"
+type_name              = "expression"
                        | "bits"
                        | "condition"
                        | "number"
@@ -1984,7 +1981,6 @@ basic_type_name        = "expression"
                        | "unicode_categories"
                        | "nothing"
                        ;
-custom_type_name       = name;
 
 call                   = identifier_any & PARENTHESIZED(call_param & (ARG_SEP & call_param)*);
 call_param             = condition | number | expression;
@@ -2123,7 +2119,7 @@ offset(bit_offset: uinteger, expr: bits): nothing
    as a file containing an index of offsets to payload chunks.
    """;
 
-var(variable_name: identifier, value: bits | numbers): bits | numbers =
+var(variable_name: identifier_any, value: bits | numbers): bits | numbers =
     """
     Binds `value` to a local variable for subsequent re-use in the local namespace.
 
@@ -2243,8 +2239,8 @@ calc_neg               = '-' & calc_val;
 
 grouped(item)          = PARENTHESIZED(item);
 ranged(item)           = (item & TOKEN_SEP)? & '~' & (TOKEN_SEP & item)?;
-maybe_grouped(item)    = item | grouped(item);
-maybe_ranged(item)     = item | ranged(item);
+maybe_grouped(item)    = grouped(item) | item;
+maybe_ranged(item)     = ranged(item) | item;
 
 number_literal         = int_literal_bin | int_literal_oct | int_real_literal_dec | int_real_literal_hex;
 int_real_literal_dec   = neg? digit_dec+
@@ -2259,7 +2255,8 @@ neg                    = '-';
 
 identifier_any         = name;
 identifier_restricted  = identifier_any ! reserved_identifiers;
-reserved_identifiers   = "sized"
+reserved_identifiers   = builtin_function_names | enumeration_names;
+builtin_function_names = "sized"
                        | "aligned"
                        | "reversed"
                        | "ordered"
@@ -2276,6 +2273,15 @@ reserved_identifiers   = "sized"
                        | "inf"
                        | "nan"
                        | "nzero"
+                       ;
+enumeration_names      = "msb" | "lsb"
+                       | "L" | "Lu" | "Ll" | "Lt" | "Lm" | "Lo"
+                       | "M" | "Mn" | "Mc" | "Me"
+                       | "N" | "Nd" | "Nl" | "No"
+                       | "P" | "Pc" | "Pd" | "Ps" | "Pe" | "Pi" | "Pf" | "Po"
+                       | "S" | "Sm" | "Sc" | "Sk" | "So"
+                       | "Z" | "Zs" | "Zl" | "Zp"
+                       | "C" | "Cc" | "Cf" | "Cs" | "Co" | "Sn"
                        ;
 
 name                   = name_firstchar & name_nextchar*;
