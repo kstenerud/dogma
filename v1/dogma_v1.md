@@ -471,13 +471,13 @@ A macro is essentially a symbol that accepts parameters, which are bound to loca
 
 ```dogma
 macro_rule = macro & '=' & expression & ';';
-macro      = identifier_restricted & PARENTHESIZED(param_name+);
+macro      = identifier_restricted & PARENTHESIZED(param_name & (',' & param_name)*);
 ```
 
 When called, a macro substitutes the passed-in parameters and proceeds like a normal rule would. Parameter and return [types](#types) are inferred based on how the parameters are used within the macro, and the type resulting from the macro's expression. The grammar is malformed if a macro is called with incompatible types, or is used in a context that is incompatible with its return type.
 
 ```dogma
-call       = identifier_any & PARENTHESIZED(call_param & (ARG_SEP & call_param)*);
+call       = identifier_any & PARENTHESIZED(call_param & (',' & call_param)*);
 call_param = condition | number | expression;
 ```
 
@@ -539,7 +539,7 @@ function_rule      = function & '=' & prose & ';';
 function           = function_no_args | function_with_args;
 function_no_args   = identifier_restricted & type_specifier;
 function_with_args = identifier_restricted
-                   & PARENTHESIZED(function_param+)
+                   & PARENTHESIZED(function_param & (',' & function_param)*)
                    & type_specifier
                    ;
 function_param     = param_name & type_specifier;
