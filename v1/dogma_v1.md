@@ -722,9 +722,9 @@ Condition precedence (low to high):
 
 **Notes**:
 
-* Comparisons cannot be done between [numbers](#number) and [bits](#bits); only bits compared to bits, or numbers compared to numbers.
+* Comparisons cannot be made between [numbers](#number) and [bits](#bits); only bits compared to bits, or numbers compared to numbers.
 * [Bits](#bits) can only be compared when both operands contain the same number of bits. If operands of differing bit counts are compared, the grammar is malformed.
-* [Bits](#bits) are compared unsigned.
+* [Bits](#bits) are compared as if they were big endian encoded unsigned integers.
 
 ```dogma
 condition          = comparison | logical_op;
@@ -949,7 +949,7 @@ alphanumeric = unicode(L|N);
 
 #### String Literals
 
-A string literal can be thought of as syntactic sugar for a series of specific [codepoints](#codepoints), [concatenated](#concatenation) together.
+A string literal can be thought of as syntactic sugar for a series of specific [codepoints](#codepoints) [concatenated](#concatenation) together.
 
 String literals are placed between single or double quotes (the same as for single codepoint literals).
 
@@ -991,7 +991,7 @@ mystr = "This is a \"string\""; # or using single quotes: 'This is a "string"'
 
 #### Codepoint Escape
 
-A codepoint escape interprets the hex digits between the sequence `\[` and `]` as the hexadecimal numeric value of the codepoint being referred to. What actual [bits](#bits) result from the codepoint escape depends on the [character set](#character-sets) being used.
+A codepoint escape interprets the hex digits between the sequence `\[` and `]` as the hexadecimal numeric value of the codepoint being referred to. What actual character and [bits](#bits) result from the codepoint escape depends on the [character set](#character-sets) being used.
 
 ```dogma
 escape_sequence  = '\\' & (printable ! '[') | codepoint_escape);
@@ -1045,7 +1045,8 @@ Switch
 
 A switch statement chooses one expression from a set of possibilities based on condition matching.
 
-* When no conditions match, the default expression (if any) is used. If no default expression exists in this case, then no action is taken.
+* When no conditions match, the default expression (if any) is used.
+* When no conditions match and there is no default expression, then no action is taken.
 * If more than one condition can match at the same time, the grammar is ambiguous.
 
 ```dogma
@@ -1321,9 +1322,9 @@ A range builds a [set of numbers](#numbers) consisting of all reals in the range
 * A tilde by itself (`~`), indicating no bound (i.e. the range consists of the set of all reals).
 * A value with no tilde, restricting the "range" to only that one value.
 
-A [codepoint](#codepoints) range represents a set where each [`uinteger`](#number) contained in the range represents a codepoint [alternative](#alternative).
+A [codepoint](#codepoints) range represents a set where each unique codepoint value contained in the range represents a codepoint [alternative](#alternative).
 
-A [repetition](#repetition) range represents a set where each [`uinteger`](#number) contained in the range represents a number of occurrences that will be applied to a [bits](#bits) expression as an [alternative](#alternative).
+A [repetition](#repetition) range represents a set where each unique unsigned integer value contained in the range represents a number of occurrences that will be applied to a [bits](#bits) expression as an [alternative](#alternative).
 
 ```dogma
 expression         = # ...
@@ -1531,7 +1532,8 @@ byte_order(first: ordering, expr: bits): bits
    Process `expr` using the specified byte ordering.
 
    `first` can be `msb` (most significant byte) or `lsb` (least significant byte), and determines
-   whether the most or least significant byte comes first in any call to the `ordered` function.
+   whether the most or least significant byte comes first in any call to the `ordered` function
+   that occurs inside of `expr`.
 
    Note that this function does not modify `expr` in any way; it only sets the byte ordering for
    any calls to `ordered` made within `expr`.
@@ -1563,7 +1565,7 @@ dogma_v1 utf-16
 
 archive          = record* eod;
 record           = uint(64,var(length,~)) & document(length);
-document(length) = sized(length*8, bom_ordered(unicode(L|M|N|P|S|Z|C)*));
+document(length) = sized(length*8, bom_ordered('\[ffef]'? & unicode(L|M|N|P|S|Z|C)*));
 ```
 -------------------------------------------------------------------------------
 
@@ -1763,7 +1765,7 @@ letter_digit_space = unicode(N|L|Zs);
 uint(bit_counts: uintegers, values: uintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
-    given values set as big endian unsigned integers of sizes in `bit_counts`.
+    given values set as big endian unsigned integers of sizes contained in `bit_counts`.
     """;
 ```
 
@@ -1782,7 +1784,8 @@ length = uint(16, ~);
 sint(bit_counts: uintegers, values: sintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
-    given values set as big endian 2's complement signed integers of sizes in `bit_counts`.
+    given values set as big endian 2's complement signed integers of sizes contained in
+    `bit_counts`.
     """;
 ```
 
@@ -1801,7 +1804,8 @@ points = sint(32, -10000~10000);
 float(bit_counts: uintegers, values: numbers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
-    given values set as big endian ieee754 binary floating point values of sizes in `bit_counts`.
+    given values set as big endian ieee754 binary floating point values of sizes contained in
+    `bit_counts`.
 
     Note: expressions produced by this function will never include the special infinity values,
     NaN values, or negative 0, for which there are specialized functions.
@@ -1830,10 +1834,10 @@ any_float64 = float(64,~) | inf(64,~) | nan(64,~) | nzero(64);
 ```dogma
 inf(bit_counts: uintegers, sign: numbers): bits =
     """
-    Creates an expression that matches big endian ieee754 binary infinity values of sizes in
-    `bit_counts` whose sign matches the `sign` values set. One or two matches will be made
-    (positive infinity, negative infinity) depending on whether the `sign` values include both
-    positive and negative values or not (0 counts as positive).
+    Creates an expression that matches big endian ieee754 binary infinity values of sizes
+    contained in `bit_counts` whose sign matches the `sign` values set. One or two matches will
+    be made (positive infinity, negative infinity) depending on whether the `sign` values include
+    both positive and negative values or not (0 counts as positive).
 
     Any values in `bit_counts` that are not valid ieee754 binary sizes will be ignored.
     """;
@@ -1855,8 +1859,8 @@ terminator = inf(32, -1);
 ```dogma
 nan(bit_counts: uintegers, payload: sintegers): bits =
     """
-    Creates an expression that matches every big endian ieee754 binary NaN value of sizes in
-    `bit_counts` with the given payload values set.
+    Creates an expression that matches every big endian ieee754 binary NaN value of sizes
+    contained in `bit_counts` with the given payload values set.
 
     NaN payloads can be positive or negative, up to the min/max value allowed for a NaN payload in
     a float of the given size (10 bits for float-16, 23 bits for float32, etc).
@@ -1887,8 +1891,8 @@ invalid = nan(32, 0x400001);
 ```dogma
 nzero(bit_counts: uintegers): bits =
     """
-    Creates an expression that matches a big endian ieee754 binary negative 0 value of sizes in
-    `bit_counts`.
+    Creates an expression that matches a big endian ieee754 binary negative 0 value of sizes
+    contained in `bit_counts`.
 
     Any values in `bit_counts` that are not valid ieee754 binary sizes will be ignored.
     """;
@@ -2086,7 +2090,8 @@ byte_order(first: ordering, expr: bits): bits
    Process `expr` using the specified byte ordering.
 
    `first` can be `msb` (most significant byte) or `lsb` (least significant byte), and determines
-   whether the most or least significant byte comes first in any call to the `ordered` function.
+   whether the most or least significant byte comes first in any call to the `ordered` function
+   that occurs inside of `expr`.
 
    Note that this function does not modify `expr` in any way; it only sets the byte ordering for
    any calls to `ordered` made within `expr`.
@@ -2147,19 +2152,21 @@ unicode(categories: unicode_categories): bits =
 uint(bit_counts: uintegers, values: uintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
-    given values set as big endian unsigned integers of sizes in `bit_counts`.
+    given values set as big endian unsigned integers of sizes contained in `bit_counts`.
     """;
 
 sint(bit_counts: uintegers, values: sintegers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
-    given values set as big endian 2's complement signed integers of sizes in `bit_counts`.
+    given values set as big endian 2's complement signed integers of sizes contained in
+    `bit_counts`.
     """;
 
 float(bit_counts: uintegers, values: numbers): bits =
     """
     Creates an expression that matches every discrete bit pattern that can be represented in the
-    given values set as big endian ieee754 binary floating point values of sizes in `bit_counts`.
+    given values set as big endian ieee754 binary floating point values of sizes contained in
+    `bit_counts`.
 
     Note: expressions produced by this function will never include the special infinity values,
     NaN values, or negative 0, for which there are specialized functions.
@@ -2169,18 +2176,18 @@ float(bit_counts: uintegers, values: numbers): bits =
 
 inf(bit_counts: uintegers, sign: numbers): bits =
     """
-    Creates an expression that matches big endian ieee754 binary infinity values of sizes in
-    `bit_counts` whose sign matches the `sign` values set. One or two matches will be made
-    (positive infinity, negative infinity) depending on whether the `sign` values include both
-    positive and negative values or not (0 counts as positive).
+    Creates an expression that matches big endian ieee754 binary infinity values of sizes
+    contained in `bit_counts` whose sign matches the `sign` values set. One or two matches will
+    be made (positive infinity, negative infinity) depending on whether the `sign` values include
+    both positive and negative values or not (0 counts as positive).
 
     Any values in `bit_counts` that are not valid ieee754 binary sizes will be ignored.
     """;
 
 nan(bit_counts: uintegers, payload: sintegers): bits =
     """
-    Creates an expression that matches every big endian ieee754 binary NaN value of sizes in
-    `bit_counts` with the given payload values set.
+    Creates an expression that matches every big endian ieee754 binary NaN value of sizes
+    contained in `bit_counts` with the given payload values set.
 
     NaN payloads can be positive or negative, up to the min/max value allowed for a NaN payload in
     a float of the given size (10 bits for float-16, 23 bits for float32, etc).
@@ -2196,8 +2203,8 @@ nan(bit_counts: uintegers, payload: sintegers): bits =
 
 nzero(bit_counts: uintegers): bits =
     """
-    Creates an expression that matches a big endian ieee754 binary negative 0 value of sizes in
-    `bit_counts`.
+    Creates an expression that matches a big endian ieee754 binary negative 0 value of sizes
+    contained in `bit_counts`.
 
     Any values in `bit_counts` that are not valid ieee754 binary sizes will be ignored.
     """;
