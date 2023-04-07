@@ -128,7 +128,6 @@ Contents
     - [Macros](#macros)
     - [Functions](#functions)
       - [Function Parameter and Return Types](#function-parameter-and-return-types)
-      - [Variadic Functions](#variadic-functions)
     - [Expressions](#expressions)
   - [Types](#types)
     - [Bits](#bits)
@@ -137,7 +136,7 @@ Contents
     - [Condition](#condition)
     - [Enumerated Types](#enumerated-types)
       - [Ordering](#ordering)
-      - [Unicode Category](#unicode-category)
+      - [Unicode Categories](#unicode-categories)
   - [Variables](#variables)
   - [Literals](#literals)
     - [Numeric Literals](#numeric-literals)
@@ -410,7 +409,7 @@ The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or 
 
 ```dogma
 identifier           = (identifier_firstchar & identifier_nextchar*) ! reserved_identifiers;
-identifier_firstchar = unicode(L,M);
+identifier_firstchar = unicode(L|M);
 identifier_nextchar  = identifier_firstchar | unicode(N) | '_';
 ```
 
@@ -434,7 +433,7 @@ symbol                = identifier_restricted;
 identifier_restricted = identifier_any ! reserved_identifiers;
 identifier_any        = name;
 name                  = name_firstchar & name_nextchar*;
-name_firstchar        = unicode(L,M);
+name_firstchar        = unicode(L|M);
 name_nextchar         = name_firstchar | unicode(N) | '_';
 ```
 
@@ -445,7 +444,7 @@ name_nextchar         = name_firstchar | unicode(N) | '_';
 
 ```dogma
 記録		= 会社名 & "：：" & 従業員数 & LF;
-会社名		= unicode(L,M) & unicode(L,M,N,P,S,Zs)*;
+会社名		= unicode(L|M) & unicode(L|M|N|P|S|Zs)*;
 従業員数		= '１'~'９' & '０'~'９'* & '万'?;
 LF		= '\[a]';
 ```
@@ -456,7 +455,7 @@ Or if you prefer, the same thing with English symbol names:
 
 ```dogma
 record         = company_name & "：：" & employee_count & LF;
-company_name   = unicode(L,M) & unicode(L,M,N,P,S,Zs)*;
+company_name   = unicode(L|M) & unicode(L|M|N|P|S|Zs)*;
 employee_count = '１'~'９' & '０'~'９'* & '万'?;
 LF             = '\[a]';
 ```
@@ -535,22 +534,16 @@ Functions that take no parameters are defined and called without the trailing pa
 
 Since functions are opaque, their parameter and return [types](#types) cannot be automatically deduced like they can for [macros](#macros). Functions therefore declare all parameter and return [types](#types). If a function is called with the wrong types or its return value is used in an incompatible context, the grammar is malformed.
 
-#### Variadic Functions
-
-The last parameter in a function can be made [variadic](https://en.wikipedia.org/wiki/Variadic_function) by appending `...` to the parameter's type.
-
 ```dogma
 function_rule      = function & '=' & prose & ';';
 function           = function_no_args | function_with_args;
 function_no_args   = identifier_restricted & type_specifier;
 function_with_args = identifier_restricted
-                   & PARENTHESIZED(function_param & function_param* & last_param?)
+                   & PARENTHESIZED(function_param+)
                    & type_specifier
                    ;
 function_param     = param_name & type_specifier;
-last_param         = function_param  & vararg?;
 type_specifier     = ':' & type_name;
-vararg             = "...";
 type_name          = basic_type_name | custom_type_name;
 basic_type_name    = "expression"
                    | "bits"
@@ -562,7 +555,7 @@ basic_type_name    = "expression"
                    | "sinteger"
                    | "sintegers"
                    | "ordering"
-                   | "unicode_category"
+                   | "unicode_categories"
                    | "nothing"
                    ;
 custom_type_name   = name;
@@ -587,7 +580,7 @@ digit          = '0'~'9';
 **Example**: The [unicode function](#unicode-function) can accept any number of Unicode categories.
 
 ```dogma
-unicode(categories: unicode_category...): bits =
+unicode(categories: unicode_categories): bits =
     """
     Creates an expression containing the alternatives set of all Unicode codepoints that have any
     of the given Unicode categories.
@@ -626,7 +619,7 @@ Dogma has the following types:
   - Number set type [`numbers` and its invariants `sintegers` and `uintegers`](#numbers).
 * [Enumerated types](#enumerated-types)
   - [`ordering`](#ordering): Byte ordering (whether the least or most significant byte comes first).
-  - [`unicode_category`](#unicode-category): A [Unicode major or minor category](https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153).
+  - [`unicode_categories`](#unicode-categories): A set of [Unicode major and/or minor categories](https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153).
 * `expression`: Used for special-case matching situations such as the [`eod` function](#eod-function).
 * `nothing`: Specifies that a function doesn't produce anything to match at the current location. Returned by functions that peek or process data elsewhere in the document (such as the [`peek` function](#peek-function) and [`offset` function](#offset-function)).
 
@@ -793,9 +786,11 @@ u32(values)     = ordered(uint(32,values));
 ```
 -------------------------------------------------------------------------------
 
-#### Unicode Category
+#### Unicode Categories
 
-The `unicode_category` type specifies the [Unicode category](https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153) when selecting a set of codepoints from the Unicode character set (see the [`unicode` function](#unicode-function)):
+The `unicode_categories` type specifies the set of [Unicode categories](https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153) whose codepoints to select from the Unicode character set (see the [`unicode` function](#unicode-function)).
+
+Categories are combined using [alternatives notation](#alternative).
 
 | Category | Description             | Category | Description                | Category | Description          |
 | -------- | ----------------------- | -------- | -------------------------- | -------- | -------------------- |
@@ -817,9 +812,9 @@ The `unicode_category` type specifies the [Unicode category](https://www.unicode
 **Examples**:
 
 ```dogma
-alphanumeric           = unicode(L,N);
-alphanumeric_uppercase = unicode(Lu,N);
-name_field             = unicode(L,M,N,P,S){1~100};
+alphanumeric           = unicode(L|N);
+alphanumeric_uppercase = unicode(Lu|N);
+name_field             = unicode(L|M|N|P|S){1~100};
 ```
 -------------------------------------------------------------------------------
 
@@ -948,7 +943,7 @@ codepoint_literal = '"' & maybe_escaped(printable_ws ! '"'){1} & '"'
 ```dogma
 letter_a     = 'a';     # or "a"
 a_to_c       = 'a'~'c'; # or "a"~"c", or 'a' | 'b' | 'c', or "a" | "b" | "c"
-alphanumeric = unicode(L,N);
+alphanumeric = unicode(L|N);
 ```
 -------------------------------------------------------------------------------
 
@@ -1353,7 +1348,7 @@ hex_digit = ('0'~'9' | 'a'~'f');
 **Example**: Repetition range: A name field contains between 1 and 100 characters.
 
 ```dogma
-name_field = unicode(L,M,N,P,S){1~100};
+name_field = unicode(L|M|N|P|S){1~100};
 ```
 
 **Example**: Number range: The RPM value is an unsigned 16 bit big endian integer from 0 to 1000.
@@ -1416,13 +1411,13 @@ sized(bit_count: uinteger, expr: bits): bits =
 **Example**: A name field must contain exactly 200 bytes worth of character data, padded with spaces as needed.
 
 ```dogma
-name_field = sized(200*8, unicode(L,M,N,P,Zs)* & ' '*);
+name_field = sized(200*8, unicode(L|M|N|P|Zs)* & ' '*);
 ```
 
 Technically, the `& ' '*` part is superfluous since Unicode category `Zs` already includes space, but it helps readability to highlight how to pad the field. One could even be more explicit:
 
 ```dogma
-name_field    = sized(200*8, unicode(L,M,N,P,Zs)* & space_padding);
+name_field    = sized(200*8, unicode(L|M|N|P|Zs)* & space_padding);
 space_padding = ' '*;
 ```
 
@@ -1568,7 +1563,7 @@ dogma_v1 utf-16
 
 archive          = record* eod;
 record           = uint(64,var(length,~)) & document(length);
-document(length) = sized(length*8, bom_ordered(unicode(L,M,N,P,S,Z,C)*));
+document(length) = sized(length*8, bom_ordered(unicode(L|M|N|P|S|Z|C)*));
 ```
 -------------------------------------------------------------------------------
 
@@ -1741,15 +1736,15 @@ record = uint(8,var(length, 1~100)) uint(8,~){length};
 ### `unicode` Function
 
 ```dogma
-unicode(categories: unicode_category...): bits =
+unicode(categories: unicode_categories): bits =
     """
     Creates an expression containing the alternatives set of all Unicode codepoints that have any
     of the given Unicode categories.
 
-    `categories` is a comma separated list of 1 letter major category or 2-letter minor category
+    `categories` is an alternatives set of 1 letter major category or 2-letter minor category
     names, as listed in https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153
 
-    Example: all letters and space separators: unicode(L,Zs)
+    Example: all letters and space separators: unicode(L | Zs)
     """;
 ```
 
@@ -1757,7 +1752,7 @@ unicode(categories: unicode_category...): bits =
 **Example**: Allow letter, numeral, and space characters.
 
 ```dogma
-letter_digit_space = unicode(N,L,Zs);
+letter_digit_space = unicode(N|L|Zs);
 ```
 -------------------------------------------------------------------------------
 
@@ -1966,13 +1961,11 @@ param_name             = identifier_restricted;
 function               = function_no_args | function_with_args;
 function_no_args       = identifier_restricted & TOKEN_SEP & type_specifier;
 function_with_args     = identifier_restricted
-                       & PARENTHESIZED(function_param & (ARG_SEP & function_param)* & (ARG_SEP & last_param)?)
+                       & PARENTHESIZED(function_param & (ARG_SEP & function_param)*)
                        & TOKEN_SEP & type_specifier
                        ;
 function_param         = param_name & TOKEN_SEP & type_specifier;
-last_param             = function_param  & vararg?;
 type_specifier         = ':' & TOKEN_SEP & type_name;
-vararg                 = "...";
 type_name              = basic_type_name | custom_type_name;
 basic_type_name        = "expression"
                        | "bits"
@@ -1984,7 +1977,7 @@ basic_type_name        = "expression"
                        | "sinteger"
                        | "sintegers"
                        | "ordering"
-                       | "unicode_category"
+                       | "unicode_categories"
                        | "nothing"
                        ;
 custom_type_name       = name;
@@ -2140,15 +2133,15 @@ eod: expression =
    A special expression that matches the end of the data stream.
    """;
 
-unicode(categories: unicode_category...): bits =
+unicode(categories: unicode_categories): bits =
     """
     Creates an expression containing the alternatives set of all Unicode codepoints that have any
     of the given Unicode categories.
 
-    `categories` is a comma separated list of 1 letter major category or 2-letter minor category
+    `categories` is an alternatives set of 1 letter major category or 2-letter minor category
     names, as listed in https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153
 
-    Example: all letters and space separators: unicode(L,Zs)
+    Example: all letters and space separators: unicode(L | Zs)
     """;
 
 uint(bit_counts: uintegers, values: uintegers): bits =
@@ -2279,10 +2272,10 @@ reserved_identifiers   = "sized"
                        ;
 
 name                   = name_firstchar & name_nextchar*;
-name_firstchar         = unicode(L,M);
+name_firstchar         = unicode(L|M);
 name_nextchar          = name_firstchar | unicode(N) | '_';
 
-printable              = unicode(L,M,N,P,S);
+printable              = unicode(L|M|N|P|S);
 printable_ws           = printable | WS;
 printable_wsl          = printable | WSL;
 digit_bin              = '0'~'1';
