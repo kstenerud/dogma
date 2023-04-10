@@ -1806,7 +1806,7 @@ byte(v)                 = uint(8, v);
 ### `eod` Function
 
 ```dogma
-eod: expression =
+eod: oob =
    """
    A special expression that matches the end of the data stream.
    """;
@@ -2218,7 +2218,7 @@ var(variable_name: identifier_any, value: bits | numbers): bits | numbers =
     in the rule.
     """;
 
-eod: expression =
+eod: oob =
    """
    A special expression that matches the end of the data stream.
    """;
