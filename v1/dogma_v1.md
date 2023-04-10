@@ -135,7 +135,6 @@ Contents
     - [Bits](#bits)
     - [Bitseq](#bitseq)
     - [Boolean](#boolean)
-    - [Comparison](#comparison)
     - [Condition](#condition)
     - [Nothing](#nothing)
     - [Number](#number)
@@ -151,14 +150,16 @@ Contents
     - [Escape Sequence](#escape-sequence)
       - [Codepoint Escape](#codepoint-escape)
     - [Prose](#prose)
-  - [Switch](#switch)
-  - [Combinations](#combinations)
-    - [Concatenation](#concatenation)
-    - [Alternative](#alternative)
-    - [Exclusion](#exclusion)
-    - [Repetition](#repetition)
-  - [Logical Operations](#logical-operations)
-  - [Calculations](#calculations)
+  - [Operations](#operations)
+    - [Comparison](#comparison)
+    - [Logic](#logic)
+    - [Calculation](#calculation)
+    - [Combination](#combination)
+      - [Concatenation](#concatenation)
+      - [Alternative](#alternative)
+      - [Exclusion](#exclusion)
+      - [Repetition](#repetition)
+    - [Switch](#switch)
   - [Grouping](#grouping)
   - [Ranges](#ranges)
   - [Comments](#comments)
@@ -639,7 +640,6 @@ The following types are used by the Dogma language:
 | `bits`               | sequence of sets of `bit`        | `bitseq`          | ✔️       |
 | `bitseq`             | sequence of `bit`                |                   | ❌      |
 | `boolean`            | scalar                           |                   | ❌      |
-| `comparison`         | `<term>` `<comparator>` `<term>` | `boolean`         | ✔️       |
 | `condition`          | sequence of sets of `comparison` | `boolean`         | ✔️       |
 | `nothing`            |                                  |                   | ❌      |
 | `number`             | scalar                           |                   | ✔️       |
@@ -654,9 +654,9 @@ Types become relevant in certain contexts, particularly when calling [functions]
 
 The more basic types can be passed to contexts requiring more complex types if their ultimate base types match. For example:
 
-* `bitseq` is treated as a sequence of unit sets when passed to a `bits` context.
-* `number` is treated as a unit set when passed to a `numbers` context.
-* `comparison` and `boolean` are treated as a single-entry sequence of a unit set when passed to a `condition` context.
+* A lone `bitseq` is treated as a sequence of unit sets when passed to a `bits` context.
+* A lone `number` is treated as a unit set when passed to a `numbers` context.
+* A lone `boolean` is treated as a single-entry sequence of a unit set when passed to a `condition` context.
 
 
 ### Bit
@@ -712,53 +712,9 @@ For example, `("a" | "i") & "t"` (type `bits`) can realize into either the `bits
 The `boolean` type has two possible values: true or false. Booleans are produced through [comparisons](#comparison), and further manipulated through [logical operations](#logical-operations).
 
 
-### Comparison
-
-A comparison takes the form `term1` `comparator` `term2`, producing a [`boolean`](#boolean) when evaluated.
-
-The following comparators are supported:
-
-* Less than (`<`)
-* Less than or equal to (`<=`)
-* Equal to (`=`)
-* Not equal to (`!=`)
-* Greater than or equal to (`>=`)
-* Greater than (`>`)
-
-Comparisons can be made between two [`number`](#number) types (and invariants), or between two [`bitseq`](#bitseq) types (and `bits`, which will be compared once realized into `bitseq`).
-
-```dogma
-comparison         = number & comparator & number
-                   | bitseq & comparator & bitseq
-                   ;
-comparator         = comp_lt | comp_le | comp_eq | comp_ne | comp_ge | comp_gt;
-comp_lt            = "<";
-comp_le            = "<=";
-comp_eq            = "=";
-comp_ne            = "!=";
-comp_ge            = ">=";
-comp_gt            = ">";
-```
-
-**Notes**:
-
-* [`bitseq`](#bitseq) can only be compared when both operands contain the same number of bits. If operands of differing bit counts are compared, the grammar is malformed.
-* [`bitseq`](#bitseq) types are compared as if they were big endian encoded unsigned integers.
-
-**Examples**:
-
-* `9.1 < 10`: true
-* `"a" < "z"`: true
-* `"a" = "z"`: false
-* `uint(4,9) >= uint(4,3)`: false
-* `"a" < 0x100`: malformed grammar (mixed types `bitseq` and `number`)
-* `"aa" = "z"`: malformed grammar (different number of bits)
-* `uint(3,1) != uint(4,3)`: malformed grammar (different number of bits)
-
-
 ### Condition
 
-The `condition` type represents a _sequence of sets_ of type [`comparison`](#comparison). Upon evaluation, `condition` realizes into a single `boolean`.
+The `condition` type represents a _sequence of sets_ of type [`boolean`](#boolean). Upon evaluation, `condition` realizes into a single `boolean`.
 
 Conditions are produced by [comparisons](#comparison), and [logical operations](#logical-operations) upon conditions.
 
@@ -1101,192 +1057,54 @@ Or sinking as the light wind lives or dies.
 
 
 
-Switch
-------
+Operations
+----------
 
-A switch statement chooses one expression from a set of possibilities based on condition matching.
+### Comparison
 
-* When no conditions match, the default expression (if any) is used.
-* When no conditions match and there is no default expression, then no action is taken.
-* If more than one condition can match at the same time, the grammar is ambiguous.
+A comparison takes the form `term1` `comparator` `term2`, producing a [`boolean`](#boolean) when evaluated.
 
-```dogma
-switch         = '[' & switch_entry+ & switch_default? & ']';
-switch_entry   = condition & ':' & expression & ';';
-switch_default = ':' & expression & ';';
-```
+The following comparators are supported:
 
--------------------------------------------------------------------------------
-**Example**: [TR-DOS](https://en.wikipedia.org/wiki/TR-DOS) file descriptors contain different payload formats based on the extension.
+* Less than (`<`)
+* Less than or equal to (`<=`)
+* Equal to (`=`)
+* Not equal to (`!=`)
+* Greater than or equal to (`>=`)
+* Greater than (`>`)
 
-```dogma
-file_descriptor  = filename
-                 & var(ext, extension)
-                 & [
-                     ext.type = 'B': format_basic;
-                     ext.type = 'C': format_code;
-                     ext.type = 'D': format_data;
-                     ext.type = '#': format_print;
-                                   : format_generic;
-                   ]
-                 & file_sectors
-                 & start_sector
-                 & start_track
-                 ;
-
-filename         = sized(8*8, uint(8,~)+ & uint(8,' ')*);
-extension        = var(type, uint(8, ~));
-file_sectors     = uint(8, ~);
-start_sector     = uint(8, ~);
-start_track      = uint(8, ~);
-
-format_basic     = program_length & variables_offset;
-program_length   = uint(16,~);
-variables_offset = uint(16,~);
-
-format_code      = load_addres & code_length;
-load_address     = uint(16,~);
-code_length      = uint(16,~);
-
-format_data      = data_type & array_length;
-data_type        = uint(16,~);
-array_length     = uint(16,~);
-
-format_print     = extent_no & uint(8, 0x20) & print_length;
-extent_no        = uint(8, ~);
-print_length     = uint(16, 0~4096);
-
-format_generic   = uint(16,~) & generic_length;
-generic_length   = uint(16,~);
-```
--------------------------------------------------------------------------------
-
-
-
-Combinations
-------------
-
-Combinations combine expressions together into more powerful expressions.
-
-Combination precedence (low to high):
-
-* [Alternative](#alternative)
-* [Exclusion](#exclusion)
-* [Concatenation](#concatenation)
-* [Repetition](#repetition)
-
-
-### Concatenation
-
-Concatenation produces an expression consisting of the expression on the left, followed by the expression on the right (both must match in their proper order for the combined expression to match). The operator symbol is `&` (think of it as meaning "x and then y").
-
-Only [bits](#bits) can be concatenated.
+Comparisons can be made between two [`number`](#number) types (and invariants), or between two [`bitseq`](#bitseq) types (and `bits`, which will be compared once realized into `bitseq`).
 
 ```dogma
-concatenate = expression & '&' & expression;
+comparison         = number & comparator & number
+                   | bitseq & comparator & bitseq
+                   ;
+comparator         = comp_lt | comp_le | comp_eq | comp_ne | comp_ge | comp_gt;
+comp_lt            = "<";
+comp_le            = "<=";
+comp_eq            = "=";
+comp_ne            = "!=";
+comp_ge            = ">=";
+comp_gt            = ">";
 ```
 
--------------------------------------------------------------------------------
-**Example**: Assignment consists of an identifier, at least one space, an equals sign, at least one space, and then an integer value, followed by a linefeed.
+**Notes**:
 
-```dogma
-assignment = "a"~"z"+ 
-           & " "+
-           & "="
-           & " "+
-           & "0"~"9"+
-           & "\[a]"
-           ;
-```
--------------------------------------------------------------------------------
+* [`bitseq`](#bitseq) can only be compared when both operands contain the same number of bits. If operands of differing bit counts are compared, the grammar is malformed.
+* [`bitseq`](#bitseq) types are compared as if they were big endian encoded unsigned integers.
 
+**Examples**:
 
-### Alternative
-
-Alternative produces an expression that can match either the expression on the left or the expression on the right (essentially a set of possibilities).
-
-Alternatives are separated by a pipe (`|`) character. Only one of the alternative branches will be taken. If more than one alternative can match at the same time, the grammar is ambiguous.
-
-[Bits](#bits) and [numbers](#numbers) sets can be built using alternatives.
-
-```dogma
-alternate = expression & '|' & expression;
-```
-
--------------------------------------------------------------------------------
-**Example**: Addition or subtraction consists of an identifier, at least one space, **a plus or minus sign**, at least one space, and then another identifier, followed by a linefeed.
-
-```dogma
-caculation = "a"~"z"+
-           & " "+
-           & ("+" | "-")
-           & " "+
-           & "a"~"z"+
-           & "\[a]"
-           ;
-```
--------------------------------------------------------------------------------
+* `9.1 < 10`: true
+* `"a" < "z"`: true
+* `"a" = "z"`: false
+* `uint(4,9) >= uint(4,3)`: false
+* `"a" < 0x100`: malformed grammar (mixed types `bitseq` and `number`)
+* `"aa" = "z"`: malformed grammar (different number of bits)
+* `uint(3,1) != uint(4,3)`: malformed grammar (different number of bits)
 
 
-### Exclusion
-
-Exclusion removes an expression from the set of expression alternatives.
-
-[Bits](#bits) and [numbers](#numbers) sets can be modified using exclusion.
-
-```dogma
-exclude = expression & '!' & expression;
-```
-
--------------------------------------------------------------------------------
-**Example**: An identifier can be any lowercase ASCII string except "fred".
-
-```dogma
-identifier = "a"~"z"+ ! "fred";
-```
--------------------------------------------------------------------------------
-
-
-### Repetition
-
-"Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Think of repetition as "this [bits](#bits) expression, [concatenated](#concatenation) together for a total of N occurrences" (for example, `"a"{3}` is the same as `"a" & "a" & "a"` or `"aaa"`).
-
-Repetition amounts are [unsigned integer sets](#numbers) placed between curly braces (e.g. `{10}`, `{1~5}`, `{1 | 3| 6~12}`). Each value in the repetition set produces an [alternative](#alternative) expression with that repetition amount applied, contributing to a final bits expression set (for example, `"a"{1~3}` has a repetition [range](#ranges) from 1 to 3, and is therefore equivalent to `"a" | "aa" | "aaa"`).
-
-There are also shorthand notations for common cases:
-
-* `?`: Zero or one (equivalent to `{0~1}`)
-* `*`: Zero or more (equivalent to `{0~}`)
-* `+`: One or more (equivalent to `{1~}`)
-
-Only [bits](#bits) can have repetition applied.
-
-```dogma
-repetition          = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
-repeat_range        = expression & '{' & maybe_ranged(number) & '}';
-repeat_zero_or_one  = expression & '?';
-repeat_zero_or_more = expression & '*';
-repeat_one_or_more  = expression & '+';
-```
-
--------------------------------------------------------------------------------
-**Example**: An identifier is 5, 6, 7, or 8 characters long, and is made up of characters from 'a' to 'z'.
-
-```dogma
-identifier = 'a'~'z'{5~8};
-```
-
-**Example**: An identifier must start with at least one uppercase ASCII letter, optionally followed by any number of lowercase ASCII letters, and optionally suffixed with an underscore.
-
-```dogma
-identifier = 'A'~'Z'+ & 'a'~'z'* & '_'?;
-```
--------------------------------------------------------------------------------
-
-
-
-Logical Operations
-------------------
+### Logic
 
 Dogma supports combining [Conditions](#condition) into more complex forms using [logical operators](https://en.wikipedia.org/wiki/Logical_connective).
 
@@ -1322,9 +1140,7 @@ logical_not        = '!' & condition;
 * `!(x < y | y < z) & a = b`
 
 
-
-Calculations
-------------
+### Calculation
 
 Calculations perform arithmetic operations on [numbers](#numbers), producing a new number. All operands are treated as mathematical reals for the purpose of the calculation.
 
@@ -1383,6 +1199,186 @@ src_port     = uint(16,~);
 dst_port     = uint(16,~);
 checksum     = uint(16,~);
 body(length) = uint(8,~){length};
+```
+-------------------------------------------------------------------------------
+
+
+### Combination
+
+Combinations combine expressions together into more powerful expressions.
+
+Combination precedence (low to high):
+
+* [Alternative](#alternative)
+* [Exclusion](#exclusion)
+* [Concatenation](#concatenation)
+* [Repetition](#repetition)
+
+
+#### Concatenation
+
+Concatenation produces an expression consisting of the expression on the left, followed by the expression on the right (both must match in their proper order for the combined expression to match). The operator symbol is `&` (think of it as meaning "x and then y").
+
+Only [bits](#bits) can be concatenated.
+
+```dogma
+concatenate = expression & '&' & expression;
+```
+
+-------------------------------------------------------------------------------
+**Example**: Assignment consists of an identifier, at least one space, an equals sign, at least one space, and then an integer value, followed by a linefeed.
+
+```dogma
+assignment = "a"~"z"+ 
+           & " "+
+           & "="
+           & " "+
+           & "0"~"9"+
+           & "\[a]"
+           ;
+```
+-------------------------------------------------------------------------------
+
+
+#### Alternative
+
+Alternative produces an expression that can match either the expression on the left or the expression on the right (essentially a set of possibilities).
+
+Alternatives are separated by a pipe (`|`) character. Only one of the alternative branches will be taken. If more than one alternative can match at the same time, the grammar is ambiguous.
+
+[Bits](#bits) and [numbers](#numbers) sets can be built using alternatives.
+
+```dogma
+alternate = expression & '|' & expression;
+```
+
+-------------------------------------------------------------------------------
+**Example**: Addition or subtraction consists of an identifier, at least one space, **a plus or minus sign**, at least one space, and then another identifier, followed by a linefeed.
+
+```dogma
+caculation = "a"~"z"+
+           & " "+
+           & ("+" | "-")
+           & " "+
+           & "a"~"z"+
+           & "\[a]"
+           ;
+```
+-------------------------------------------------------------------------------
+
+
+#### Exclusion
+
+Exclusion removes an expression from the set of expression alternatives.
+
+[Bits](#bits) and [numbers](#numbers) sets can be modified using exclusion.
+
+```dogma
+exclude = expression & '!' & expression;
+```
+
+-------------------------------------------------------------------------------
+**Example**: An identifier can be any lowercase ASCII string except "fred".
+
+```dogma
+identifier = "a"~"z"+ ! "fred";
+```
+-------------------------------------------------------------------------------
+
+
+#### Repetition
+
+"Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Think of repetition as "this [bits](#bits) expression, [concatenated](#concatenation) together for a total of N occurrences" (for example, `"a"{3}` is the same as `"a" & "a" & "a"` or `"aaa"`).
+
+Repetition amounts are [unsigned integer sets](#numbers) placed between curly braces (e.g. `{10}`, `{1~5}`, `{1 | 3| 6~12}`). Each value in the repetition set produces an [alternative](#alternative) expression with that repetition amount applied, contributing to a final bits expression set (for example, `"a"{1~3}` has a repetition [range](#ranges) from 1 to 3, and is therefore equivalent to `"a" | "aa" | "aaa"`).
+
+There are also shorthand notations for common cases:
+
+* `?`: Zero or one (equivalent to `{0~1}`)
+* `*`: Zero or more (equivalent to `{0~}`)
+* `+`: One or more (equivalent to `{1~}`)
+
+Only [bits](#bits) can have repetition applied.
+
+```dogma
+repetition          = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
+repeat_range        = expression & '{' & maybe_ranged(number) & '}';
+repeat_zero_or_one  = expression & '?';
+repeat_zero_or_more = expression & '*';
+repeat_one_or_more  = expression & '+';
+```
+
+-------------------------------------------------------------------------------
+**Example**: An identifier is 5, 6, 7, or 8 characters long, and is made up of characters from 'a' to 'z'.
+
+```dogma
+identifier = 'a'~'z'{5~8};
+```
+
+**Example**: An identifier must start with at least one uppercase ASCII letter, optionally followed by any number of lowercase ASCII letters, and optionally suffixed with an underscore.
+
+```dogma
+identifier = 'A'~'Z'+ & 'a'~'z'* & '_'?;
+```
+-------------------------------------------------------------------------------
+
+
+### Switch
+
+A switch statement chooses one expression from a set of possibilities based on condition matching.
+
+* When no conditions match, the default expression (if any) is used.
+* When no conditions match and there is no default expression, then no action is taken.
+* If more than one condition can match at the same time, the grammar is ambiguous.
+
+```dogma
+switch         = '[' & switch_entry+ & switch_default? & ']';
+switch_entry   = condition & ':' & expression & ';';
+switch_default = ':' & expression & ';';
+```
+
+-------------------------------------------------------------------------------
+**Example**: [TR-DOS](https://en.wikipedia.org/wiki/TR-DOS) file descriptors contain different payload formats based on the extension.
+
+```dogma
+file_descriptor  = filename
+                 & var(ext, extension)
+                 & [
+                     ext.type = 'B': format_basic;
+                     ext.type = 'C': format_code;
+                     ext.type = 'D': format_data;
+                     ext.type = '#': format_print;
+                                   : format_generic;
+                   ]
+                 & file_sectors
+                 & start_sector
+                 & start_track
+                 ;
+
+filename         = sized(8*8, uint(8,~)+ & uint(8,' ')*);
+extension        = var(type, uint(8, ~));
+file_sectors     = uint(8, ~);
+start_sector     = uint(8, ~);
+start_track      = uint(8, ~);
+
+format_basic     = program_length & variables_offset;
+program_length   = uint(16,~);
+variables_offset = uint(16,~);
+
+format_code      = load_addres & code_length;
+load_address     = uint(16,~);
+code_length      = uint(16,~);
+
+format_data      = data_type & array_length;
+data_type        = uint(16,~);
+array_length     = uint(16,~);
+
+format_print     = extent_no & uint(8, 0x20) & print_length;
+extent_no        = uint(8, ~);
+print_length     = uint(16, 0~4096);
+
+format_generic   = uint(16,~) & generic_length;
+generic_length   = uint(16,~);
 ```
 -------------------------------------------------------------------------------
 
