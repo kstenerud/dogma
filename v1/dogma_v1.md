@@ -634,19 +634,19 @@ The above diagram represents all possible combinations of `A & (B|C|D) & E & (F|
 
 The following types are used by the Dogma language:
 
-| Name                 | Composition                      | Realizes To       | Direct? |
-| -------------------- | -------------------------------- | ----------------- | ------- |
-| `bit`                | scalar                           |                   | ❌      |
-| `bits`               | sequence of sets of `bit`        | `bitseq`          | ✔️       |
-| `bitseq`             | sequence of `bit`                |                   | ❌      |
-| `boolean`            | scalar                           |                   | ❌      |
-| `condition`          | sequence of sets of `boolean`    | `boolean`         | ✔️       |
-| `nothing`            |                                  |                   | ❌      |
-| `number`             | scalar                           |                   | ✔️       |
-| `numbers`            | set of `number`                  | `number`          | ✔️       |
-| `oob`                | out-of-band                      |                   | ❌      |
-| `ordering`           | enumeration                      |                   | ✔️       |
-| `unicode_categories` | set of enumerations              | `bitseq`          | ✔️       |
+| Name                 | Composition                      | Realizes To       | Direct Input |
+| -------------------- | -------------------------------- | ----------------- | ------------ |
+| `bit`                | scalar                           |                   | ❌           |
+| `bits`               | sequence of sets of `bit`        | `bitseq`          | ✔️            |
+| `bitseq`             | sequence of `bit`                |                   | ❌           |
+| `boolean`            | scalar                           |                   | ❌           |
+| `condition`          | sequence of sets of `boolean`    | `boolean`         | ✔️            |
+| `nothing`            |                                  |                   | ❌           |
+| `number`             | scalar                           |                   | ✔️            |
+| `numbers`            | set of `number`                  | `number`          | ✔️            |
+| `oob`                | out-of-band                      |                   | ❌           |
+| `ordering`           | enumeration                      |                   | ✔️            |
+| `unicode_categories` | set of enumerations              | `bitseq`          | ✔️            |
 
 Some types can be directly input into a Dogma grammar, while others are produced indirectly when processing a document.
 
