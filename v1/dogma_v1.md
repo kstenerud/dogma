@@ -2057,18 +2057,18 @@ function_with_args     = identifier_restricted
                        ;
 function_param         = param_name & TOKEN_SEP & type_specifier;
 type_specifier         = ':' & TOKEN_SEP & type_name;
-type_name              = "expression"
-                       | "bits"
+type_name              = "bits"
                        | "condition"
+                       | "nothing"
                        | "number"
                        | "numbers"
-                       | "uinteger"
-                       | "uintegers"
+                       | "oob"
+                       | "ordering"
                        | "sinteger"
                        | "sintegers"
-                       | "ordering"
+                       | "uinteger"
+                       | "uintegers"
                        | "unicode_categories"
-                       | "nothing"
                        ;
 
 call                   = identifier_any & PARENTHESIZED(call_param & (ARG_SEP & call_param)*);
@@ -2104,23 +2104,23 @@ maybe_escaped(charset) = (charset ! '\\') | escape_sequence;
 escape_sequence        = '\\' & (printable ! '[') | codepoint_escape);
 codepoint_escape       = '[' & digit_hex+ & ']';
 
-builtin_functions      = sized
-                       | aligned
-                       | reversed
-                       | ordered
-                       | byte_order
+builtin_functions      = aligned
                        | bom_ordered
-                       | peek
-                       | offset
-                       | var
+                       | byte_order
                        | eod
-                       | unicode
-                       | uint
-                       | sint
                        | float
                        | inf
                        | nan
                        | nzero
+                       | offset
+                       | ordered
+                       | peek
+                       | reversed
+                       | sint
+                       | sized
+                       | uint
+                       | unicode
+                       | var
                        ;
 
 sized(bit_count: uinteger, expr: bits): bits =
@@ -2347,23 +2347,23 @@ neg                    = '-';
 identifier_any         = name;
 identifier_restricted  = identifier_any ! reserved_identifiers;
 reserved_identifiers   = builtin_function_names | enumeration_names;
-builtin_function_names = "sized"
-                       | "aligned"
-                       | "reversed"
-                       | "ordered"
-                       | "byte_order"
+builtin_function_names = "aligned"
                        | "bom_ordered"
-                       | "peek"
-                       | "offset"
-                       | "var"
+                       | "byte_order"
                        | "eod"
-                       | "unicode"
-                       | "uint"
-                       | "sint"
                        | "float"
                        | "inf"
                        | "nan"
                        | "nzero"
+                       | "offset"
+                       | "ordered"
+                       | "peek"
+                       | "reversed"
+                       | "sint"
+                       | "sized"
+                       | "uint"
+                       | "unicode"
+                       | "var"
                        ;
 enumeration_names      = "msb" | "lsb"
                        | "L" | "Lu" | "Ll" | "Lt" | "Lm" | "Lo"
