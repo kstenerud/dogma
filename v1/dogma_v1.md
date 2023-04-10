@@ -145,7 +145,7 @@ Contents
   - [Variables](#variables)
   - [Literals](#literals)
     - [Numeric Literals](#numeric-literals)
-    - [Codepoints](#codepoints)
+    - [Codepoint Literals](#codepoint-literals)
       - [String Literals](#string-literals)
     - [Escape Sequence](#escape-sequence)
       - [Codepoint Escape](#codepoint-escape)
@@ -325,7 +325,7 @@ The global byte ordering is `msb`, and can be changed for the duration of a sube
 
 #### Codepoint Byte Ordering
 
-All [codepoints](#codepoints) follow the [character set's](#character-sets) byte order rules and ignore the [byte order](#byte-ordering) setting. For example, `utf-16le` is always interpreted "least significant byte first", even when the [byte order](#byte-ordering) is set to `msb`. Similarly, `utf-16be` is always interpreted "most significant byte first".
+All [codepoints](#codepoint-literals) follow the [character set's](#character-sets) byte order rules and ignore the [byte order](#byte-ordering) setting. For example, `utf-16le` is always interpreted "least significant byte first", even when the [byte order](#byte-ordering) is set to `msb`. Similarly, `utf-16be` is always interpreted "most significant byte first".
 
 **Note**: Dogma cannot make assumptions about where the "beginning" of a text stream is for [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark) purposes. If you wish to support BOM-based byte ordering, use the [`bom_ordered` function](#bom_ordered-function).
 
@@ -640,7 +640,7 @@ The following types are used by the Dogma language:
 | `bits`               | sequence of sets of `bit`        | `bitseq`          | ✔️       |
 | `bitseq`             | sequence of `bit`                |                   | ❌      |
 | `boolean`            | scalar                           |                   | ❌      |
-| `condition`          | sequence of sets of `comparison` | `boolean`         | ✔️       |
+| `condition`          | sequence of sets of `boolean`    | `boolean`         | ✔️       |
 | `nothing`            |                                  |                   | ❌      |
 | `number`             | scalar                           |                   | ✔️       |
 | `numbers`            | set of `number`                  | `number`          | ✔️       |
@@ -663,14 +663,14 @@ The more basic types can be passed to contexts requiring more complex types if t
 
 The `bit` type represents a single [BInary digiT](https://en.wikipedia.org/wiki/Bit).
 
-This type exists for illustrative purposes only, and is not directly accessible (`uint(1,0)` is actually type [`bits`](#bits) containing one set of one bit, which during parsing realizes to type [`bitseq`](#bitseq) containing one bit element).
+`bit` exists for illustrative purposes only, and is not directly usable (`uint(1,0)` is actually type [`bits`](#bits) containing one set of one bit, which during parsing realizes to type [`bitseq`](#bitseq) containing one bit element).
 
 
 ### Bits
 
 The `bits` type represents a _sequence of sets_ of type `bitseq` that can be matched in a document. Upon matching, `bits` realizes into [`bitseq`](#bitseq).
 
-Bits are produced by [codepoints](#codepoints), [strings](#string-literals), and [some functions](#builtin-functions), which can then be constructed into sequences of sets using using [alternatives](#alternative), [concatenation](#concatenation), [repetition](#repetition), and [exclusion](#exclusion).
+Bits are produced by [codepoints](#codepoint-literals), [strings](#string-literals), and [some functions](#builtin-functions), which can then be constructed into sequences of sets using using [alternatives](#alternative), [concatenation](#concatenation), [repetition](#repetition), and [exclusion](#exclusion).
 
 -------------------------------------------------------------------------------
 **Example**: A timestamp is a 64-bit unsigned integer, with each time field stored as a separate bitfield.
@@ -711,7 +711,7 @@ For example, `("a" | "i") & "t"` (type `bits`) can realize into either the `bits
 
 ### Boolean
 
-The `boolean` type has two possible values: true or false. Booleans are produced through [comparisons](#comparison), and further manipulated through [logical operations](#logic).
+The `boolean` type has two possible values: true or false. Booleans cannot be directly input as literals, but are instead produced through [comparisons](#comparison).
 
 
 ### Condition
@@ -773,7 +773,7 @@ Number sets are produced using [ranges](#ranges), [alternatives](#alternative), 
 
 ### OOB
 
-`oob` (out-of-band) is used for special-case matching situations such as the [`eod` function](#eod-function).
+`oob` (out-of-band) is used for special-case matching situations that rely upon signals from outside of the parsed document's data, such as the [`eod` function](#eod-function).
 
 
 ### Ordering
@@ -842,7 +842,7 @@ name_field             = unicode(L|M|N|P|S){1~100};
 Variables
 ---------
 
-In some contexts, resolved data (data that has already been matched) or literal values can be bound to a variable for use in the current [namespace](#namespaces). Variables are bound either manually using the [`var`](#var-function) builtin function, or automatically when passing parameters to a [macro](#macros). The variable's [type](#types) is inferred from its provenance and where it is ultimately used (a type mismatch indicates a malformed grammar).
+In some contexts, values can be bound to a variable for use in the current [namespace](#namespaces). Variables are bound either manually using the [`var`](#var-function) builtin function, or automatically when passing parameters to a [macro](#macros). The variable's [type](#types) is inferred from its provenance and where it is ultimately used (a type mismatch indicates a malformed grammar).
 
 **Note**: Variables cannot be re-bound.
 
@@ -942,7 +942,7 @@ exact_float      = float(32, 0x5df1p-16);
 -------------------------------------------------------------------------------
 
 
-### Codepoints
+### Codepoint Literals
 
 A codepoint is the [bits](#bits) representation of a character in a particular [encoding](https://en.wikipedia.org/wiki/Character_encoding). Codepoints can be represented as literals, [ranges](#ranges), and [category sets](#unicode-function).
 
@@ -968,7 +968,7 @@ alphanumeric = unicode(L|N);
 
 #### String Literals
 
-A string literal can be thought of as syntactic sugar for a series of specific [codepoints](#codepoints) [concatenated](#concatenation) together.
+A string literal can be thought of as syntactic sugar for a series of specific [codepoint literals](#codepoint-literals) [concatenated](#concatenation) together.
 
 String literals are placed between single or double quotes (the same as for single codepoint literals).
 
@@ -992,7 +992,7 @@ str_abc_4 = 'a' & 'b' & 'c';
 
 ### Escape Sequence
 
-[Codepoint literals](#codepoints), [string literals](#string-literals), and [prose](#prose) may contain codepoint escape sequences to represent troublesome codepoints.
+[Codepoint literals](#codepoint-literals), [string literals](#string-literals), and [prose](#prose) may contain codepoint escape sequences to represent troublesome codepoints.
 
 Escape sequences are initiated with the backslash (`\`) character. If the next character following is an open square brace (`[`), it begins a [codepoint escape](#codepoint-escape). Otherwise the escape sequence represents that literal character.
 
@@ -1064,7 +1064,7 @@ Operations
 
 ### Comparison
 
-A comparison takes the form `term1` `comparator` `term2`, producing a [`boolean`](#boolean) when evaluated.
+A comparison takes the form `<term1>` `<comparator>` `<term2>`, producing a [`boolean`](#boolean) when evaluated.
 
 The following comparators are supported:
 
@@ -1075,7 +1075,7 @@ The following comparators are supported:
 * Greater than or equal to (`>=`)
 * Greater than (`>`)
 
-Comparisons can be made between two [`number`](#number) types (and invariants), or between two [`bitseq`](#bitseq) types (and `bits`, which will be compared once realized into `bitseq`).
+Comparisons can be made between two [`number`](#number) types (as well as invariants), or between two [`bitseq`](#bitseq) types (as well as `bits`, which will be compared once realized into `bitseq`).
 
 ```dogma
 comparison         = number & comparator & number
@@ -1110,21 +1110,15 @@ comp_gt            = ">";
 
 Dogma supports combining [Conditions](#condition) into more complex forms using [logical operators](https://en.wikipedia.org/wiki/Logical_connective).
 
-The following operations are supported:
+The following logical operations are supported (low to high relative precedence):
 
-| Operator | Operation                    | Mode   |
-| -------- | ---------------------------- | ------ |
-| `&`      | "and" (conjunction)          | binary |
-| `\|`     | "or" (inclusive disjunction) | binary |
-| `!`      | "not" (negation)             | unary  |
+| Operator | Operation                    | Operands | Precedence |
+| -------- | ---------------------------- | -------- | ---------- |
+| `\|`     | "or" (inclusive disjunction) | binary   | 1          |
+| `&`      | "and" (conjunction)          | binary   | 2          |
+| `!`      | "not" (negation)             | unary    | 3          |
 
-Logical operations can be [grouped](#grouping).
-
-Operator precedence (low to high):
-
-* logical or
-* logical and
-* logical not
+Logical operations can also be [grouped](#grouping).
 
 ```dogma
 condition          = comparison | logical_op;
@@ -1146,27 +1140,22 @@ logical_not        = '!' & condition;
 
 Calculations perform arithmetic operations on [numbers](#numbers), producing a new number. All operands are treated as mathematical reals for the purpose of the calculation.
 
-The following operations can be used:
+The following arithmetic operations are supported (low to high relative precedence):
 
-* Add (`+`)
-* Subtract (`-`)
-* Multiply (`*`)
-* Divide (`/`)
-* Modulo (`%`)
-* Power (`^`, where `x^y` means x to the power of y)
-* Negation ('-')
+| Operator | Operation                           | Operands | Precedence |
+| -------- | ----------------------------------- | -------- | ---------- |
+| `+`      | Addition                            | binary   | 1          |
+| `-`      | Subtraction                         | binary   | 1          |
+| `*`      | Multiplication                      | binary   | 2          |
+| `/`      | Division                            | binary   | 2          |
+| `%`      | Modulus                             | binary   | 2          |
+| `^`      | Power (`x^y` = x to the power of y) | binary   | 3          |
+| `-`      | Negation                            | unary    | 4          |
 
 **Notes**:
 
 * Any operation giving a result that is mathematically undefined (such as division by zero) is undefined behavior. A grammar that allows undefined behavior to occur is ambiguous.
 * [The modulo operation can produce two different values depending on how the remainder is derived](https://en.wikipedia.org/wiki/Modulo#Variants_of_the_definition). Modulo in Dogma uses truncated division (where the remainder has the same sign as the dividend), which is the most common approach used in popular programming languages.
-
-Operator precedence (low to high):
-
-* add, subtract
-* multiply, divide, modulus
-* power
-* negation
 
 ```dogma
 number       = calc_add | calc_sub | calc_mul_div;
@@ -1244,11 +1233,11 @@ assignment = "a"~"z"+
 
 #### Alternative
 
-Alternative produces an expression that can match either the expression on the left or the expression on the right (essentially a set of possibilities).
+Alternative produces an expression that can match either the expression on the left or the expression on the right (essentially a set of possibilities). Alternative is analogous to the [union in set theory](https://en.wikipedia.org/wiki/Union_(set_theory)).
 
 Alternatives are separated by a pipe (`|`) character. Only one of the alternative branches will be taken. If more than one alternative can match at the same time, the grammar is ambiguous.
 
-[Bits](#bits) and [numbers](#numbers) sets can be built using alternatives.
+[Bits](#bits), [numbers](#numbers), and [unicode category](#unicode-categories) sets can be built using alternatives.
 
 ```dogma
 alternate = expression & '|' & expression;
@@ -1271,9 +1260,9 @@ caculation = "a"~"z"+
 
 #### Exclusion
 
-Exclusion removes an expression from the set of expression alternatives.
+Exclusion removes an expression from the set of expression alternatives. Exclusion is analogous to the [set difference in set theory](https://en.wikipedia.org/wiki/Complement_(set_theory)#Relative_complement).
 
-[Bits](#bits) and [numbers](#numbers) sets can be modified using exclusion.
+[`bits`](#bits) and [`numbers`](#numbers) types can be modified using exclusion.
 
 ```dogma
 exclude = expression & '!' & expression;
@@ -1420,7 +1409,7 @@ A range builds a [set of numbers](#numbers) consisting of all reals in the range
 * A tilde by itself (`~`), indicating no bound (i.e. the range consists of the set of all reals).
 * A value with no tilde, restricting the "range" to only that one value.
 
-A [codepoint](#codepoints) range represents a set where each unique codepoint value contained in the range represents a codepoint [alternative](#alternative).
+A [codepoint](#codepoint-literals) range represents a set where each unique codepoint value contained in the range represents a codepoint [alternative](#alternative).
 
 A [repetition](#repetition) range represents a set where each unique unsigned integer value contained in the range represents a number of occurrences that will be applied to a [bits](#bits) expression as an [alternative](#alternative).
 
