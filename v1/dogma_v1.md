@@ -1114,9 +1114,9 @@ The following logical operations are supported (low to high relative precedence)
 
 | Operator | Operation                    | Operands | Precedence |
 | -------- | ---------------------------- | -------- | ---------- |
-| `\|`     | "or" (inclusive disjunction) | binary   | 1          |
+| `\|`     | "or" (inclusive disjunction) | binary   | 1 (low)    |
 | `&`      | "and" (conjunction)          | binary   | 2          |
-| `!`      | "not" (negation)             | unary    | 3          |
+| `!`      | "not" (negation)             | unary    | 3 (high)   |
 
 Logical operations can also be [grouped](#grouping).
 
@@ -1144,13 +1144,13 @@ The following arithmetic operations are supported (low to high relative preceden
 
 | Operator | Operation                           | Operands | Precedence |
 | -------- | ----------------------------------- | -------- | ---------- |
-| `+`      | Addition                            | binary   | 1          |
+| `+`      | Addition                            | binary   | 1 (low)    |
 | `-`      | Subtraction                         | binary   | 1          |
 | `*`      | Multiplication                      | binary   | 2          |
 | `/`      | Division                            | binary   | 2          |
 | `%`      | Modulus                             | binary   | 2          |
 | `^`      | Power (`x^y` = x to the power of y) | binary   | 3          |
-| `-`      | Negation                            | unary    | 4          |
+| `-`      | Negation                            | unary    | 4 (high)   |
 
 **Notes**:
 
