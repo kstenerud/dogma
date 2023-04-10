@@ -334,7 +334,7 @@ All [codepoints](#codepoints) follow the [character set's](#character-sets) byte
 
 All [symbols](#symbols), [macros](#macros), [functions](#functions) and [variables](#variables) have names that are part of a namespace. All names are case sensitive and must be unique to their namespace.
 
-The global namespace consists of all [rule](#rules) names, [enumerated type](#enumerated-types) names, and the names of the [built-in functions](#builtin-functions).
+The global namespace consists of all [rule](#rules) names, enumerated type names (from [`ordering`](#ordering) and [`unicode_categories`](#unicode-categories)), and the names of the [built-in functions](#builtin-functions).
 
 Each [rule](#rules) has a local namespace that supercedes the global namespace (i.e. the local namespace is searched first, then the global namespace - meaning that a local variable name can shadow a global name). [Variables](#variables) can be bound to the local namespace either via [macro arguments](#macros) or using the [`var` function](#var-function).
 
@@ -663,6 +663,8 @@ The more basic types can be passed to contexts requiring more complex types if t
 
 The `bit` type represents a single [BInary digiT](https://en.wikipedia.org/wiki/Bit).
 
+This type exists for illustrative purposes only, and is not directly accessible (`uint(1,0)` is actually type [`bits`](#bits) containing one set of one bit, which during parsing realizes to type [`bitseq`](#bitseq) containing one bit element).
+
 
 ### Bits
 
@@ -709,14 +711,14 @@ For example, `("a" | "i") & "t"` (type `bits`) can realize into either the `bits
 
 ### Boolean
 
-The `boolean` type has two possible values: true or false. Booleans are produced through [comparisons](#comparison), and further manipulated through [logical operations](#logical-operations).
+The `boolean` type has two possible values: true or false. Booleans are produced through [comparisons](#comparison), and further manipulated through [logical operations](#logic).
 
 
 ### Condition
 
 The `condition` type represents a _sequence of sets_ of type [`boolean`](#boolean). Upon evaluation, `condition` realizes into a single `boolean`.
 
-Conditions are produced by [comparisons](#comparison), and [logical operations](#logical-operations) upon conditions.
+Conditions are produced by [comparisons](#comparison), and [logical operations](#logic) upon conditions.
 
 Conditions are used in [switches](#switch), and can be [grouped](#grouping).
 
@@ -737,9 +739,9 @@ Used as a return type for functions that don't produce anything to match at the 
 
 ### Number
 
-The `number` type represents a mathematical real (not a computer floating point value, which is an implementation detail). `number` can be used in [calculations](#calculations), numeric [ranges](#ranges), [repetition](#repetition), and as parameters to or return types from [functions](#functions). `number` can also be converted to [bits](#bits) using [functions](#functions) such as [float](#float-function), [sint](#sint-function), and [uint](#uint-function).
+The `number` type represents a mathematical real (not a computer floating point value, which is an implementation detail). `number` can be used in [calculations](#calculation), numeric [ranges](#ranges), [repetition](#repetition), and as parameters to or return types from [functions](#functions). `number` can also be converted to [bits](#bits) using [functions](#functions) such as [float](#float-function), [sint](#sint-function), and [uint](#uint-function).
 
-Numbers can be expressed as [numeric literals](#numeric-literals), or derived from [functions](#functions), [variables](#variables), and [calculations](#calculations).
+Numbers can be expressed as [numeric literals](#numeric-literals), or derived from [functions](#functions), [variables](#variables), and [calculations](#calculation).
 
 The two most common numeric invariants are supported natively as pseudo-types:
 
@@ -1387,7 +1389,7 @@ generic_length   = uint(16,~);
 Grouping
 --------
 
-[Bits](#bits), [calculations](#calculations) and [conditions](#condition) can be grouped together in order to override the default precedence, or as a visual aid to make things more readable. To group, place the items between parentheses `(`, `)`.
+[Bits](#bits), [calculations](#calculation) and [conditions](#condition) can be grouped together in order to override the default precedence, or as a visual aid to make things more readable. To group, place the items between parentheses `(`, `)`.
 
 ```dogma
 grouped(item)       = PARENTHESIZED(item);
