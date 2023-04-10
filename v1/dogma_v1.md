@@ -7,6 +7,7 @@ _Describing how things should be_
 
 **Version**: 1.0-beta5
 
+
 ---------------------------------------------------------------------------------------------------
 
 Dogma is a human-friendly metalanguage for describing data formats (text or binary) in documentation.
@@ -130,13 +131,18 @@ Contents
       - [Function Parameter and Return Types](#function-parameter-and-return-types)
     - [Expressions](#expressions)
   - [Types](#types)
+    - [Bit](#bit)
     - [Bits](#bits)
-    - [Number](#number)
-      - [Numbers](#numbers)
+    - [Bitseq](#bitseq)
+    - [Boolean](#boolean)
+    - [Comparison](#comparison)
     - [Condition](#condition)
-    - [Enumerated Types](#enumerated-types)
-      - [Ordering](#ordering)
-      - [Unicode Categories](#unicode-categories)
+    - [Nothing](#nothing)
+    - [Number](#number)
+    - [Numbers](#numbers)
+    - [OOB](#oob)
+    - [Ordering](#ordering)
+    - [Unicode Categories](#unicode-categories)
   - [Variables](#variables)
   - [Literals](#literals)
     - [Numeric Literals](#numeric-literals)
@@ -151,8 +157,9 @@ Contents
     - [Alternative](#alternative)
     - [Exclusion](#exclusion)
     - [Repetition](#repetition)
-  - [Grouping](#grouping)
+  - [Logical Operations](#logical-operations)
   - [Calculations](#calculations)
+  - [Grouping](#grouping)
   - [Ranges](#ranges)
   - [Comments](#comments)
   - [Builtin Functions](#builtin-functions)
@@ -443,10 +450,10 @@ name_nextchar         = name_firstchar | unicode(N) | '_';
 **Example**: A record consists of a company name, followed by two full-width colons, followed by an employee count in full-width characters (possibly approximated to the nearest 10,000), and is terminated by a linefeed.
 
 ```dogma
-記録		= 会社名 & "：：" & 従業員数 & LF;
-会社名		= unicode(L|M) & unicode(L|M|N|P|S|Zs)*;
-従業員数		= '１'~'９' & '０'~'９'* & '万'?;
-LF		= '\[a]';
+記録	= 会社名 & "：：" & 従業員数 & LF;
+会社名	= unicode(L|M) & unicode(L|M|N|P|S|Zs)*;
+従業員数	= '１'~'９' & '０'~'９'* & '万'?;
+LF	= '\[a]';
 ```
 
 `記録`, `会社名`, `従業員数`, and `LF` are symbols.
@@ -608,28 +615,60 @@ expression = symbol
 Types
 -----
 
-Dogma has the following types:
+Dogma's types come in five broad compositional categories:
 
-* [`bits`](#bits): A set of possible bit sequences of arbitrary length.
-* [`condition`](#condition): True or false assertions about the current state.
-* [Numeric types](#number) that may be used in calculations and can be converted to a representations in bits. There are two primary forms:
-  - Singular value type [`number` and its invariants `sinteger` and `uinteger`](#number).
-  - Number set type [`numbers` and its invariants `sintegers` and `uintegers`](#numbers).
-* [Enumerated types](#enumerated-types)
-  - [`ordering`](#ordering): Byte ordering (whether the least or most significant byte comes first).
-  - [`unicode_categories`](#unicode-categories): A set of [Unicode major and/or minor categories](https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153).
-* `expression`: Used for special-case matching situations such as the [`eod` function](#eod-function).
-* `nothing`: Specifies that a function doesn't produce anything to match at the current location. Returned by functions that peek or process data elsewhere in the document (such as the [`peek` function](#peek-function) and [`offset` function](#offset-function)).
+| Category         | Description                                                                                               |
+| ---------------- | --------------------------------------------------------------------------------------------------------- |
+| Enumeration      | A type with a limited number of named values.                                                             |
+| Scalar           | A singular value.                                                                                         |
+| Sequence         | A sequence of same-type elements that together make up a composite object.                                |
+| Set              | A set of possible values that will realize into a scalar or sequence when parsing a document.             |
+| Sequence of Sets | A sequence of sets of possibilities that will realize into a sequence of scalars when parsing a document. |
+
+The "sequence of sets" can be visualized as a railroad diagram, where each yellow rectangle in the sequence contains a set of value alternatives:
+
+![Sequence of Sets](img/sequence-sets.svg)
+
+The above diagram represents all possible combinations of `A & (B|C|D) & E & (F|G) & (H|I)`.
+
+The following types are used by the Dogma language:
+
+| Name                 | Composition                      | Realizes To       | Direct? |
+| -------------------- | -------------------------------- | ----------------- | ------- |
+| `bit`                | scalar                           |                   | ❌      |
+| `bits`               | sequence of sets of `bit`        | `bitseq`          | ✔️       |
+| `bitseq`             | sequence of `bit`                |                   | ❌      |
+| `boolean`            | scalar                           |                   | ❌      |
+| `comparison`         | `<term>` `<comparator>` `<term>` | `boolean`         | ✔️       |
+| `condition`          | sequence of sets of `comparison` | `boolean`         | ✔️       |
+| `nothing`            |                                  |                   | ❌      |
+| `number`             | scalar                           |                   | ✔️       |
+| `numbers`            | set of `number`                  | `number`          | ✔️       |
+| `oob`                | out-of-band                      |                   | ❌      |
+| `ordering`           | enumeration                      |                   | ✔️       |
+| `unicode_categories` | set of enumerations              | `bitseq`          | ✔️       |
+
+Some types can be directly input into a Dogma grammar, while others are produced indirectly when processing a document.
 
 Types become relevant in certain contexts, particularly when calling [functions](#functions) (which have restrictions on what types they accept and return).
 
+The more basic types can be passed to contexts requiring more complex types if their ultimate base types match. For example:
+
+* `bitseq` is treated as a sequence of unit sets when passed to a `bits` context.
+* `number` is treated as a unit set when passed to a `numbers` context.
+* `comparison` and `boolean` are treated as a single-entry sequence of a unit set when passed to a `condition` context.
+
+
+### Bit
+
+The `bit` type represents a single [BInary digiT](https://en.wikipedia.org/wiki/Bit).
+
+
 ### Bits
 
-The bits type represents the set of possible bit sequences that can be matched at a particular point.
+The `bits` type represents a _sequence of sets_ of type `bitseq` that can be matched in a document. Upon matching, `bits` realizes into [`bitseq`](#bitseq).
 
-Bits are produced by [codepoints](#codepoints), [strings](#string-literals), and [some functions](#builtin-functions). They can be of arbitrary length (i.e. not just a multiple of 8 bits).
-
-The bits type is a set of bit patterns, and can therefore be composed using [alternatives](#alternative), [concatenation](#concatenation), [repetition](#repetition), and [exclusion](#exclusion).
+Bits are produced by [codepoints](#codepoints), [strings](#string-literals), and [some functions](#builtin-functions), which can then be constructed into sequences of sets using using [alternatives](#alternative), [concatenation](#concatenation), [repetition](#repetition), and [exclusion](#exclusion).
 
 -------------------------------------------------------------------------------
 **Example**: A timestamp is a 64-bit unsigned integer, with each time field stored as a separate bitfield.
@@ -659,9 +698,90 @@ microsecond = uint(20, 0~999999);
 -------------------------------------------------------------------------------
 
 
+### Bitseq
+
+The `bitseq` type represents a sequence of type `bit`. This type results from matching [`bits`](#bits) in a document, and can be captured to a variable using the [`var` function](#var-function).
+
+For example, `("a" | "i") & "t"` (type `bits`) can realize into either the `bitseq` "at" (`110000101110100`) or "it" (`110100101110100`).
+
+**Note**: Type `bitseq` is treated as `bits` (such that each element is a set of size 1) when passed to a context requiring type `bits`.
+
+
+### Boolean
+
+The `boolean` type has two possible values: true or false. Booleans are produced through [comparisons](#comparison), and further manipulated through [logical operations](#logical-operations).
+
+
+### Comparison
+
+A comparison takes the form `term1` `comparator` `term2`, producing a [`boolean`](#boolean) when evaluated.
+
+The following comparators are supported:
+
+* Less than (`<`)
+* Less than or equal to (`<=`)
+* Equal to (`=`)
+* Not equal to (`!=`)
+* Greater than or equal to (`>=`)
+* Greater than (`>`)
+
+Comparisons can be made between two [`number`](#number) types (and invariants), or between two [`bitseq`](#bitseq) types (and `bits`, which will be compared once realized into `bitseq`).
+
+```dogma
+comparison         = number & comparator & number
+                   | bitseq & comparator & bitseq
+                   ;
+comparator         = comp_lt | comp_le | comp_eq | comp_ne | comp_ge | comp_gt;
+comp_lt            = "<";
+comp_le            = "<=";
+comp_eq            = "=";
+comp_ne            = "!=";
+comp_ge            = ">=";
+comp_gt            = ">";
+```
+
+**Notes**:
+
+* [`bitseq`](#bitseq) can only be compared when both operands contain the same number of bits. If operands of differing bit counts are compared, the grammar is malformed.
+* [`bitseq`](#bitseq) types are compared as if they were big endian encoded unsigned integers.
+
+**Examples**:
+
+* `9.1 < 10`: true
+* `"a" < "z"`: true
+* `"a" = "z"`: false
+* `uint(4,9) >= uint(4,3)`: false
+* `"a" < 0x100`: malformed grammar (mixed types `bitseq` and `number`)
+* `"aa" = "z"`: malformed grammar (different number of bits)
+* `uint(3,1) != uint(4,3)`: malformed grammar (different number of bits)
+
+
+### Condition
+
+The `condition` type represents a _sequence of sets_ of type [`comparison`](#comparison). Upon evaluation, `condition` realizes into a single `boolean`.
+
+Conditions are produced by [comparisons](#comparison), and [logical operations](#logical-operations) upon conditions.
+
+Conditions are used in [switches](#switch), and can be [grouped](#grouping).
+
+-------------------------------------------------------------------------------
+**Examples**:
+
+* `type = 2`
+* `(value >= 3 & value < 10) | value = 0`
+* `(x > 3 & y > 5) | x * y > 15`
+* `nextchar != 'a'`
+-------------------------------------------------------------------------------
+
+
+### Nothing
+
+Used as a return type for functions that don't produce anything to match at the current location, but instead peek or process data elsewhere in the document (such as the [`peek` function](#peek-function) and [`offset` function](#offset-function)).
+
+
 ### Number
 
-The `number` type represents mathematical reals (not computer floating point values, which are an implementation detail). Numbers can be used in [calculations](#calculations), numeric [ranges](#ranges), [repetition](#repetition), and as parameters to or return types from [functions](#functions). They can also be converted to [bits](#bits) using [functions](#functions) such as [float](#float-function), [sint](#sint-function), and [uint](#uint-function).
+The `number` type represents a mathematical real (not a computer floating point value, which is an implementation detail). `number` can be used in [calculations](#calculations), numeric [ranges](#ranges), [repetition](#repetition), and as parameters to or return types from [functions](#functions). `number` can also be converted to [bits](#bits) using [functions](#functions) such as [float](#float-function), [sint](#sint-function), and [uint](#uint-function).
 
 Numbers can be expressed as [numeric literals](#numeric-literals), or derived from [functions](#functions), [variables](#variables), and [calculations](#calculations).
 
@@ -674,9 +794,10 @@ These pseudo-types only place restrictions on the final realized value; they are
 
 **Note**: A value that breaks an invariant on a `number` (the singular `number` type, not the set [`numbers`](#numbers) type) indicates a malformed document or grammar.
 
-#### Numbers
 
-The `numbers` type (and associated pseudo-type invariants `sintegers` and `uintegers`) represents sets of [numbers](#number). Number sets are commonly used in [repetition](#repetition), or passed as arguments to certain [functions](#builtin-functions) (such as [sint](#sint-function), [uint](#uint-function), [float](#float-function)) to produce sets of [bits](#bits).
+### Numbers
+
+The `numbers` type (and associated pseudo-type invariants `sintegers` and `uintegers`) represents sets of type [`number`](#number). Number sets are commonly used in [repetition](#repetition), or passed as arguments to certain [functions](#builtin-functions) (such as [sint](#sint-function), [uint](#uint-function), [float](#float-function)) to produce [`bits`](#bits).
 
 Number sets are produced using [ranges](#ranges), [alternatives](#alternative), and [exclusion](#exclusion).
 
@@ -692,71 +813,12 @@ Number sets are produced using [ranges](#ranges), [alternatives](#alternative), 
 -------------------------------------------------------------------------------
 
 
-### Condition
+### OOB
 
-Conditions are produced by comparing [numbers](#number) or comparing [bits](#bits), and by performing logical operations on those comparisons, resulting in either true or false. Conditions are used in [switches](#switch), and can be [grouped](#grouping).
-
-Comparisons:
-
-* Less than (`<`)
-* Less than or equal to (`<=`)
-* Equal to (`=`)
-* Not equal to (`!=`)
-* Greater than or equal to (`>=`)
-* Greater than (`>`)
-
-Logical operations:
-
-* And (`&`)
-* Or (`|`)
-* Not (`!`), which is a unary operator
-
-Condition precedence (low to high):
-
-* comparisons
-* logical or
-* logical and
-* logical not
-
-**Notes**:
-
-* Comparisons cannot be made between [numbers](#number) and [bits](#bits); only bits compared to bits, or numbers compared to numbers.
-* [Bits](#bits) can only be compared when both operands contain the same number of bits. If operands of differing bit counts are compared, the grammar is malformed.
-* [Bits](#bits) are compared as if they were big endian encoded unsigned integers.
-
-```dogma
-condition          = comparison | logical_op;
-logical_op         = logical_or | logical_op_and_not;
-logical_op_and_not = logical_and | logical_op_not;
-logical_op_not     = logical_not | maybe_grouped(condition);
-comparison         = number & comparator & number;
-comparator         = comp_lt | comp_le | comp_eq | comp_ne | comp_ge | comp_gt;
-comp_lt            = "<";
-comp_le            = "<=";
-comp_eq            = "=";
-comp_ne            = "!=";
-comp_ge            = ">=";
-comp_gt            = ">";
-logical_or         = condition & '|' & condition;
-logical_and        = condition & '&' & condition;
-logical_not        = '!' & condition;
-```
-
--------------------------------------------------------------------------------
-**Examples**:
-
-* `type = 2`
-* `(value >= 3 & value < 10) | value = 0`
-* `(x > 3 & y > 5) | x * y > 15`
-* `nextchar != 'a'`
--------------------------------------------------------------------------------
+`oob` (out-of-band) is used for special-case matching situations such as the [`eod` function](#eod-function).
 
 
-### Enumerated Types
-
-An Enumerated type is a type that is constrained to a predefined set of named values.
-
-#### Ordering
+### Ordering
 
 The `ordering` type specifies the [byte ordering](#byte-ordering) when processing expressions in certain contexts. This type supports two values:
 
@@ -784,7 +846,8 @@ u32(values)     = ordered(uint(32,values));
 ```
 -------------------------------------------------------------------------------
 
-#### Unicode Categories
+
+### Unicode Categories
 
 The `unicode_categories` type specifies the set of [Unicode categories](https://www.unicode.org/versions/Unicode15.0.0/ch04.pdf#G134153) whose codepoints to select from the Unicode character set (see the [`unicode` function](#unicode-function)).
 
@@ -825,7 +888,7 @@ In some contexts, resolved data (data that has already been matched) or literal 
 
 **Note**: Variables cannot be re-bound.
 
-When [making a variable](#var-function) of an [expression](#expressions) that already contains variable(s), that expression's bound variables are accessible from the outer scope using dot notation (`this_exp_variable.sub_exp_variable`).
+When [making a variable](#var-function) of an [expression](#expressions) that already contains variable(s), that expression's bound variables are accessible from the outer scope using dot notation (`this_expr_variable.sub_expr_variable`).
 
 -------------------------------------------------------------------------------
 **Example**: An [RTP (version 2) packet](https://en.wikipedia.org/wiki/Real-time_Transport_Protocol) contains flags to determine if padding or an extension are present. It also contains a 4-bit count of the number of contributing sources that are present. If the padding flag is 1, then the last CSRC is actually 3 bytes of padding followed by a one-byte length field defining how many bytes of the trailing entries in the CSRC list are actually padding (including the last entry containing the byte count).  Padding bytes must contain all zero bits, except for the very last byte which is the padding length field.
@@ -1221,26 +1284,42 @@ identifier = 'A'~'Z'+ & 'a'~'z'* & '_'?;
 -------------------------------------------------------------------------------
 
 
-Grouping
---------
 
-[Bits](#bits), [calculations](#calculations) and [conditions](#condition) can be grouped together in order to override the default precedence, or as a visual aid to make things more readable. To group, place the items between parentheses `(`, `)`.
+Logical Operations
+------------------
+
+Dogma supports combining [Conditions](#condition) into more complex forms using [logical operators](https://en.wikipedia.org/wiki/Logical_connective).
+
+The following operations are supported:
+
+| Operator | Operation                    | Mode   |
+| -------- | ---------------------------- | ------ |
+| `&`      | "and" (conjunction)          | binary |
+| `\|`     | "or" (inclusive disjunction) | binary |
+| `!`      | "not" (negation)             | unary  |
+
+Logical operations can be [grouped](#grouping).
+
+Operator precedence (low to high):
+
+* logical or
+* logical and
+* logical not
 
 ```dogma
-grouped(item)       = PARENTHESIZED(item);
-PARENTHESIZED(item) = '(' & item & ')';
+condition          = comparison | logical_op;
+logical_op         = logical_or | logical_op_and_not;
+logical_op_and_not = logical_and | logical_op_not;
+logical_op_not     = logical_not | maybe_grouped(condition);
+logical_or         = condition & '|' & condition;
+logical_and        = condition & '&' & condition;
+logical_not        = '!' & condition;
 ```
 
-**Exmples**:
+**Examples**:
 
-```dogma
-my_rule         = ('a' | 'b') & ('x' | 'y');
-my_macro1(a)    = uint(8, (a + 5) * 2);
-my_macro2(a, b) = [
-                    (a < 10 | a > 20) & (b < 10 | b > 20): "abc";
-                                                         : "def";
-                  ];
-```
+* `a < b & c = d`
+* `!(x < y | y < z) & a = b`
 
 
 
@@ -1306,6 +1385,29 @@ checksum     = uint(16,~);
 body(length) = uint(8,~){length};
 ```
 -------------------------------------------------------------------------------
+
+
+
+Grouping
+--------
+
+[Bits](#bits), [calculations](#calculations) and [conditions](#condition) can be grouped together in order to override the default precedence, or as a visual aid to make things more readable. To group, place the items between parentheses `(`, `)`.
+
+```dogma
+grouped(item)       = PARENTHESIZED(item);
+PARENTHESIZED(item) = '(' & item & ')';
+```
+
+**Exmples**:
+
+```dogma
+my_rule         = ('a' | 'b') & ('x' | 'y');
+my_macro1(a)    = uint(8, (a + 5) * 2);
+my_macro2(a, b) = [
+                    (a < 10 | a > 20) & (b < 10 | b > 20): "abc";
+                                                         : "def";
+                  ];
+```
 
 
 
@@ -2212,7 +2314,9 @@ condition              = comparison | logical_ops;
 logical_ops            = logical_or | logical_ops_and_not;
 logical_ops_and_not    = logical_and | logical_op_not;
 logical_op_not         = logical_not | maybe_grouped(condition);
-comparison             = number & TOKEN_SEP & comparator & TOKEN_SEP & number;
+comparison             = number & TOKEN_SEP & comparator & TOKEN_SEP & number
+                       | bitseq & TOKEN_SEP & comparator & TOKEN_SEP & bitseq
+                       ;
 comparator             = comp_lt | comp_le | comp_eq | comp_ne | comp_ge | comp_gt;
 comp_lt                = "<";
 comp_le                = "<=";

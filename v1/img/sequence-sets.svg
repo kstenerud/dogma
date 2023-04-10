@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="267" height="101" viewBox="-0.5 -0.5 267 101">
+	<path fill="#fff2cc" fill-opacity=".5" stroke="#d6b656" stroke-opacity=".5" d="M200 0h30v100h-30zM150 0h30v100h-30zM100 0h30v100h-30zM50 0h30v100H50zM0 0h30v100H0z" pointer-events="all"/>
+	<circle cx="15" cy="20" r="10" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
+	<text x="15" y="24" font-family="Helvetica" font-size="12" text-anchor="middle">A</text>
+	<circle cx="65" cy="50" r="10" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
+	<text x="65" y="54" font-family="Helvetica" font-size="12" text-anchor="middle">C</text>
+	<path fill="none" stroke="#000" stroke-dasharray="3 3" stroke-miterlimit="10" d="M25 20h8q7 0 7 10v10q0 10 8 10h7" pointer-events="stroke"/>
+	<circle cx="65" cy="80" r="10" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
+	<text x="65" y="84" font-family="Helvetica" font-size="12" text-anchor="middle">D</text>
+	<path fill="none" stroke="#000" stroke-dasharray="3 3" stroke-miterlimit="10" d="M25 20h8q7 0 7 10v40q0 10 8 10h7M25 20h30" pointer-events="stroke"/>
+	<circle cx="115" cy="20" r="10" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
+	<text x="115" y="24" font-family="Helvetica" font-size="12" text-anchor="middle">E</text>
+	<circle cx="165" cy="20" r="10" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
+	<text x="165" y="24" font-family="Helvetica" font-size="12" text-anchor="middle">F</text>
+	<circle cx="165" cy="50" r="10" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
+	<text x="165" y="54" font-family="Helvetica" font-size="12" text-anchor="middle">G</text>
+	<circle cx="215" cy="20" r="10" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
+	<text x="215" y="24" font-family="Helvetica" font-size="12" text-anchor="middle">H</text>
+	<path fill="none" stroke="#000" stroke-dasharray="3 3" stroke-miterlimit="10" d="M25 20h30" pointer-events="stroke"/>
+	<circle cx="65" cy="20" r="10" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
+	<text x="65" y="24" font-family="Helvetica" font-size="12" text-anchor="middle">B</text>
+	<path fill="none" stroke="#000" stroke-dasharray="3 3" stroke-miterlimit="10" d="M75 20h30M125 20h30M125 20h8q7 0 7 10v10q0 10 8 10h7M175 20h30M75 50h8q7 0 7-10V30q0-10 8-10h7" pointer-events="stroke"/>
+	<path fill="none" stroke="#000" stroke-dasharray="3 3" stroke-miterlimit="10" d="M75 80h8q7 0 7-10V30q0-10 8-10h7M175 50h8q7 0 7-10V30q0-10 8-10h7" pointer-events="stroke"/>
+	<circle cx="215" cy="50" r="10" fill="#e1d5e7" stroke="#9673a6" pointer-events="all"/>
+	<text x="215" y="54" font-family="Helvetica" font-size="12" text-anchor="middle">I</text>
+	<path fill="none" stroke="#000" stroke-dasharray="3 3" stroke-miterlimit="10" d="M175 50h30M225 20h40M225 50h10q10 0 10-10V30q0-10 5-10h5M175 20h8q7 0 7 10v10q0 10 8 10h7" pointer-events="stroke"/>
+</svg>
