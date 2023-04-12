@@ -129,13 +129,13 @@ Contents
     - [Macros](#macros)
     - [Functions](#functions)
       - [Function Parameter and Return Types](#function-parameter-and-return-types)
-    - [Expressions](#expressions)
   - [Types](#types)
     - [Bit](#bit)
     - [Bits](#bits)
     - [Bitseq](#bitseq)
     - [Boolean](#boolean)
     - [Condition](#condition)
+    - [Expression](#expression)
     - [Nothing](#nothing)
     - [Number](#number)
     - [Numbers](#numbers)
@@ -368,7 +368,7 @@ document_header    = "dogma_v" & dogma_major_version & SOME_WS & character_encod
                    ;
 character_encoding = ('a'~'z' | 'A'~'Z' | '0'~'9' | '_' | '-' | '.' | ':' | '+' | '(' | ')')+;
 header_line        = '-' & SOME_WS & header_name & '=' & header_value;
-header_name        = (printable ! '=')+;
+header_name        = standard_header_names | (printable ! '=')+;
 header_value       = printable_ws+;
 ```
 
@@ -406,19 +406,36 @@ Rules specify the restrictions on how terminals can be combined into a valid seq
 Rules are written in the form `nonterminal = expression;`, with optional whitespace (including newlines) between rule elements.
 
 ```dogma
-rule          = symbol_rule | macro_rule | function_rule;
-start_rule    = symbol_rule;
-symbol_rule   = symbol & '=' & expression & ';';
-macro_rule    = macro & '=' & expression & ';';
-function_rule = function & '=' & prose & ';';
+rule                   = symbol_rule(expr_any) | macro_rule | function_rule;
+start_rule             = symbol_rule(expr_bits);
+symbol_rule(expr_type) = symbol & '=' & expr_type & ';';
+macro_rule             = macro & '=' & expr_any & ';';
+function_rule          = function & '=' & prose & ';';
 ```
 
 The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their case-sensitive identifiers (names) share the same global [namespace](#namespaces).
 
 ```dogma
-identifier           = (identifier_firstchar & identifier_nextchar*) ! reserved_identifiers;
-identifier_firstchar = unicode(L|M);
-identifier_nextchar  = identifier_firstchar | unicode(N) | '_';
+symbol               = identifier_global;
+macro                = identifier_global & PARENTHESIZED(param_name & (',' & param_name)*);
+param_name           = identifier_local;
+function             = function_no_args | function_with_args;
+function_no_args     = identifier_global & type_specifier;
+function_with_args   = identifier_global
+                     & PARENTHESIZED(function_param & (',' & function_param)*)
+                     & type_specifier
+                     ;
+function_param       = param_name & type_specifier;
+type_specifier       = ':' & type_name;
+
+identifier_any       = name;
+identifier_local     = identifier_any;
+identifier_global    = identifier_any ! reserved_identifiers;
+reserved_identifiers = builtin_function_names | enumeration_names;
+
+name                 = name_firstchar & name_nextchar*;
+name_firstchar       = unicode(L|M);
+name_nextchar        = name_firstchar | unicode(N) | '_';
 ```
 
 The general convention is to use all uppercase names for "background-y" things like whitespace and separators and other structural components, which makes them easier for a human to gloss over (see [the Dogma grammar document](#dogma-described-as-dogma) as an example).
@@ -433,16 +450,11 @@ The first rule listed in a Dogma document is the start rule (where parsing of th
 
 ### Symbols
 
-A symbol acts as a placeholder for something to be substituted in another rule.
+A symbol acts as a placeholder for something ([bits](#bits), [numbers](#numbers), [conditions](#condition)) to be substituted in another rule.
 
 ```dogma
-symbol_rule           = symbol & '=' & expression & ';';
-symbol                = identifier_restricted;
-identifier_restricted = identifier_any ! reserved_identifiers;
-identifier_any        = name;
-name                  = name_firstchar & name_nextchar*;
-name_firstchar        = unicode(L|M);
-name_nextchar         = name_firstchar | unicode(N) | '_';
+symbol_rule(expr_type) = symbol & '=' & expr_type & ';';
+symbol                 = identifier_global;
 ```
 
 **Note**: Symbol names are not limited to ASCII.
@@ -478,8 +490,8 @@ LF             = '\[a]';
 A macro is essentially a symbol that accepts parameters, which are bound to local [variables](#variables) for use within the macro's [namespace](#namespaces). The macro's contents are written in the same manner as [symbol](#symbols) rules, but also have access to the injected local variables.
 
 ```dogma
-macro_rule = macro & '=' & expression & ';';
-macro      = identifier_restricted & PARENTHESIZED(param_name & (',' & param_name)*);
+macro_rule = macro & '=' & expr_any & ';';
+macro      = identifier_global & PARENTHESIZED(param_name & (',' & param_name)*);
 ```
 
 When called, a macro substitutes the passed-in parameters and proceeds like a normal rule would. Parameter and return [types](#types) are inferred based on how the parameters are used within the macro, and the type resulting from the macro's expression. The grammar is malformed if a macro is called with incompatible types, or is used in a context that is incompatible with its return type.
@@ -545,25 +557,26 @@ Since functions are opaque, their parameter and return [types](#types) cannot be
 ```dogma
 function_rule      = function & '=' & prose & ';';
 function           = function_no_args | function_with_args;
-function_no_args   = identifier_restricted & type_specifier;
-function_with_args = identifier_restricted
+function_no_args   = identifier_global & type_specifier;
+function_with_args = identifier_global
                    & PARENTHESIZED(function_param & (',' & function_param)*)
                    & type_specifier
                    ;
 function_param     = param_name & type_specifier;
 type_specifier     = ':' & type_name;
-type_name          = "expression"
-                   | "bits"
+type_name          = "bits"
                    | "condition"
+                   | "expression"
+                   | "nothing"
                    | "number"
                    | "numbers"
-                   | "uinteger"
-                   | "uintegers"
+                   | "oob"
+                   | "ordering"
                    | "sinteger"
                    | "sintegers"
-                   | "ordering"
+                   | "uinteger"
+                   | "uintegers"
                    | "unicode_categories"
-                   | "nothing"
                    ;
 ```
 
@@ -595,23 +608,6 @@ unicode(categories: unicode_categories): bits =
 -------------------------------------------------------------------------------
 
 
-### Expressions
-
-Expressions form the body of a rule, and can produce [bits](#bits), [numbers](#number), or [conditions](#condition).
-
-```dogma
-expression = symbol
-           | call
-           | string_literal
-           | maybe_ranged(codepoint_literal)
-           | combination
-           | builtin_functions
-           | variable
-           | grouped(expression)
-           ;
-```
-
-
 
 Types
 -----
@@ -641,6 +637,7 @@ The following types are used by the Dogma language:
 | `bitseq`             | sequence of `bit`                |                   | ❌           |
 | `boolean`            | scalar                           |                   | ❌           |
 | `condition`          | sequence of sets of `boolean`    | `boolean`         | ✔️            |
+| `expression`         | see below                        |                   | ✔️            |
 | `nothing`            |                                  |                   | ❌           |
 | `number`             | scalar                           |                   | ✔️            |
 | `numbers`            | set of `number`                  | `number`          | ✔️            |
@@ -730,6 +727,11 @@ Conditions are used in [switches](#switch), and can be [grouped](#grouping).
 * `(x > 3 & y > 5) | x * y > 15`
 * `nextchar != 'a'`
 -------------------------------------------------------------------------------
+
+
+### Expression
+
+`expression` represents an expression as a whole, including all type information and metadata associated with it. This is used in the [`var` function](#var-function).
 
 
 ### Nothing
@@ -846,57 +848,36 @@ In some contexts, values can be bound to a variable for use in the current [name
 
 **Note**: Variables cannot be re-bound.
 
-When [making a variable](#var-function) of an [expression](#expressions) that already contains variable(s), that expression's bound variables are accessible from the outer scope using dot notation (`this_expr_variable.sub_expr_variable`).
+When [making a variable](#var-function) of an expression that already contains variable(s), that expression's bound variables are accessible from the outer scope using dot notation (`this_expr_variable.sub_expr_variable`).
 
 -------------------------------------------------------------------------------
-**Example**: An [RTP (version 2) packet](https://en.wikipedia.org/wiki/Real-time_Transport_Protocol) contains flags to determine if padding or an extension are present. It also contains a 4-bit count of the number of contributing sources that are present. If the padding flag is 1, then the last CSRC is actually 3 bytes of padding followed by a one-byte length field defining how many bytes of the trailing entries in the CSRC list are actually padding (including the last entry containing the byte count).  Padding bytes must contain all zero bits, except for the very last byte which is the padding length field.
+**Example**: An IEEE 802.3 Ethernet layer 2 frame contains a type field that determines what kind of payload and extra metadata it contains.
 
-We make use of variables such as `has_padding`, `has_extension`, and `csrc_count` to decide how the rest of the packet is structured. We also pass some variables to [macros](#macros) to keep things cleaner.
-
-The padding portion is [switched](#switch) on `has_padding`, and the extension portion is switched on `has_extension`.
-
-Since the padding count is in bytes, we must convert between counts of 32-bit words and counts of bytes to determine how many CSRC entries are real entries, and how many bytes worth of CSRC data at the end are actually padding.
+We capture the `ether_type` symbol into variable `etype`. Since `ether_type` already captures its own (numeric) variable `type`, we can use dot notation to access it (`etype.type`), and use that in a [switch statement](#switch) or pass it to a [macro](#macros) or [function](#functions).
 
 ```dogma
-rtp_packet   = version
-             & uint(1,var(has_padding,~))
-             & uint(1,var(has_extension,~))
-             & uint(4,var(csrc_count,~))
-             & marker
-             & payload_type
-             & sequence_no
-             & timestamp
-             & ssrc
-             & csrc_list(has_padding, csrc_count)
-             & [has_extension = 1: extension;]
-             ;
-version      = uint(2,2);
-marker       = uint(1,~);
-payload_type = uint(7,~);
-sequence_no  = uint(16,~);
-timestamp    = uint(32,~);
-ssrc         = uint(32,~);
-csrc         = uint(32,~);
-
-csrc_list(has_padding, count) = [
-                                  has_padding = 1: peek(uint(8,~){count*4-3} & uint(8,var(pad_length,4~)))
-                                                 & csrc{count - pad_length/4}
-                                                 & padding{pad_length-4}
-                                                 & padding_last(pad_length)
-                                                 ;
-                                                 : csrc{count};
-                                ];
-
-padding              = uint(8,0);
-padding_last(length) = padding{3} & uint(8,length);
-
-extension           = custom_data
-                    & uint(16,var(length,~))
-                    & extension_payload(length)
-                    ;
-custom_data         = uint(16,~);
-ext_payload(length) = uint(32,~){length};
+frame       = preamble
+            & frame_start
+            & dst_address
+            & src_address
+            & var(etype, ether_type)
+            & [
+                etype.type = 0x8100: dot1q_frame;
+                etype.type = 0x88a8: double_tag_frame;
+                                   : payload_by_type(etype.type, 46);
+              ]
+            & frame_check
+            ;
+preamble    = uint(8, 0b01010101){7};
+frame_start = uint(8, 0b11010101);
+dst_address = uint(48, ~);
+src_address = uint(48, ~);
+ether_type  = uint(16, var(type, ~));
+frame_check = uint(32, ~);
+...
 ```
+See [full example here](examples/802.3_layer2.dogma).
+
 -------------------------------------------------------------------------------
 
 
@@ -1078,16 +1059,10 @@ The following comparators are supported:
 Comparisons can be made between two [`number`](#number) types (as well as invariants), or between two [`bitseq`](#bitseq) types (as well as `bits`, which will be compared once realized into `bitseq`).
 
 ```dogma
-comparison         = number & comparator & number
-                   | bitseq & comparator & bitseq
-                   ;
-comparator         = comp_lt | comp_le | comp_eq | comp_ne | comp_ge | comp_gt;
-comp_lt            = "<";
-comp_le            = "<=";
-comp_eq            = "=";
-comp_ne            = "!=";
-comp_ge            = ">=";
-comp_gt            = ">";
+comparison = number & comparator & number
+           | bitseq & comparator & bitseq
+           ;
+comparator = "<" | "<=" | "=" | "!=" | ">=" | ">";
 ```
 
 **Notes**:
@@ -1414,14 +1389,13 @@ A [codepoint](#codepoint-literals) range represents a set where each unique code
 A [repetition](#repetition) range represents a set where each unique unsigned integer value contained in the range represents a number of occurrences that will be applied to a [bits](#bits) expression as an [alternative](#alternative).
 
 ```dogma
-expression         = # ...
+expr_bits          = # ...
                    | maybe_ranged(codepoint_literal)
-                   # | ...
                    ;
-repeat_range       = expression & '{' & maybe_ranged(number) & '}';
-function_uint      = fname_uint & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
-function_sint      = fname_sint & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
-function_float     = fname_float & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
+repeat_range       = expr_bits & '{' & maybe_ranged(number) & '}';
+function_uint      = "uint" & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
+function_sint      = "sint" & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
+function_float     = "float" & PARENTHESIZED(bit_count & ARG_SEP & maybe_ranged(number));
 ranged(item)       = item? & '~' & item?;
 maybe_ranged(item) = item | ranged(item);
 ```
@@ -1764,7 +1738,7 @@ u32(values)    = ordered(uint(32,values));
 ### `var` Function
 
 ```dogma
-var(variable_name: identifier, value: bits | numbers): bits | numbers =
+var(variable_name: identifier_any, value: expression): expression =
     """
     Binds `value` to a local variable for subsequent re-use in the local namespace.
 
@@ -2015,11 +1989,7 @@ document_header        = "dogma_v" & dogma_major_version & SOME_WS & character_e
                        & LINE_END
                        ;
 character_encoding     = ('a'~'z' | 'A'~'Z' | '0'~'9' | '_' | '-' | '.' | ':' | '+' | '(' | ')')+;
-header_line            = '-' & SOME_WS
-                       & header_name & MAYBE_WS
-                       & '=' & MAYBE_WS
-                       & header_value
-                       ;
+header_line            = '-' & SOME_WS & header_name & MAYBE_WS & '=' & MAYBE_WS & header_value;
 header_name            = standard_header_names | (printable ! '=')+;
 header_value           = printable_ws+;
 standard_header_names  = "charsets"
@@ -2029,29 +1999,42 @@ standard_header_names  = "charsets"
                        | "reference"
                        ;
 
-rule                   = symbol_rule | macro_rule | function_rule;
-start_rule             = symbol_rule;
-symbol_rule            = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
-macro_rule             = macro & TOKEN_SEP & '=' & TOKEN_SEP & expression & TOKEN_SEP & ';';
+rule                   = symbol_rule(expr_any) | macro_rule | function_rule;
+start_rule             = symbol_rule(expr_bits);
+symbol_rule(expr_type) = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expr_type & TOKEN_SEP & ';';
+macro_rule             = macro & TOKEN_SEP & '=' & TOKEN_SEP & expr_any & TOKEN_SEP & ';';
 function_rule          = function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';';
 
-expression             = symbol
-                       | call
-                       | switch
+expr_any               = expr_bits
+                       | expr_numeric
+                       | expr_condition
+                       ;
+expr_bits              = expr_common
                        | string_literal
                        | maybe_ranged(codepoint_literal)
                        | combination
-                       | builtin_functions
+                       | switch
+                       | grouped(expr_bits)
+                       ;
+expr_numeric           = expr_common
+                       | number
+                       | grouped(expr_numeric)
+                       ;
+expr_condition         = expr_common
+                       | condition
+                       | grouped(expr_condition)
+                       ;
+expr_common            = call_noargs
+                       | call
                        | variable
-                       | grouped(expression)
                        ;
 
-symbol                 = identifier_restricted;
-macro                  = identifier_restricted & PARENTHESIZED(param_name & (ARG_SEP & param_name)*);
-param_name             = identifier_any;
+symbol                 = identifier_global;
+macro                  = identifier_global & PARENTHESIZED(param_name & (ARG_SEP & param_name)*);
+param_name             = identifier_local;
 function               = function_no_args | function_with_args;
-function_no_args       = identifier_restricted & TOKEN_SEP & type_specifier;
-function_with_args     = identifier_restricted
+function_no_args       = identifier_global & TOKEN_SEP & type_specifier;
+function_with_args     = identifier_global
                        & PARENTHESIZED(function_param & (ARG_SEP & function_param)*)
                        & TOKEN_SEP & type_specifier
                        ;
@@ -2059,6 +2042,7 @@ function_param         = param_name & TOKEN_SEP & type_specifier;
 type_specifier         = ':' & TOKEN_SEP & type_name;
 type_name              = "bits"
                        | "condition"
+                       | "expression"
                        | "nothing"
                        | "number"
                        | "numbers"
@@ -2071,25 +2055,28 @@ type_name              = "bits"
                        | "unicode_categories"
                        ;
 
+variable               = identifier_local | variable & '.' & identifier_local;
+
+call_noargs            = identifier_any;
 call                   = identifier_any & PARENTHESIZED(call_param & (ARG_SEP & call_param)*);
-call_param             = condition | number | expression;
+call_param             = expr_any;
 
 switch                 = '[' & TOKEN_SEP & switch_entry+ & (TOKEN_SEP & switch_default)? & TOKEN_SEP & ']';
-switch_entry           = condition & TOKEN_SEP & ':' & TOKEN_SEP & expression & TOKEN_SEP & ';';
-switch_default         = ':' & TOKEN_SEP & expression & TOKEN_SEP & ';';
+switch_entry           = condition & TOKEN_SEP & ':' & TOKEN_SEP & expr_any & TOKEN_SEP & ';';
+switch_default         = ':' & TOKEN_SEP & expr_any & TOKEN_SEP & ';';
 
 combination            = alternate | combination_w_exclude;
 combination_w_exclude  = exclude | combination_w_concat;
 combination_w_concat   = concatenate | combination_w_repeat;
 combination_w_repeat   = repetition | combination;
-alternate              = expression & TOKEN_SEP & '|' & TOKEN_SEP & expression;
-concatenate            = expression & TOKEN_SEP & '&' & TOKEN_SEP & expression;
-exclude                = expression & TOKEN_SEP & '!' & TOKEN_SEP & expression;
+alternate              = expr_bits & TOKEN_SEP & '|' & TOKEN_SEP & expr_bits;
+concatenate            = expr_bits & TOKEN_SEP & '&' & TOKEN_SEP & expr_bits;
+exclude                = expr_bits & TOKEN_SEP & '!' & TOKEN_SEP & expr_bits;
 repetition             = repeat_range | repeat_zero_or_one | repeat_zero_or_more | repeat_one_or_more;
-repeat_range           = expression & '{' & TOKEN_SEP & maybe_ranged(number) & TOKEN_SEP & '}';
-repeat_zero_or_one     = expression & '?';
-repeat_zero_or_more    = expression & '*';
-repeat_one_or_more     = expression & '+';
+repeat_range           = expr_bits & '{' & TOKEN_SEP & maybe_ranged(number) & TOKEN_SEP & '}';
+repeat_zero_or_one     = expr_bits & '?';
+repeat_zero_or_more    = expr_bits & '*';
+repeat_one_or_more     = expr_bits & '+';
 
 prose                  = '"""' & maybe_escaped(printable_wsl)+ & '"""'
                        | "'''" & maybe_escaped(printable_wsl)+ & "'''"
@@ -2104,6 +2091,117 @@ maybe_escaped(charset) = (charset ! '\\') | escape_sequence;
 escape_sequence        = '\\' & (printable ! '[') | codepoint_escape);
 codepoint_escape       = '[' & digit_hex+ & ']';
 
+condition              = comparison | logical_ops;
+logical_ops            = logical_or | logical_ops_and_not;
+logical_ops_and_not    = logical_and | logical_op_not;
+logical_op_not         = logical_not | maybe_grouped(condition);
+comparison             = number & TOKEN_SEP & comparator & TOKEN_SEP & number
+                       | bitseq & TOKEN_SEP & comparator & TOKEN_SEP & bitseq
+                       ;
+comparator             = comp_lt | comp_le | comp_eq | comp_ne | comp_ge | comp_gt;
+comp_lt                = "<";
+comp_le                = "<=";
+comp_eq                = "=";
+comp_ne                = "!=";
+comp_ge                = ">=";
+comp_gt                = ">";
+logical_or             = condition & TOKEN_SEP & '|' & TOKEN_SEP & condition;
+logical_and            = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
+logical_not            = '!' & TOKEN_SEP & condition;
+
+number                 = calc_add | calc_sub | calc_mul_div;
+calc_mul_div           = calc_mul | calc_div | calc_mod | calc_pow_neg;
+calc_pow_neg           = calc_pow | calc_neg_val;
+calc_neg_val           = calc_neg | calc_val;
+calc_val               = number_literal | variable | maybe_grouped(number);
+calc_add               = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
+calc_sub               = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
+calc_mul               = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_pow_val;
+calc_div               = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_pow_val;
+calc_mod               = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_pow_val;
+calc_pow               = calc_pow_val & TOKEN_SEP & '^' & TOKEN_SEP & calc_neg_val;
+calc_neg               = '-' & calc_val;
+
+grouped(item)          = PARENTHESIZED(item);
+ranged(item)           = (item & TOKEN_SEP)? & '~' & (TOKEN_SEP & item)?;
+maybe_grouped(item)    = grouped(item) | item;
+maybe_ranged(item)     = ranged(item) | item;
+
+number_literal         = int_literal_bin | int_literal_oct | int_real_literal_dec | int_real_literal_hex;
+int_real_literal_dec   = neg? digit_dec+
+                       & ('.' & digit_dec+ & (('e' | 'E') ('+' | '-')? & digit_dec+)?)?
+                       ;
+int_real_literal_hex   = neg? & '0' & ('x' | 'X') & digit_hex+
+                       & ('.' & digit_hex+ & (('p' | 'P') & ('+' | '-')? & digit_dec+)?)?
+                       ;
+int_literal_bin        = neg? & '0' & ('b' | 'B') & digit_bin+;
+int_literal_oct        = neg? & '0' & ('o' | 'O') & digit_oct+;
+neg                    = '-';
+
+identifier_any         = name;
+identifier_local       = identifier_any;
+identifier_global      = identifier_any ! reserved_identifiers;
+reserved_identifiers   = builtin_function_names | enumeration_names;
+enumeration_names      = "msb" | "lsb"
+                       | "L" | "Lu" | "Ll" | "Lt" | "Lm" | "Lo"
+                       | "M" | "Mn" | "Mc" | "Me"
+                       | "N" | "Nd" | "Nl" | "No"
+                       | "P" | "Pc" | "Pd" | "Ps" | "Pe" | "Pi" | "Pf" | "Po"
+                       | "S" | "Sm" | "Sc" | "Sk" | "So"
+                       | "Z" | "Zs" | "Zl" | "Zp"
+                       | "C" | "Cc" | "Cf" | "Cs" | "Co" | "Sn"
+                       ;
+
+name                   = name_firstchar & name_nextchar*;
+name_firstchar         = unicode(L|M);
+name_nextchar          = name_firstchar | unicode(N) | '_';
+
+printable              = unicode(L|M|N|P|S);
+printable_ws           = printable | WS;
+printable_wsl          = printable | WSL;
+digit_bin              = '0'~'1';
+digit_oct              = '0'~'7';
+digit_dec              = '0'~'9';
+digit_hex              = ('0'~'9') | ('a'~'f') | ('A'~'F');
+
+comment                = '#' & printable_ws* & LINE_END;
+
+PARENTHESIZED(item)    = '(' & TOKEN_SEP & item & TOKEN_SEP & ')';
+ARG_SEP                = TOKEN_SEP & ',' & TOKEN_SEP;
+TOKEN_SEP              = MAYBE_WSLC;
+
+# Whitespace
+MAYBE_WS               = WS*;
+SOME_WS                = WS & MAYBE_WS;
+MAYBE_WSLC             = (WSL | comment)*;
+SOME_WSLC              = WSL & MAYBE_WSLC;
+WSL                    = WS | LINE_END;
+WS                     = HT | SP;
+LINE_END               = CR? & LF;
+HT                     = '\[9]';
+LF                     = '\[a]';
+CR                     = '\[d]';
+SP                     = '\[20]';
+
+
+builtin_function_names = "aligned"
+                       | "bom_ordered"
+                       | "byte_order"
+                       | "eod"
+                       | "float"
+                       | "inf"
+                       | "nan"
+                       | "nzero"
+                       | "offset"
+                       | "ordered"
+                       | "peek"
+                       | "reversed"
+                       | "sint"
+                       | "sized"
+                       | "uint"
+                       | "unicode"
+                       | "var"
+                       ;
 builtin_functions      = aligned
                        | bom_ordered
                        | byte_order
@@ -2208,7 +2306,7 @@ offset(bit_offset: uinteger, expr: bits): nothing
    as a file containing an index of offsets to payload chunks.
    """;
 
-var(variable_name: identifier_any, value: bits | numbers): bits | numbers =
+var(variable_name: identifier_any, value: expression): expression =
     """
     Binds `value` to a local variable for subsequent re-use in the local namespace.
 
@@ -2293,116 +2391,4 @@ nzero(bit_counts: uintegers): bits =
 
     Any values in `bit_counts` that are not valid ieee754 binary sizes will be ignored.
     """;
-
-variable               = local_id | variable & '.' & local_id;
-local_id               = identifier_restricted;
-
-condition              = comparison | logical_ops;
-logical_ops            = logical_or | logical_ops_and_not;
-logical_ops_and_not    = logical_and | logical_op_not;
-logical_op_not         = logical_not | maybe_grouped(condition);
-comparison             = number & TOKEN_SEP & comparator & TOKEN_SEP & number
-                       | bitseq & TOKEN_SEP & comparator & TOKEN_SEP & bitseq
-                       ;
-comparator             = comp_lt | comp_le | comp_eq | comp_ne | comp_ge | comp_gt;
-comp_lt                = "<";
-comp_le                = "<=";
-comp_eq                = "=";
-comp_ne                = "!=";
-comp_ge                = ">=";
-comp_gt                = ">";
-logical_or             = condition & TOKEN_SEP & '|' & TOKEN_SEP & condition;
-logical_and            = condition & TOKEN_SEP & '&' & TOKEN_SEP & condition;
-logical_not            = '!' & TOKEN_SEP & condition;
-
-number                 = calc_add | calc_sub | calc_mul_div;
-calc_mul_div           = calc_mul | calc_div | calc_mod | calc_pow_neg;
-calc_pow_neg           = calc_pow | calc_neg_val;
-calc_neg_val           = calc_neg | calc_val;
-calc_val               = number_literal | variable | maybe_grouped(number);
-calc_add               = number & TOKEN_SEP & '+' & TOKEN_SEP & calc_mul_div;
-calc_sub               = number & TOKEN_SEP & '-' & TOKEN_SEP & calc_mul_div;
-calc_mul               = calc_mul_div & TOKEN_SEP & '*' & TOKEN_SEP & calc_pow_val;
-calc_div               = calc_mul_div & TOKEN_SEP & '/' & TOKEN_SEP & calc_pow_val;
-calc_mod               = calc_mul_div & TOKEN_SEP & '%' & TOKEN_SEP & calc_pow_val;
-calc_pow               = calc_pow_val & TOKEN_SEP & '^' & TOKEN_SEP & calc_neg_val;
-calc_neg               = '-' & calc_val;
-
-grouped(item)          = PARENTHESIZED(item);
-ranged(item)           = (item & TOKEN_SEP)? & '~' & (TOKEN_SEP & item)?;
-maybe_grouped(item)    = grouped(item) | item;
-maybe_ranged(item)     = ranged(item) | item;
-
-number_literal         = int_literal_bin | int_literal_oct | int_real_literal_dec | int_real_literal_hex;
-int_real_literal_dec   = neg? digit_dec+
-                       & ('.' & digit_dec+ & (('e' | 'E') ('+' | '-')? & digit_dec+)?)?
-                       ;
-int_real_literal_hex   = neg? & '0' & ('x' | 'X') & digit_hex+
-                       & ('.' & digit_hex+ & (('p' | 'P') & ('+' | '-')? & digit_dec+)?)?
-                       ;
-int_literal_bin        = neg? & '0' & ('b' | 'B') & digit_bin+;
-int_literal_oct        = neg? & '0' & ('o' | 'O') & digit_oct+;
-neg                    = '-';
-
-identifier_any         = name;
-identifier_restricted  = identifier_any ! reserved_identifiers;
-reserved_identifiers   = builtin_function_names | enumeration_names;
-builtin_function_names = "aligned"
-                       | "bom_ordered"
-                       | "byte_order"
-                       | "eod"
-                       | "float"
-                       | "inf"
-                       | "nan"
-                       | "nzero"
-                       | "offset"
-                       | "ordered"
-                       | "peek"
-                       | "reversed"
-                       | "sint"
-                       | "sized"
-                       | "uint"
-                       | "unicode"
-                       | "var"
-                       ;
-enumeration_names      = "msb" | "lsb"
-                       | "L" | "Lu" | "Ll" | "Lt" | "Lm" | "Lo"
-                       | "M" | "Mn" | "Mc" | "Me"
-                       | "N" | "Nd" | "Nl" | "No"
-                       | "P" | "Pc" | "Pd" | "Ps" | "Pe" | "Pi" | "Pf" | "Po"
-                       | "S" | "Sm" | "Sc" | "Sk" | "So"
-                       | "Z" | "Zs" | "Zl" | "Zp"
-                       | "C" | "Cc" | "Cf" | "Cs" | "Co" | "Sn"
-                       ;
-
-name                   = name_firstchar & name_nextchar*;
-name_firstchar         = unicode(L|M);
-name_nextchar          = name_firstchar | unicode(N) | '_';
-
-printable              = unicode(L|M|N|P|S);
-printable_ws           = printable | WS;
-printable_wsl          = printable | WSL;
-digit_bin              = '0'~'1';
-digit_oct              = '0'~'7';
-digit_dec              = '0'~'9';
-digit_hex              = ('0'~'9') | ('a'~'f') | ('A'~'F');
-
-comment                = '#' & printable_ws* & LINE_END;
-
-PARENTHESIZED(item)    = '(' & TOKEN_SEP & item & TOKEN_SEP & ')';
-ARG_SEP                = TOKEN_SEP & ',' & TOKEN_SEP;
-TOKEN_SEP              = MAYBE_WSLC;
-
-# Whitespace
-MAYBE_WS               = WS*;
-SOME_WS                = WS & MAYBE_WS;
-MAYBE_WSLC             = (WSL | comment)*;
-SOME_WSLC              = WSL & MAYBE_WSLC;
-WSL                    = WS | LINE_END;
-WS                     = HT | SP;
-LINE_END               = CR? & LF;
-HT                     = '\[9]';
-LF                     = '\[a]';
-CR                     = '\[d]';
-SP                     = '\[20]';
 ```
