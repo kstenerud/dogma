@@ -5,7 +5,7 @@ The Dogma Metalanguage
 
 _Describing how things should be_
 
-**Version**: 1.0-beta5
+**Version**: 1.0-beta6
 
 
 ---------------------------------------------------------------------------------------------------
@@ -19,14 +19,16 @@ Dogma follows the familiar patterns of [Backus-Naur Form](https://en.wikipedia.o
 
 ## WORK IN PROGRESS
 
-Current status: 1.0-beta5 (Mar 25, 2023).
+Current status: 1.0-beta6 (Apr 12, 2023).
 
 Notable changes:
 
-- Cleaner byte ordering support with new [`byte_order`](#byte_order-function), [`ordered`](#ordered-function), and [`bom_ordered`](#bom_ordered-function) functions
-- New [`peek`](#peek-function) and [`offset`](#offset-function) functions
-- Renamed `swapped` function to [`reversed`](#reversed-function)
-- More examples in the [examples](examples) dir
+- Allow `numbers` type for bit counts in some functions.
+- Allow name shadowing.
+- Added `charsets` standard header.
+- `bits` type can now be compared using less than and greater than.
+- Removed variadic functions. Combine unicode categories using alternation instead.
+- Revamped type system description.
 
 
 
