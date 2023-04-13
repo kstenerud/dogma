@@ -408,11 +408,11 @@ Rules specify the restrictions on how terminals can be combined into a valid seq
 Rules are written in the form `nonterminal = expression;`, with optional whitespace (including newlines) between rule elements.
 
 ```dogma
-rule                   = symbol_rule(expr_any) | macro_rule | function_rule;
-start_rule             = symbol_rule(expr_bits);
-symbol_rule(expr_type) = symbol & '=' & expr_type & ';';
-macro_rule             = macro & '=' & expr_any & ';';
-function_rule          = function & '=' & prose & ';';
+rule              = symbol_rule(expr_any) | macro_rule | function_rule;
+start_rule        = symbol_rule(expr_bits);
+symbol_rule(expr) = symbol & '=' & expr & ';';
+macro_rule        = macro & '=' & expr_any & ';';
+function_rule     = function & '=' & prose & ';';
 ```
 
 The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their case-sensitive identifiers (names) share the same global [namespace](#namespaces).
@@ -455,8 +455,8 @@ The first rule listed in a Dogma document is the start rule (where parsing of th
 A symbol acts as a placeholder for something ([bits](#bits), [numbers](#numbers), [conditions](#condition)) to be substituted in another rule.
 
 ```dogma
-symbol_rule(expr_type) = symbol & '=' & expr_type & ';';
-symbol                 = identifier_global;
+symbol_rule(expr) = symbol & '=' & expr & ';';
+symbol            = identifier_global;
 ```
 
 **Note**: Symbol names are not limited to ASCII.
@@ -500,7 +500,7 @@ When called, a macro substitutes the passed-in parameters and proceeds like a no
 
 ```dogma
 call       = identifier_any & PARENTHESIZED(call_param & (',' & call_param)*);
-call_param = condition | number | expression;
+call_param = expr_any;
 ```
 
 -------------------------------------------------------------------------------
@@ -512,7 +512,7 @@ record(type) = byte(type) & byte(var(length, ~)) & byte(~){length};
 byte(v)      = uint(8,v);
 ```
 
-In the above example, `record` can only be called with unsigned integer values, because the `type` field is passed to the `byte` macro, which calls the [`uint` function](#uint-function), which expects a [`uintegers`](#numbers) parameter.
+In the above example, `record` will only produce meaningful results when called with unsigned integer values, because the `type` field is passed to the `byte` macro, which calls the [`uint` function](#uint-function), which expects a [`uintegers`](#numbers) parameter.
 
 **Example**: An [IPV4](https://en.wikipedia.org/wiki/Internet_Protocol_version_4) packet contains "header length" and "total length" fields, which together determine how big the "options" and "payload" sections are. "protocol" determines the protocol of the payload.
 
@@ -855,7 +855,7 @@ When [making a variable](#var-function) of an expression that already contains v
 -------------------------------------------------------------------------------
 **Example**: An IEEE 802.3 Ethernet layer 2 frame contains a type field that determines what kind of payload and extra metadata it contains.
 
-We capture the `ether_type` symbol into variable `etype`. Since `ether_type` already captures its own (numeric) variable `type`, we can use dot notation to access it (`etype.type`), and use that in a [switch statement](#switch) or pass it to a [macro](#macros) or [function](#functions).
+We capture the `ether_type` symbol into variable `etype` using the [`var` function](#var-function). Since `ether_type` already captures its own (numeric) variable `type`, we can use dot notation to access it (`etype.type`), and then use that in a [switch statement](#switch) or pass it to a [macro](#macros) or [function](#functions).
 
 ```dogma
 frame       = preamble
@@ -2003,7 +2003,7 @@ standard_header_names  = "charsets"
 
 rule                   = symbol_rule(expr_any) | macro_rule | function_rule;
 start_rule             = symbol_rule(expr_bits);
-symbol_rule(expr_type) = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expr_type & TOKEN_SEP & ';';
+symbol_rule(expr)      = symbol & TOKEN_SEP & '=' & TOKEN_SEP & expr & TOKEN_SEP & ';';
 macro_rule             = macro & TOKEN_SEP & '=' & TOKEN_SEP & expr_any & TOKEN_SEP & ';';
 function_rule          = function & TOKEN_SEP & '=' & TOKEN_SEP & prose & TOKEN_SEP & ';';
 
