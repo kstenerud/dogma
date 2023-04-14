@@ -297,7 +297,7 @@ Dogma can be used with any [character set](https://www.iana.org/assignments/char
 
 By default, it is assumed that the format being described by a dogma document uses the same character set as [the Dogma document is written in](#document-header). However, if the [`charsets` header line](#standard-headers) is provided, then only the character sets listed in that header line are valid (how a particular character set is chosen from that list must be specified elsewhere, and is beyond the scope of this specification).
 
-If allowed characters in a grammar cannot be 1:1 converted between the [document character set](#document-header) and the character sets listed in the [`charsets` header line](#standard-headers), then the conversion method(s) must be specified elsewhere (which is beyond the scope of this specification).
+If allowed characters in a grammar cannot be 1:1 converted between the [grammar document's character set](#document-header) and the character sets listed in the [`charsets` header line](#standard-headers), then the conversion method(s) must be specified elsewhere (which is beyond the scope of this specification).
 
 **Note**: [Character set names](https://www.iana.org/assignments/character-sets/character-sets.xhtml) are case-insensitive, but it's customary to use all lowercase.
 
@@ -378,9 +378,9 @@ header_value       = printable_ws+;
 
 The following headers are officially recognized (all others are allowed, but are not standardized):
 
-* `charsets`: A case-insensitive comma (plus possible whitespace) separated list of the [character sets](#character-sets) that are supported by the format being described.
+* `charsets`: A case-insensitive comma-separated (plus possible whitespace) list of the [character sets](#character-sets) that are supported by the format being described.
 * `description`: A brief, one-line description of the grammar.
-* `dogma`: A pointer to the Dogma specification as a courtesy to anyone reading the document.
+* `dogma`: A pointer to the Dogma specification as a courtesy to readers.
 * `identifier`: A unique identifier for the grammar being described. It's customary to append a version number to the identifier.
 * `reference`: A pointer to the official specification for the data format being described.
 
@@ -489,14 +489,14 @@ LF             = '\[a]';
 
 ### Macros
 
-A macro is essentially a symbol that accepts parameters, which are bound to local [variables](#variables) for use within the macro's [namespace](#namespaces). The macro's contents are written in the same manner as [symbol](#symbols) rules, but also have access to the injected local variables.
+A macro is essentially a [symbol](#symbols) that accepts parameters, which are bound to local [variables](#variables) for use within the macro's [namespace](#namespaces). The macro's contents are written in the same manner as [symbol](#symbols) rules, but also have access to the injected local variables.
 
 ```dogma
 macro_rule = macro & '=' & expr_any & ';';
 macro      = identifier_global & PARENTHESIZED(param_name & (',' & param_name)*);
 ```
 
-When called, a macro substitutes the passed-in parameters and proceeds like a normal rule would. Parameter and return [types](#types) are inferred based on how the parameters are used within the macro, and the type resulting from the macro's expression. The grammar is malformed if a macro is called with incompatible types, or is used in a context that is incompatible with its return type.
+When called, a macro substitutes the passed-in parameters and then proceeds like a symbol rule would. Parameter and return [types](#types) are inferred based on how the parameters are used within the macro, and the type resulting from the macro's expression. The grammar is malformed if a macro is called with incompatible types, or is used in a context that is incompatible with its return type.
 
 ```dogma
 call       = identifier_any & PARENTHESIZED(call_param & (',' & call_param)*);
