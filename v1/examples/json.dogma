@@ -6,7 +6,6 @@ dogma_v1 utf-8
 - dogma       = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md
 
 document    = element;
-
 element     = WS & value & WS;
 value       = object
             | array
@@ -16,34 +15,17 @@ value       = object
             | "false"
             | "null"
             ;
-
 object      = '{' & member & (',' & member)* & '}';
 member      = string & ':' & element;
-
 array       = '[' & element & (',' & element)* & ']';
-
 string      = WS & '"' (character | escape)* '"' & WS;
 character   = (unicode(L|M|N|P|S|Z|Cf|Co) | '\[9]') ! ('"' | '\\');
-escape      = '\\'
-            & (
-                  '"'
-                | '\\'
-                | '/'
-                | 'b'
-                | 'f'
-                | 'n'
-                | 'r'
-                | 't'
-                | 'u' & hex{4}
-              )
-            ;
+escape      = '\\' & ('"' | '\\' | '/' | 'b' | 'f' | 'n' | 'r' | 't' | 'u' & hex{4});
 hex         = '0'~'9' | 'a'~'f' | 'A'~'F';
-
 number      = integer & fraction? & exponent?;
 integer     = '0' | ('-'? & first_digit & next_digit*);
 fraction    = '.' & next_digit+;
 exponent    = ('e' | 'E') & ('+' | '-')? & next_digit+;
 first_digit = '1'~'9';
 next_digit  = '0'~'9';
-
 WS          = (' ' | '\[a]' | '\[d]' | '\[9]')*;
