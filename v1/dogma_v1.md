@@ -1629,7 +1629,7 @@ peek(expr: bits): nothing
 
 Since the endianness field is later in the dex file than some other fields that depend on it, we must first peek ahead in order to bind it to a variable before we can determine and apply byte endianness to the whole file.
 
-**Note**: The initial [`peek`](#peek-function) is done using the default [byte ordering](#byte-ordering) (`msb`).
+**Note**: The initial [`peek`](#peek-function) in this example will be done using the default [byte ordering](#byte-ordering) (`msb`) because no [`byte_order`](#byte_order-function) has been applied here.
 
 ```dogma
 document    = peek(var(head, header))
