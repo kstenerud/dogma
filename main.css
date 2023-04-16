@@ -18,7 +18,7 @@
 }
 
 .u-fit-width {
-  width: fit-content;
+  display: inline-block;
 }
 @media (min-width: 1200px) {
   .u-fit-width {
@@ -218,4 +218,8 @@ pre {
     text-align: left;
     margin-left: 2rem;
     margin-right: 2rem;
+}
+
+body {
+    background-color: #e5e5e5;
 }

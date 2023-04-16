@@ -2,6 +2,9 @@
 
 set -eux
 
+SCRIPT_HOME="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+pushd $SCRIPT_HOME
+
 npm install
 # node .
 ./index.js >../index.html
