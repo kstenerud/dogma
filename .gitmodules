@@ -1,0 +1,3 @@
+[submodule "builder/starry-night"]
+	path = builder/starry-night
+	url = git@github.com:kstenerud/starry-night.git

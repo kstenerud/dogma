@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html style="font-size: 16px;">
+
+<head>
+   <title>Dogma Metalanguage</title>
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <meta name="theme-color" content="#8133bb">
+   <meta charset="utf-8">
+   <meta name="keywords" content="metalanguage,data-format">
+   <meta name="description"
+      content="A human-friendly metalanguage for describing data formats in documentation using the familiar patterns of Backus-Naur Form">
+   <meta name="page_type" content="np-template-header-footer-from-plugin">
+   <meta property="og:title" content="Dogma Metalanguage">
+   <meta property="og:description"
+      content="A human-friendly metalanguage for describing data formats in documentation using the familiar patterns of Backus-Naur Form">
+   <meta property="og:type" content="website">
+   <meta property="og:url" content="https://dogma-lang.org/index.html">
+   <link rel="canonical" href="https://dogma-lang.org/index.html">
+   <link rel="icon" href="favicon.svg">
+   <link rel="stylesheet" href="froala.css" media="screen">
+   <link rel="stylesheet" href="starry-night.css" media="screen">
+   <link rel="stylesheet" href="main.css" media="screen">
+   <link id="u-theme-google-font" rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Montserrat:100,100i,200,200i,300,300i,400,400i,500,500i,600,600i,700,700i,800,800i,900,900i|Open+Sans:300,300i,400,400i,600,600i,700,700i,800,800i">
+</head>
+
+<body class="u-body">
+   <header class="u-clearfix u-header u-header">
+      <div class="u-clearfix u-sheet u-valign-middle u-sheet-1">
+         <img src="img/dogma-logo.svg" class="u-logo-image u-logo-image-1" />
+      </div>
+   </header>
+   <section class="u-align-center u-clearfix u-grey-10 u-section-2">
+      <div class="u-clearfix u-sheet u-sheet-1">
+         <h1 class="u-align-left u-text u-text-palette-1-base u-text-1">What Is It?</h1>
+         <p class="u-align-left u-text u-text-2">
+            Dogma is a human-friendly metalanguage for describing data formats in documentation using the familiar
+            patterns of <a class="u-light-bg-link" target="_" href="https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form">Backus-Naur
+               Form</a>.
+         </p>
+         <div class="u-expanded-width u-list u-list-1">
+            <div class="u-repeater u-repeater-1">
+               <div class="u-align-left u-container-style u-list-item u-repeater-item u-white u-list-item-1">
+                  <div class="u-container-layout u-similar-container u-container-layout-1">
+                     <h4 class="u-text u-text-3">Human Readable</h4>
+                     <ul class="u-custom-list u-text u-text-4">
+                        <li>
+                           <div class="u-list-icon">
+                              <div>‣</div>
+                           </div>
+                           For documentation
+                        </li>
+                        <li>
+                           <div class="u-list-icon">
+                              <div>‣</div>
+                           </div>
+                           Concise
+                        </li>
+                        <li>
+                           <div class="u-list-icon">
+                              <div>‣</div>
+                           </div>
+                           Unambiguous
+                        </li>
+                     </ul>
+                  </div>
+               </div>
+               <div
+                  class="u-align-left u-container-style u-list-item u-repeater-item u-video-cover u-white u-list-item-2">
+                  <div class="u-container-layout u-similar-container u-container-layout-2">
+                     <h4 class="u-text u-text-5">Text or Binary</h4>
+                     <ul class="u-custom-list u-text u-text-6">
+                        <li>
+                           <div class="u-list-icon">
+                              <div>‣</div>
+                           </div>
+                           Bit-level addressible
+                        </li>
+                        <li>
+                           <div class="u-list-icon">
+                              <div>‣</div>
+                           </div>
+                           Non-linear parsing
+                        </li>
+                        <li>
+                           <div class="u-list-icon">
+                              <div>‣</div>
+                           </div>
+                           Any character set
+                        </li>
+                     </ul>
+                  </div>
+               </div>
+               <div
+                  class="u-align-left u-container-style u-list-item u-repeater-item u-video-cover u-white u-list-item-3">
+                  <div class="u-container-layout u-similar-container u-container-layout-3">
+                     <h4 class="u-text u-text-7">Expressiveness</h4>
+                     <ul class="u-custom-list u-text u-text-8">
+                        <li>
+                           <div class="u-list-icon">
+                              <div>‣</div>
+                           </div>
+                           Macros and functions
+                        </li>
+                        <li>
+                           <div class="u-list-icon">
+                              <div>‣</div>
+                           </div>
+                           Conditions and logic
+                        </li>
+                        <li>
+                           <div class="u-list-icon">
+                              <div>‣</div>
+                           </div>
+                           Variables, calculations
+                        </li>
+                     </ul>
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         <h1 class="u-align-left u-text u-text-palette-1-base u-text-1">Short Examples</h1>
+         <p class="u-align-left u-text u-text-2">
+            A timestamp in a 64-bit unsigned integer. Each time field is a separate bitfield:
+         </p>
+         <div class="u-align-left u-container-style u-list-item u-repeater-item u-video-cover u-white u-list-item-2">
+            <pre>{{{example1}}}</pre>
+         </div>
+         <p class="u-align-left u-text u-text-2">
+            <a class="u-light-bg-link" target="_" href="https://www.json.org/json-en.html">JSON</a> described in Dogma:
+         </p>
+         <div class="u-align-left u-container-style u-list-item u-repeater-item u-video-cover u-white u-list-item-2">
+            <pre>{{{example2}}}</pre>
+         </div>
+
+         <h1 class="u-align-left u-text u-text-palette-1-base u-text-1">Specification</h1>
+         <p class="u-align-left u-text u-text-2 u-left-margin">
+            <a class="u-light-bg-link u-main-link" href="https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.md">
+               > The Dogma Specification <
+            </a>
+         </p>
+
+         <h1 class="u-align-left u-text u-text-palette-1-base u-text-1">Syntax Highlighter</h1>
+         <p class="u-align-left u-text u-text-2 u-left-margin">
+            <a class="u-light-bg-link u-main-link" target="_" href="https://marketplace.visualstudio.com/items?itemName=kstenerud.dogma-v1">
+               > VS Code Syntax Highlighter <
+            </a>
+         </p>
+
+         <h1 class="u-align-left u-text u-text-palette-1-base u-text-1">More Examples</h1>
+         <p class="u-align-left u-text u-text-2 u-left-margin">
+            <a class="u-light-bg-link u-main-link" target="_" href="https://github.com/kstenerud/dogma/tree/master/v1/examples">
+               > See the examples directory <
+            </a>
+         </p>
+
+      </div>
+   </section>
+   <footer class="u-align-center u-clearfix u-footer u-grey-80 u-footer">
+      <div class="u-clearfix u-sheet u-sheet-1">
+         <p class="u-small-text u-text u-text-variant u-text-1">
+            Dogma is released under the <a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons
+               Attribution 4.0 International Public License.</a>
+         </p>
+      </div>
+   </footer>
+   <section class="u-backlink u-clearfix u-grey-80">
+      <p>
+         Copyright © 2023 <a href="https://github.com/kstenerud">Karl Stenerud</a>
+      </p>
+   </section>
+</body>
+
+</html>

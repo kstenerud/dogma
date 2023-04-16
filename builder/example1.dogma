@@ -1,0 +1,8 @@
+timestamp   = year & month & day & hour & minute & second & microsecond;
+year        = uint(18, ~);       # 18-bit unsigned, any value
+month       = uint(4, 1~12);     # 4-bit unsigned, range 1 to 12
+day         = uint(5, 1~31);
+hour        = uint(5, 0~23);
+minute      = uint(6, 0~59);
+second      = uint(6, 0~60);     # Mustn't forget leap seconds!
+microsecond = uint(20, 0~999999);

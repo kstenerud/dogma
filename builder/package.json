@@ -1,0 +1,19 @@
+{
+  "name": "x",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "hast-util-to-html": "^8.0.4",
+    "import-meta-resolve": "^2.2.2",
+    "mustache": "^4.2.0",
+    "vscode-oniguruma": "^1.7.0",
+    "vscode-textmate": "^9.0.0"
+  }
+}
