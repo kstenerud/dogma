@@ -604,11 +604,11 @@ Dogma's types come in five broad compositional categories:
 | Set              | A set of possible values that will realize into a scalar or sequence when parsing a document.             |
 | Sequence of Sets | A sequence of sets of possibilities that will realize into a sequence of scalars when parsing a document. |
 
-The "sequence of sets" can be visualized as a railroad diagram, where each yellow rectangle in the sequence contains a set of value alternatives:
+The "sequence of sets" can be visualized as a railroad diagram, where each yellow rectangle in this example sequence contains a set of value alternatives:
 
 ![Sequence of Sets](img/sequence-sets.svg)
 
-The above diagram represents all possible combinations of `A & (B|C|D) & E & (F|G) & (H|I)`.
+The above example diagram represents all possible combinations of `A & (B|C|D) & E & (F|G) & (H|I)`.
 
 The following types are used by the Dogma language:
 
