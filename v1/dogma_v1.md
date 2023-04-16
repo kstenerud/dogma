@@ -125,9 +125,9 @@ Contents
       - [Standard Headers](#standard-headers)
   - [Rules](#rules)
     - [Start Rule](#start-rule)
-    - [Symbols](#symbols)
-    - [Macros](#macros)
-    - [Functions](#functions)
+    - [Symbol](#symbol)
+    - [Macro](#macro)
+    - [Function](#function)
       - [Function Parameter and Return Types](#function-parameter-and-return-types)
   - [Types](#types)
     - [Bit](#bit)
@@ -144,9 +144,9 @@ Contents
     - [Unicode Categories](#unicode-categories)
   - [Variables](#variables)
   - [Literals](#literals)
-    - [Numeric Literals](#numeric-literals)
-    - [Codepoint Literals](#codepoint-literals)
-      - [String Literals](#string-literals)
+    - [Numeric Literal](#numeric-literal)
+    - [Codepoint Literal](#codepoint-literal)
+      - [String Literal](#string-literal)
     - [Escape Sequence](#escape-sequence)
       - [Codepoint Escape](#codepoint-escape)
     - [Prose](#prose)
@@ -161,8 +161,8 @@ Contents
       - [Repetition](#repetition)
     - [Switch](#switch)
   - [Grouping](#grouping)
-  - [Ranges](#ranges)
-  - [Comments](#comments)
+  - [Range](#range)
+  - [Comment](#comment)
   - [Builtin Functions](#builtin-functions)
     - [`sized` Function](#sized-function)
     - [`aligned` Function](#aligned-function)
@@ -202,7 +202,7 @@ Dogma can describe data down to the bit level, and includes a number of [built-i
 
 [Calculations](#calculation) aid with length and offset fields, and optional/variable-sized structures can be [conditionally](#condition) parsed. Parsing can also "branch" temporarily to another part of the document (useful for directory-payload style formats).
 
-[Variables](#variables) and [macros](#macros) offer a limited but balanced way for passing (immutable) context around.
+[Variables](#variables) and [macros](#macro) offer a limited but balanced way for passing (immutable) context around.
 
 ### Character set support
 
@@ -248,7 +248,7 @@ Section descriptions in this specification will usually include some "informal" 
 
 ### Unicode Equivalence and Normalization
 
-By default only the exact, as-entered, non-processed (i.e. not normalized) codepoints present in a Unicode expression will be matched. For more advanced matching, define [functions](#functions) that apply normalization preprocessing or produce equivalence [alternatives](#alternative) to a string expression.
+By default only the exact, as-entered, non-processed (i.e. not normalized) codepoints present in a Unicode expression will be matched. For more advanced matching, define [functions](#function) that apply normalization preprocessing or produce equivalence [alternatives](#alternative) to a string expression.
 
 
 
@@ -307,18 +307,18 @@ The global byte ordering is `msb`, and can be changed for the duration of a sube
 
 #### Codepoint Byte Ordering
 
-All [codepoints](#codepoint-literals) follow the [character set's](#character-sets) byte order rules and ignore the [byte order](#byte-ordering) setting. For example, `utf-16le` is always interpreted "least significant byte first", even when the [byte order](#byte-ordering) is set to `msb`. Similarly, `utf-16be` is always interpreted "most significant byte first".
+All [codepoints](#codepoint-literal) follow the [character set's](#character-sets) byte order rules and ignore the [byte order](#byte-ordering) setting. For example, `utf-16le` is always interpreted "least significant byte first", even when the [byte order](#byte-ordering) is set to `msb`. Similarly, `utf-16be` is always interpreted "most significant byte first".
 
 **Note**: Dogma cannot make assumptions about where the "beginning" of a text stream is for [byte-order mark (BOM)](https://en.wikipedia.org/wiki/Byte_order_mark) purposes. If you wish to support BOM-based byte ordering, use the [`bom_ordered` function](#bom_ordered-function).
 
 
 ### Namespaces
 
-All [symbols](#symbols), [macros](#macros), [functions](#functions) and [variables](#variables) have names that are part of a namespace. All names are case sensitive and must be unique to their namespace.
+All [symbols](#symbol), [macros](#macro), [functions](#function) and [variables](#variables) have names that are part of a namespace. All names are case sensitive and must be unique to their namespace.
 
 The global namespace consists of all [rule](#rules) names, enumerated type names (from [`ordering`](#ordering) and [`unicode_categories`](#unicode-categories)), and the names of the [built-in functions](#builtin-functions).
 
-Each [rule](#rules) has a local namespace that supercedes the global namespace (i.e. the local namespace is searched first, then the global namespace - meaning that a local variable name can shadow a global name). [Variables](#variables) can be bound to the local namespace either via [macro arguments](#macros) or using the [`var` function](#var-function).
+Each [rule](#rules) has a local namespace that supercedes the global namespace (i.e. the local namespace is searched first, then the global namespace - meaning that a local variable name can shadow a global name). [Variables](#variables) can be bound to the local namespace either via [macro arguments](#macro) or using the [`var` function](#var-function).
 
 **Note**: Names cannot be re-bound.
 
@@ -383,7 +383,7 @@ document = "a"; # It's a very simple format ;-)
 Rules
 -----
 
-Rules specify the restrictions on how terminals can be combined into a valid sequence. A rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions), and can work with or produce any of the standard [types](#types).
+Rules specify the restrictions on how terminals can be combined into a valid sequence. A rule can define a [symbol](#symbol), a [macro](#macro), or a [function](#function), and can work with or produce any of the standard [types](#types).
 
 Rules are written in the form `nonterminal = expression;`, with optional whitespace (including newlines) between rule elements.
 
@@ -395,7 +395,7 @@ macro_rule        = macro & '=' & expr_any & ';';
 function_rule     = function & '=' & prose & ';';
 ```
 
-The left part of a rule can define a [symbol](#symbols), a [macro](#macros), or a [function](#functions). Their case-sensitive identifiers (names) share the same global [namespace](#namespaces).
+The left part of a rule can define a [symbol](#symbol), a [macro](#macro), or a [function](#function). Their case-sensitive identifiers (names) share the same global [namespace](#namespaces).
 
 ```dogma
 symbol               = identifier_global;
@@ -427,10 +427,10 @@ The general convention is to use all uppercase names for "background-y" things l
 
 ### Start Rule
 
-The first rule listed in a Dogma document is the start rule (where parsing of the format begins). Only a [symbol](#symbols) that produces [bits](#bits) can be a start rule.
+The first rule listed in a Dogma document is the start rule (where parsing of the format begins). Only a [symbol](#symbol) that produces [bits](#bits) can be a start rule.
 
 
-### Symbols
+### Symbol
 
 A symbol acts as a placeholder for something ([bits](#bits), [numbers](#numbers), [conditions](#condition)) to be substituted in another rule.
 
@@ -467,9 +467,9 @@ LF             = '\[a]';
 -------------------------------------------------------------------------------
 
 
-### Macros
+### Macro
 
-A macro is essentially a [symbol](#symbols) that accepts parameters, which are bound to local [variables](#variables) for use within the macro's [namespace](#namespaces). The macro's contents are written in the same manner as [symbol](#symbols) rules, but also have access to the injected local variables.
+A macro is essentially a [symbol](#symbol) that accepts parameters, which are bound to local [variables](#variables) for use within the macro's [namespace](#namespaces). The macro's contents are written in the same manner as [symbol](#symbol) rules, but also have access to the injected local variables.
 
 ```dogma
 macro_rule = macro & '=' & expr_any & ';';
@@ -524,17 +524,17 @@ payload_contents(protocol)   = [
 -------------------------------------------------------------------------------
 
 
-### Functions
+### Function
 
 Functions behave similarly to macros, except that they are opaque: whereas a macro is defined within the bounds of the grammatical notation, a function's procedure is user-defined in [prose](#prose) (as a description, or as a URL pointing to a description).
 
-Functions that take no parameters are defined and called without the trailing parentheses (similar to defining or calling a [symbol](#symbols)).
+Functions that take no parameters are defined and called without the trailing parentheses (similar to defining or calling a [symbol](#symbol)).
 
 **Note**: Dogma pre-defines a number of essential [built-in functions](#builtin-functions).
 
 #### Function Parameter and Return Types
 
-Since functions are opaque, their parameter and return [types](#types) cannot be automatically deduced like they can for [macros](#macros). Functions therefore declare all parameter and return [types](#types). If a function is called with the wrong types or its return value is used in an incompatible context, the grammar is malformed.
+Since functions are opaque, their parameter and return [types](#types) cannot be automatically deduced like they can for [macros](#macro). Functions therefore declare all parameter and return [types](#types). If a function is called with the wrong types or its return value is used in an incompatible context, the grammar is malformed.
 
 ```dogma
 function_rule      = function & '=' & prose & ';';
@@ -629,7 +629,7 @@ The following types are used by the Dogma language:
 
 Some types can be directly input into a Dogma grammar, while others are produced indirectly when processing a document.
 
-Types become relevant in certain contexts, particularly when calling [functions](#functions) (which have restrictions on what types they accept and return).
+Types become relevant in certain contexts, particularly when calling [functions](#function) (which have restrictions on what types they accept and return).
 
 The more basic types can be passed to contexts requiring more complex types if their ultimate base types match. For example:
 
@@ -649,7 +649,7 @@ The `bit` type represents a single [BInary digiT](https://en.wikipedia.org/wiki/
 
 The `bits` type represents a _sequence of sets_ of type `bitseq` that can be matched in a document. Upon matching, `bits` realizes into [`bitseq`](#bitseq).
 
-Bits are produced by [codepoints](#codepoint-literals), [strings](#string-literals), and [some functions](#builtin-functions), which can then be constructed into sequences of sets using using [alternatives](#alternative), [concatenation](#concatenation), [repetition](#repetition), and [exclusion](#exclusion).
+Bits are produced by [codepoints](#codepoint-literal), [strings](#string-literal), and [some functions](#builtin-functions), which can then be constructed into sequences of sets using using [alternatives](#alternative), [concatenation](#concatenation), [repetition](#repetition), and [exclusion](#exclusion).
 
 -------------------------------------------------------------------------------
 **Example**: A timestamp is a 64-bit unsigned integer, with each time field stored as a separate bitfield.
@@ -723,16 +723,16 @@ Used as a return type for functions that don't produce anything to match at the 
 
 ### Number
 
-The `number` type represents a mathematical real (not a computer floating point value, which is an implementation detail). `number` can be used in [calculations](#calculation), numeric [ranges](#ranges), [repetition](#repetition), and as parameters to or return types from [functions](#functions). `number` can also be converted to [bits](#bits) using [functions](#functions) such as [float](#float-function), [sint](#sint-function), and [uint](#uint-function).
+The `number` type represents a mathematical real (not a computer floating point value, which is an implementation detail). `number` can be used in [calculations](#calculation), numeric [ranges](#range), [repetition](#repetition), and as parameters to or return types from [functions](#function). `number` can also be converted to [bits](#bits) using [functions](#function) such as [float](#float-function), [sint](#sint-function), and [uint](#uint-function).
 
-Numbers can be expressed as [numeric literals](#numeric-literals), or derived from [functions](#functions), [variables](#variables), and [calculations](#calculation).
+Numbers can be expressed as [numeric literals](#numeric-literal), or derived from [functions](#function), [variables](#variables), and [calculations](#calculation).
 
 The two most common numeric invariants are supported natively as pseudo-types:
 
 * The `sinteger` (signed integer) pseudo-type restricts values to positive and negative integers, and 0.
 * The `uinteger` (unsigned integer) pseudo-type restricts values to positive integers and 0.
 
-These pseudo-types only place restrictions on the final realized value; they are still `number` types and behave like mathematical reals for all operations, with the destination invariant type (such as a [function](#functions) parameter's type) restricting what resulting values are allowed.
+These pseudo-types only place restrictions on the final realized value; they are still `number` types and behave like mathematical reals for all operations, with the destination invariant type (such as a [function](#function) parameter's type) restricting what resulting values are allowed.
 
 **Note**: A value that breaks an invariant on a `number` (the singular `number` type, not the set [`numbers`](#numbers) type) indicates a malformed document or grammar.
 
@@ -741,7 +741,7 @@ These pseudo-types only place restrictions on the final realized value; they are
 
 The `numbers` type (and associated pseudo-type invariants `sintegers` and `uintegers`) represents sets of type [`number`](#number). Number sets are commonly used in [repetition](#repetition), or passed as arguments to certain [functions](#builtin-functions) (such as [sint](#sint-function), [uint](#uint-function), [float](#float-function)) to produce [`bits`](#bits).
 
-Number sets are produced using [ranges](#ranges), [alternatives](#alternative), and [exclusion](#exclusion).
+Number sets are produced using [ranges](#range), [alternatives](#alternative), and [exclusion](#exclusion).
 
 **Note**: Any value in a `numbers` set that breaks an invariant is silently removed from the set (this is _not_ considered an error). For example `-1.5~1.5` passed to a `sintegers` invariant will be reduced to the set of integer values (-1, 0, 1). `0.5~0.6` passed to a `sintegers` invariant will be reduced to the empty set. `-5` passed to a `uintegers` invariant will be reduced to the empty set.
 
@@ -826,7 +826,7 @@ name_field             = unicode(L|M|N|P|S){1~100};
 Variables
 ---------
 
-In some contexts, values can be bound to a variable for use in the current [namespace](#namespaces). Variables are bound either manually using the [`var`](#var-function) builtin function, or automatically when passing parameters to a [macro](#macros). The variable's [type](#types) is inferred from its provenance and where it is ultimately used (a type mismatch indicates a malformed grammar).
+In some contexts, values can be bound to a variable for use in the current [namespace](#namespaces). Variables are bound either manually using the [`var`](#var-function) builtin function, or automatically when passing parameters to a [macro](#macro). The variable's [type](#types) is inferred from its provenance and where it is ultimately used (a type mismatch indicates a malformed grammar).
 
 **Note**: Variables cannot be re-bound.
 
@@ -835,7 +835,7 @@ When [making a variable](#var-function) of an expression that already contains v
 -------------------------------------------------------------------------------
 **Example**: An IEEE 802.3 Ethernet layer 2 frame contains a type field that determines what kind of payload and extra metadata it contains.
 
-We capture the `ether_type` symbol into variable `etype` using the [`var` function](#var-function). Since `ether_type` already captures its own (numeric) variable `type`, we can use dot notation to access it (`etype.type`), and then use that in a [switch statement](#switch) or pass it to a [macro](#macros) or [function](#functions).
+We capture the `ether_type` symbol into variable `etype` using the [`var` function](#var-function). Since `ether_type` already captures its own (numeric) variable `type`, we can use dot notation to access it (`etype.type`), and then use that in a [switch statement](#switch) or pass it to a [macro](#macro) or [function](#function).
 
 ```dogma
 frame       = preamble
@@ -867,7 +867,7 @@ See [full example here](examples/802.3_layer2.dogma).
 Literals
 --------
 
-### Numeric Literals
+### Numeric Literal
 
 Numeric literals can be expressed in many ways:
 
@@ -905,11 +905,11 @@ exact_float      = float(32, 0x5df1p-16);
 -------------------------------------------------------------------------------
 
 
-### Codepoint Literals
+### Codepoint Literal
 
-A codepoint is the [bits](#bits) representation of a character in a particular [encoding](https://en.wikipedia.org/wiki/Character_encoding). Codepoints can be represented as literals, [ranges](#ranges), and [category sets](#unicode-function).
+A codepoint is the [bits](#bits) representation of a character in a particular [encoding](https://en.wikipedia.org/wiki/Character_encoding). Codepoints can be represented as literals, [ranges](#range), and [category sets](#unicode-function).
 
-Expressing codepoint literals as a [range](#ranges) causes every codepoint in the range to be added as an [alternative](#alternative).
+Expressing codepoint literals as a [range](#range) causes every codepoint in the range to be added as an [alternative](#alternative).
 
 Codepoint literals are placed between single or double quotes.
 
@@ -929,9 +929,9 @@ alphanumeric = unicode(L|N);
 ```
 -------------------------------------------------------------------------------
 
-#### String Literals
+#### String Literal
 
-A string literal can be thought of as syntactic sugar for a series of specific [codepoint literals](#codepoint-literals) [concatenated](#concatenation) together.
+A string literal can be thought of as syntactic sugar for a series of specific [codepoint literals](#codepoint-literal) [concatenated](#concatenation) together.
 
 String literals are placed between single or double quotes (the same as for single codepoint literals).
 
@@ -955,7 +955,7 @@ str_abc_4 = 'a' & 'b' & 'c';
 
 ### Escape Sequence
 
-[Codepoint literals](#codepoint-literals), [string literals](#string-literals), and [prose](#prose) may contain codepoint escape sequences to represent troublesome codepoints.
+[Codepoint literals](#codepoint-literal), [string literals](#string-literal), and [prose](#prose) may contain codepoint escape sequences to represent troublesome codepoints.
 
 Escape sequences are initiated with the backslash (`\`) character. If the next character following is an open square brace (`[`), it begins a [codepoint escape](#codepoint-escape). Otherwise the escape sequence represents that literal character.
 
@@ -990,7 +990,7 @@ mystr = "This is all just a bunch of \[1f415]ma!"; # "This is all just a bunch o
 
 ### Prose
 
-Prose describes a [function's](#functions) invariants and implementation in natural language, or it may contain a URL pointing to another document.
+Prose describes a [function's](#function) invariants and implementation in natural language, or it may contain a URL pointing to another document.
 
 Prose is placed between sets of three double or single quotes.
 
@@ -1132,7 +1132,7 @@ calc_neg     = '-' & calc_val;
 -------------------------------------------------------------------------------
 **Example**: A [UDP packet](https://en.wikipedia.org/wiki/User_Datagram_Protocol) consists of a source port, a destination port, a length, a checksum, and a body. The length field refers to the size of the entire packet, not just the body.
 
-The variable `length` is captured and passed to the `body` [macro](#macros), which then uses that variable in a [repetition](#repetition) expression.
+The variable `length` is captured and passed to the `body` [macro](#macro), which then uses that variable in a [repetition](#repetition) expression.
 
 Since the length field refers to the entire packet including headers, we must subtract 8 bytes (the size of the four headers) to get the body length. This also means that the minimum length allowed for a UDP packet is 8 (for an empty packet).
 
@@ -1238,7 +1238,7 @@ identifier = "a"~"z"+ ! "fred";
 
 "Repetition" is a bit of a misnomer, because it actually defines how many times an expression occurs, not how many times it repeats. Think of repetition as "this [bits](#bits) expression, [concatenated](#concatenation) together for a total of N occurrences" (for example, `"a"{3}` is the same as `"a" & "a" & "a"` or `"aaa"`).
 
-Repetition amounts are [unsigned integer sets](#numbers) placed between curly braces (e.g. `{10}`, `{1~5}`, `{1 | 3| 6~12}`). Each value in the repetition set produces an [alternative](#alternative) expression with that repetition amount applied, contributing to a final bits expression set (for example, `"a"{1~3}` has a repetition [range](#ranges) from 1 to 3, and is therefore equivalent to `"a" | "aa" | "aaa"`).
+Repetition amounts are [unsigned integer sets](#numbers) placed between curly braces (e.g. `{10}`, `{1~5}`, `{1 | 3| 6~12}`). Each value in the repetition set produces an [alternative](#alternative) expression with that repetition amount applied, contributing to a final bits expression set (for example, `"a"{1~3}` has a repetition [range](#range) from 1 to 3, and is therefore equivalent to `"a" | "aa" | "aaa"`).
 
 There are also shorthand notations for common cases:
 
@@ -1355,8 +1355,8 @@ my_macro2(a, b) = [
 
 
 
-Ranges
-------
+Range
+-----
 
 A range builds a [set of numbers](#numbers) consisting of all reals in the range as a closed interval. Ranges can be defined in a number of ways:
 
@@ -1366,7 +1366,7 @@ A range builds a [set of numbers](#numbers) consisting of all reals in the range
 * A tilde by itself (`~`), indicating no bound (i.e. the range consists of the set of all reals).
 * A value with no tilde, restricting the "range" to only that one value.
 
-A [codepoint](#codepoint-literals) range represents a set where each unique codepoint value contained in the range represents a codepoint [alternative](#alternative).
+A [codepoint](#codepoint-literal) range represents a set where each unique codepoint value contained in the range represents a codepoint [alternative](#alternative).
 
 A [repetition](#repetition) range represents a set where each unique unsigned integer value contained in the range represents a number of occurrences that will be applied to a [bits](#bits) expression as an [alternative](#alternative).
 
@@ -1404,8 +1404,8 @@ rpm = uint(16, ~1000); # A uinteger cannot be < 0, so it's implied 0~1000
 
 
 
-Comments
---------
+Comment
+-------
 
 A comment begins with a hash character (`#`) and continues to the end of the current line. Comments are only valid after the [document header](#document-header) section.
 
