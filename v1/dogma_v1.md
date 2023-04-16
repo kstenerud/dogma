@@ -1040,7 +1040,7 @@ The following comparators are supported:
 * Greater than or equal to (`>=`)
 * Greater than (`>`)
 
-Comparisons can be made between two [`number`](#number) types (as well as invariants), or between two [`bitseq`](#bitseq) types (as well as `bits`, which will be compared once realized into `bitseq`).
+Comparisons can be made between two [`number`](#number) types (as well as invariants), or between two [`bitseq`](#bitseq) types (as well as `bits`, which will be compared once realized into `bitseq`). Numbers cannot be compared to bit sequences.
 
 ```dogma
 comparison = number & comparator & number
@@ -1049,10 +1049,7 @@ comparison = number & comparator & number
 comparator = "<" | "<=" | "=" | "!=" | ">=" | ">";
 ```
 
-**Notes**:
-
-* [`bitseq`](#bitseq) can only be compared when both operands contain the same number of bits. If operands of differing bit counts are compared, the grammar is malformed.
-* [`bitseq`](#bitseq) types are compared as if they were big endian encoded unsigned integers.
+**Note**: [`bitseq`](#bitseq) types are compared as if they were big endian encoded unsigned integers. If the bit counts differ, the shorter of the two is zero-extended before comparing.
 
 **Examples**:
 
