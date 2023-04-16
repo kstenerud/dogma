@@ -13,7 +13,7 @@ Dogma follows the familiar patterns of [Backus-Naur Form](https://en.wikipedia.o
 Specification
 -------------
 
-[The Dogma Specification v1](v1/dogma_v1.md)
+[The Dogma Specification v1](v1/dogma_v1.0.md)
 
 
 
