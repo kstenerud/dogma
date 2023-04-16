@@ -633,7 +633,7 @@ Types become relevant in certain contexts, particularly when calling [functions]
 
 Certain types realize into more basic types when matching a document. For example, the `bits` type `'a'~'z'{3}` allows any three lowercase English letters. Parsing a document containing "abc" will realize the `bitseq` type `"abc"` from the `bits` type `'a'~'z'{3}`. If you were to capture this into a [variable](#variables) such as `var(myvar,'a'~'z'{3})`, you'd end up with a variable called `myvar` of type `bitseq` containing `"abc"`.
 
-The more basic types can be passed to contexts requiring more complex types if their ultimate base types match. For example:
+Some of the more basic types can be promoted to complex types if their ultimate base types match. For example:
 
 * A lone `bitseq` is treated as a sequence of unit sets when passed to a `bits` context.
 * A lone `number` is treated as a unit set when passed to a `numbers` context.
