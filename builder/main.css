@@ -220,9 +220,10 @@ pre {
     margin-right: 2rem;
 }
 
-body {
-    background-color: #e5e5e5 !important;
+.u-body {
+    background-color: #e5e5e5;
 }
-header {
-    background-color: #ffffff !important;
+
+.u-header {
+    background-color: #ffffff;
 }
