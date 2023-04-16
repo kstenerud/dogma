@@ -97,48 +97,30 @@ ipv6: bits                      = """https://somewhere/ipv6.dogma""";
 Design Objectives
 -----------------
 
-Dogma is designed primarily for documentation purposes (although it is also parser friendly). Its design objectives are:
-
 ### Human readability
 
-First and foremost it must be human friendly since documentation is for explaining and describing. It must therefore be human-accessible, while also being concise and unambiguous. Comments are also important for guiding readers through the more complex portions of a format.
+Although Dogma is parser-friendly, its primary purpose is for documentation. It must therefore be easy for a human to read and write, and must favor recognizable patterns over special case notation (which is harder to remember).
 
-### Improved expressiveness
+Whitespace _never_ has any semantic meaning in Dogma. It serves purely for token separation and for grammar aesthetics.
 
-Binary formats tend to be structured in much more complicated ways than text formats in order to optimize for speed, throughput, and ease-of-processing. A metalanguage requires much more expressiveness in order to describe such data.
+### Expressiveness
 
-* **Repetition**: Any sequence of bits can have repetition applied to it, for a specific number of occurrences or a range of occurrences.
-* **Variables**: Some constructs (such as ["here" documents](https://en.wikipedia.org/wiki/Here_document) or length delimited fields) require access to values decoded elsewhere. Dogma supports assigning decoded values to variables.
-* **Exclusion**: Sometimes it's easier to express something as "this set, except for ...".
-* **Grouping**: For overriding the default operator precedence, or to make things more clear for a reader.
-* **Prose**: In many cases, the actual encoding of something is already well-known and specified elsewhere, or is too complex for Dogma to describe adequately. Prose offers a free-form way to describe part of a grammar.
-* **Whitespace not significant**: Whitespace _never_ has any implied meaning (e.g. many BNF-style grammars use whitespace to imply concatenation). Whitespace is only used to separate tokens, and for visual alignment.
+Binary formats tend to be structured in much more complex ways than text formats in order to optimize for speed, throughput, and ease-of-processing.
 
-### Binary grammar support
+Dogma can describe data down to the bit level, and includes a number of built-in functions to help with complex data matching tasks.
 
-Binary grammars have different needs from textual grammars, and require special support:
+Calculations aid with length and offset fields, and optional/variable-sized structures can be conditionally parsed. Parsing can also "branch" temporarily to another part of the document (useful for directory-payload style formats).
 
-* **Bit Arrays**: Binary formats tend to work at bit-level granularity, and thus require support for arbitrarily sized bit arrays.
-* **Variables, Macros & Functions**: Binary formats often represent data in complex ways that can't be parsed without passing some context around.
-* **Conditionals & Logic**: Binary formats often include or exclude portions based on encoded values elsewhere. Evaluating these requires the use of conditionals and logic operators.
-* **Calculations**: Many binary field sizes are determined by data stored elsewhere in the document, and often they require calculations of some sort to determine the final field size.
-* **Non-Linear Parsing**: Many binary formats contain offset pointers to other parts of the file, and thus cannot be parsed linearly.
-* **Functions**: Binary data often undergoes transformations that are too complex for normal BNF-style rules to express (for example [LEB128](https://en.wikipedia.org/wiki/LEB128)). Functions offer a way to escape from the metalanguage syntax.
+Variables and macros offer a limited but balanced way for passing (immutable) context around.
 
 ### Character set support
 
-Most metalanguages tend to support only ASCII, with Unicode (encoded as UTF-8) generally added as an afterthought. This restricts the usefulness of the metalanguage, as any other character sets (many of which are still in use) have no support at all.
+Dogma can be used with any character set. Most codepoints can be directly input, and troublesome codepoints can be represented through escape sequences.
 
-Dogma can be used with any [character set](https://www.iana.org/assignments/character-sets/character-sets.xhtml), and requires the character set to be specified as part of the grammar document header.
-
-### Codepoints as first-class citizens
-
-* Codepoints beyond the ASCII range must be directly inputtable into a grammar document.
-* Difficult codepoints must also be supported (via escape sequences).
-* [Unicode categories](https://unicode.org/glossary/#general_category) must be supported.
+Unicode characters can be selected by their [Unicode category](https://unicode.org/glossary/#general_category).
 
 ### Future proof
 
 No specification is perfect, nor can it stand the test of time. Eventually an incompatible change will become necessary in order to stay relevant.
 
-Every Dogma document records the Dogma specification version it was built against so that changes can be made to the specification without breaking existing tooling.
+Every Dogma document records the Dogma specification version it was built against so that changes can be made to the specification without breaking existing grammars and tooling.
