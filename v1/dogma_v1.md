@@ -1067,7 +1067,7 @@ comparator = "<" | "<=" | "=" | "!=" | ">=" | ">";
 
 ### Logic
 
-Dogma supports combining [Conditions](#condition) into more complex forms using [logical operators](https://en.wikipedia.org/wiki/Logical_connective).
+[Conditions](#condition) can be combined into more complex forms using logical operators.
 
 The following logical operations are supported (low to high relative precedence):
 
