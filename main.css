@@ -221,5 +221,8 @@ pre {
 }
 
 body {
-    background-color: #e5e5e5;
+    background-color: #e5e5e5 !important;
+}
+header {
+    background-color: #ffffff !important;
 }
