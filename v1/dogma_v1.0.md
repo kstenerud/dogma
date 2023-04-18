@@ -5,7 +5,7 @@ The Dogma Metalanguage
 
 _Describing how things should be_
 
-**Version**: 1.0
+**Version**: 1.0 (Apr 16, 2023)
 
 
 ---------------------------------------------------------------------------------------------------
