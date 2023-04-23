@@ -1,0 +1,109 @@
+dogma_v1 utf_8
+- identifier  = dns_query
+- description = Domain Name Service (Query)
+- reference   = https://www.rfc-editor.org/rfc/rfc1035.txt
+- dogma       = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.0.md
+
+query  = var(head,header)
+       & question{head.question_count}
+       ;
+
+header = u16(var(identifier,~))
+       & u1(0)
+       & u4(opcode)
+       & u1(0)
+       & u1(var(truncation,~))
+       & u1(var(recursion_desired,~))
+       & u8(0)
+       & u16(var(question_count,~))
+       ;
+
+question = qname
+         & u16(qtype)
+         & u16(qclass)
+         ;
+
+qname             = var(label,label) & [label.text.length != 0: qname;];
+label             = var(text,label_text) | label_offset;
+label_text        = u2(label_type_text)
+                  & u6(var(length,~))
+                  & var(contents, u8(~){length})
+                  ;
+label_offset      = u2(label_type_offset)
+                  & u14(var(offs,~))
+                  & offset(offs, label_text)
+                  ;
+label_type_text   = 0;
+label_type_offset = 3;
+
+opcode        = opcode_query
+              | opcode_iquery
+              | opcode_status
+              ;
+opcode_query  = 0;
+opcode_iquery = 1;
+opcode_status = 2;
+
+type        = type_a
+            | type_ns
+            | type_md
+            | type_mf
+            | type_came
+            | type_soa
+            | type_mb
+            | type_mg
+            | type_mr
+            | type_null
+            | type_wks
+            | type_ptr
+            | type_hinfo
+            | type_minfo
+            | type_text
+            ;
+qtype       = type
+            | qtype_axfr
+            | qtype_mailb
+            | qtype_maila
+            | qtype_star
+            ;
+type_a      = 1;
+type_ns     = 2;
+type_md     = 3;
+type_mf     = 4;
+type_came   = 5;
+type_soa    = 6;
+type_mb     = 7;
+type_mg     = 8;
+type_mr     = 9;
+type_null   = 10;
+type_wks    = 11;
+type_ptr    = 12;
+type_hinfo  = 13;
+type_minfo  = 14;
+type_text   = 15;
+qtype_axfr  = 252;
+qtype_mailb = 253;
+qtype_maila = 254;
+qtype_star  = 255;
+
+class       = class_in
+            | class_cs
+            | class_ch
+            | class_hs
+            ;
+qclass      = class
+            | qclass_star
+            ;
+class_in    = 1;
+class_cs    = 2;
+class_ch    = 3;
+class_hs    = 4;
+qclass_star = 255;
+
+u1(v)  = uint(1,v);
+u2(v)  = uint(2,v);
+u4(v)  = uint(4,v);
+u6(v)  = uint(6,v);
+u8(v)  = uint(8,v);
+u14(v) = uint(14,v);
+u16(v) = uint(16,v);
