@@ -1262,6 +1262,7 @@ A switch statement chooses one expression from a set of possibilities based on c
 * When no conditions match, the default expression (if any) is used.
 * When no conditions match and there is no default expression, then no action is taken.
 * If more than one condition can match at the same time, the grammar is ambiguous.
+* A switch branch is never taken when any of the condition variables it references are inaccessible.
 
 ```dogma
 switch         = '[' & switch_entry+ & switch_default? & ']';
@@ -1312,6 +1313,26 @@ print_length     = uint(16, 0~4096);
 format_generic   = uint(16,~) & generic_length;
 generic_length   = uint(16,~);
 ```
+
+**Example**: A [DNS](https://www.rfc-editor.org/rfc/rfc1035.txt) QNAME field is a series of labels (length byte + data), terminated by a label of length 0. However, a label can also be a reference to an already defined label located at `label_offset` relative to the beginning of the packet (the label type is determined by a 2-bit field -- 0 for text, 3 for offset).
+
+```dogma
+qname             = var(label,label) & [label.text.length != 0: qname;];
+label             = var(text,label_text) | label_offset;
+label_text        = u2(label_type_text)
+                  & u6(var(length,~))
+                  & var(contents, u8(~){length})
+                  ;
+label_offset      = u2(label_type_offset)
+                  & u14(var(offs,~))
+                  & offset(offs, label_text)
+                  ;
+label_type_text   = 0;
+label_type_offset = 3;
+```
+
+`label.text.length` is only accessible when processing `label_text`, not when processing `label_offset`. The switch branch `label.text.length != 0: qname;` can therefore only be taken when processing `label_text` in the document.
+
 -------------------------------------------------------------------------------
 
 
