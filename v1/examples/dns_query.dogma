@@ -18,12 +18,12 @@ header = u16(var(identifier,~))
        & u16(var(question_count,~))
        ;
 
-question = qname
+question = domain_name
          & u16(qtype)
          & u16(qclass)
          ;
 
-qname             = var(label,label) & [label.text.length != 0: qname;];
+domain_name       = var(label,label) & [label.text.length != 0: domain_name;];
 label             = var(text,label_text) | label_offset;
 label_text        = u2(label_type_text)
                   & u6(var(length,~))

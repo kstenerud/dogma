@@ -1,0 +1,174 @@
+dogma_v1 utf_8
+- identifier  = dns_response
+- description = Domain Name Service (Response)
+- reference   = https://www.rfc-editor.org/rfc/rfc1035.txt
+- dogma       = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.0.md
+
+response = var(head,header)
+         & [head.answer_count > 0:             resource_record{head.answer_count};]
+         & [head.name_server_count > 0:        resource_record{head.name_server_count};]
+         & [head.additional_records_count > 0: resource_record{head.additional_records_count};]
+         ;
+
+header = u16(var(identifier,~))
+       & u1(1)
+       & u4(opcode)
+       & u1(var(authoriative_answer,~))
+       & u1(var(truncation,~))
+       & u1(var(recursion_desired,~))
+       & u1(var(recursion_available,~))
+       & u3(0)
+       & u4(var(rcode,response_code))
+       & u16(0)
+       & u16(var(answer_count,~))
+       & u16(var(name_server_count,~))
+       & u16(var(additional_records_count,~))
+       ;
+
+resource_record = domain_name
+                & u16(type)
+                & u16(class)
+                & u32(var(time_to_live,~))
+                & u16(var(rdlength,~))
+                & sized(rdlength*8, resource_data(type,class))
+                ;
+
+resource_data(type,class) = [
+                              type = type_cname:                  rdata_cname;
+                              type = type_hinfo:                  rdata_hinfo;
+                              type = type_mb:                     rdata_mb;
+                              type = type_md:                     rdata_md;
+                              type = type_mf:                     rdata_mf;
+                              type = type_mg:                     rdata_mg;
+                              type = type_minfo:                  rdata_minfo;
+                              type = type_mr:                     rdata_mr;
+                              type = type_mx:                     rdata_mx;
+                              type = type_null:                   rdata_null;
+                              type = type_ns:                     rdata_ns;
+                              type = type_ptr:                    rdata_ptr;
+                              type = type_soa:                    rdata_soa;
+                              type = type_txt:                    rdata_txt;
+                              type = type_a   & class = class_in: rdata_a;
+                              type = type_wks & class = class_in: rdata_wks;
+                            ]
+                          ;
+
+rdata_cname = domain_name;
+rdata_hinfo = var(cpu,character_string) & var(os,character_string);
+rdata_mb    = domain_name;
+rdata_md    = domain_name;
+rdata_mf    = domain_name;
+rdata_mg    = domain_name;
+rdata_minfo = var(rmailbx,domain_name) & var(emailbx,domain_name);
+rdata_mr    = domain_name;
+rdata_mx    = u16(var(preference,~)) & var(exchange,domain_name);
+rdata_null  = u8(~)*;
+rdata_ns    = domain_name;
+rdata_ptr   = domain_name;
+rdata_soa   = var(mname,domain_name)
+            & var(rname,domain_name)
+            & u32(var(serial,~))
+            & u32(var(refresh,~))
+            & u32(var(retry,~))
+            & u32(var(expire,~))
+            & u32(var(minimum,~))
+            ;
+rdata_txt   = character_string*;
+
+# Internet-specific
+rdata_a     = u32(~);
+rdata_wks   = u32(var(address,~))
+            & u8(protocol)
+            & var(bitmap,u1(~)*)
+            ;
+
+protocol: uinteger = """https://datatracker.ietf.org/doc/html/rfc1010""";
+
+domain_name       = var(label,label) & [label.text.length != 0: domain_name;];
+label             = var(text,label_text) | label_offset;
+label_text        = u2(label_type_text)
+                  & u6(var(length,~))
+                  & var(contents, u8(~){length})
+                  ;
+label_offset      = u2(label_type_offset)
+                  & u14(var(offs,~))
+                  & offset(offs, label_text)
+                  ;
+label_type_text   = 0;
+label_type_offset = 3;
+
+character_string = u8(var(length,~)) & u8(~){length};
+
+opcode        = opcode_query
+              | opcode_iquery
+              | opcode_status
+              ;
+opcode_query  = 0;
+opcode_iquery = 1;
+opcode_status = 2;
+
+type        = type_a
+            | type_ns
+            | type_md
+            | type_mf
+            | type_came
+            | type_soa
+            | type_mb
+            | type_mg
+            | type_mr
+            | type_null
+            | type_wks
+            | type_ptr
+            | type_hinfo
+            | type_minfo
+            | type_text
+            ;
+type_a      = 1;
+type_ns     = 2;
+type_md     = 3;
+type_mf     = 4;
+type_came   = 5;
+type_soa    = 6;
+type_mb     = 7;
+type_mg     = 8;
+type_mr     = 9;
+type_null   = 10;
+type_wks    = 11;
+type_ptr    = 12;
+type_hinfo  = 13;
+type_minfo  = 14;
+type_text   = 15;
+
+class       = class_in
+            | class_cs
+            | class_ch
+            | class_hs
+            ;
+class_in    = 1;
+class_cs    = 2;
+class_ch    = 3;
+class_hs    = 4;
+
+response_code            = response_ok
+                         | response_format_error
+                         | response_server_failure
+                         | response_name_error
+                         | response_not_implemented
+                         | response_refused
+                         ;
+response_ok              = 0;
+response_format_error    = 1;
+response_server_failure  = 2;
+response_name_error      = 3;
+response_not_implemented = 4;
+response_refused         = 5;
+
+u1(v)  = uint(1,v);
+u2(v)  = uint(2,v);
+u3(v)  = uint(3,v);
+u4(v)  = uint(4,v);
+u6(v)  = uint(6,v);
+u8(v)  = uint(8,v);
+u14(v) = uint(14,v);
+u16(v) = uint(16,v);
+u32(v) = uint(32,v);
