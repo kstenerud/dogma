@@ -5,9 +5,9 @@ dogma_v1 utf_8
 - dogma       = https://github.com/kstenerud/dogma/blob/master/v1/dogma_v1.0.md
 
 response = var(head,header)
-         & [head.answer_count > 0:             resource_record{head.answer_count};]
-         & [head.name_server_count > 0:        resource_record{head.name_server_count};]
-         & [head.additional_records_count > 0: resource_record{head.additional_records_count};]
+         & resource_record{head.answer_count}
+         & resource_record{head.name_server_count}
+         & resource_record{head.additional_records_count}
          ;
 
 header = u16(var(identifier,~))
